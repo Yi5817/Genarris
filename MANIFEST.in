@@ -1,0 +1,31 @@
+# Include documentation and license files
+include README.md
+include LICENSE
+include *.yml
+include *.toml
+
+# Include requirements file
+include requirements.txt
+
+# Include data
+recursive-include gnrs *.json
+
+# Include C
+recursive-include gnrs/generation/cgenarris/src *.c
+recursive-include gnrs/generation/cgenarris/src *.h
+recursive-include gnrs/generation/cgenarris/src *.i
+recursive-include gnrs/generation/cgenarris/doc *
+recursive-include gnrs/generation/cgenarris *.txt
+recursive-include gnrs/generation/cgenarris *.md
+recursive-include gnrs/generation/cgenarris CMakeLists.txt
+
+# Exclude build artifacts and cache files
+global-exclude *.pyc
+global-exclude *.pyo
+global-exclude *.so
+global-exclude *.dylib
+global-exclude *.dll
+global-exclude __pycache__
+global-exclude .git*
+global-exclude .DS_Store
+global-exclude *.egg-info/* 

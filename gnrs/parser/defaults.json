@@ -1,0 +1,44 @@
+{
+    "master": {
+	"name": "required",
+	"molecule_path": "required",
+	"z": "required",
+	"log_level": "info"
+    },
+    "generation": {
+     "generation_type": "crystal",
+     "spg_distribution_type": "standard",
+     "stoichiometry": [1],
+     "num_structures_per_spg": "required",
+     "ucv_mean": "predict",
+     "ucv_std": 0.05,
+     "ucv_mult": 1.5,
+     "sr": 0.95,
+     "max_attempts_per_spg": 10000000,
+     "max_attempts_per_volume": 10000,
+     "tol": 0.1,
+     "lattice_norm_dev": 0.4,
+     "lattice_angle_std": 8, 
+	"natural_cutoff_mult": 1.1
+    },
+    "rigid_press":{
+	"natural_cutoff_mult": 1.1,
+	"sr": 0.95,
+	"maxiter": 400,
+	"debug_flag": false
+    },
+    "symm_rigid_press":{
+	"method": "BFGS",
+	"sr": 0.85,
+	"int_scale": 0.1,
+	"natural_cutoff_mult": 1.1,
+	"tol": 1e-4,
+	"vol_tol": 10,
+	"maxiter": 5000,
+	"debug_flag": false
+    },
+    "maceoff":{
+	"model_size": "large",
+	"save_flag": true
+    }
+}
