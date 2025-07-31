@@ -159,6 +159,16 @@ If you use Genarris, please cite our papers:
   publisher={Elsevier}
 }
 
+@article{genarrisv1,
+  title={Genarris: Random generation of molecular crystal structures and fast screening with a Harris approximation},
+  author={Li, Xiayue and Curtis, Farren S and Rose, Timothy and Schober, Christoph and Vazquez-Mayagoitia, Alvaro and Reuter, Karsten and Oberhofer, Harald and Marom, Noa},
+  journal={The Journal of Chemical Physics},
+  volume={148},
+  number={24},
+  year={2018},
+  publisher={AIP Publishing}
+}
+
 @article{pymove,
   title={Machine learned model for solid form volume estimation based on packing-accessible surface and molecular topological fragments},
   author={Bier, Imanuel and Marom, Noa},
