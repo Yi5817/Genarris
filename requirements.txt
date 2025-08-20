@@ -13,6 +13,7 @@ mpi4py==3.1.5
 
 torch>=1.12
 mace-torch
+fairchem-core
 dscribe
 
 build
