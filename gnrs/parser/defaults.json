@@ -40,9 +40,5 @@
     "maceoff":{
 	"model_size": "large",
 	"save_flag": true
-    },
-    "uma":{
-    "model_name": "uma-s-1p1",
-    "task_name": "omc"
     }
 }
