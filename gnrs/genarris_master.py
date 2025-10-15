@@ -205,6 +205,10 @@ class Genarris:
             self.comm, self.config, self.gnrs_info, "maceoff"
         ).run()
 
+        self.executors["uma"] = lambda: EnergyCalculationTask(
+            self.comm, self.config, self.gnrs_info, "uma"
+        ).run()
+
         self.executors["aims"] = lambda: EnergyCalculationTask(
             self.comm, self.config, self.gnrs_info, "aims"
         ).run()
@@ -222,9 +226,17 @@ class Genarris:
             self.comm, self.config, self.gnrs_info, "bfgs", "maceoff"
         ).run()
 
+        self.executors["bfgs_uma"] = lambda: GeometryOptimizationTask(
+            self.comm, self.config, self.gnrs_info, "bfgs", "uma"
+        ).run()
+
         # Register lbfgs tasks
         self.executors["lbfgs_mace"] = lambda: GeometryOptimizationTask(
             self.comm, self.config, self.gnrs_info, "lbfgs", "maceoff"
+        ).run()
+
+        self.executors["lbfgs_uma"] = lambda: GeometryOptimizationTask(
+            self.comm, self.config, self.gnrs_info, "lbfgs", "uma"
         ).run()
 
     def _run_tasks(self, tasks: list) -> None:

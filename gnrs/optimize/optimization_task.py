@@ -23,7 +23,7 @@ from gnrs.parallel.structs import DistributedStructs
 from gnrs.gnrsutil.molecule_bonding import get_vdw_distance_cutoff_matrix
 
 AVAILABLE_METHODS = ["LBFGS", "BFGS", "RIGID_PRESS", "SYMM_RIGID_PRESS"]
-AVAILABLE_ENERGY_METHODS = ["DFTBP", "AIMS", "MACEOFF", "VASP"]
+AVAILABLE_ENERGY_METHODS = ["DFTBP", "AIMS", "MACEOFF", "UMA", "VASP"]
 logger = logging.getLogger("GeoOptTask")
 
 

@@ -61,6 +61,7 @@ MPICC=$(which mpicc) pip install mpi4py==3.1.5
 > **Note**: Users are welcome to implement additional calculators under `gnrs/energy/`
 
 - **[MACE-OFF](https://github.com/ACEsuit/mace)** - Machine learning interatomic potential
+- **[UMA](https://github.com/facebookresearch/fairchem)** - Machine learning interatomic potential
 - **[FHI-aims](https://fhi-aims.org/)** - All-electron DFT code ([ASE docs](https://wiki.fysik.dtu.dk/ase/ase/calculators/FHI-aims.html))
 - **[VASP](https://www.vasp.at/)** - Plane-wave DFT package ([ASE docs](https://wiki.fysik.dtu.dk/ase/ase/calculators/vasp.html))
 - **[DFTB+](https://dftbplus.org/)** - Density functional tight binding ([ASE docs](https://wiki.fysik.dtu.dk/ase/ase/calculators/dftb.html))

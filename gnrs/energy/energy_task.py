@@ -21,7 +21,7 @@ from gnrs.core.task import TaskABC
 from gnrs.parallel.structs import DistributedStructs
 import gnrs.output as gout
 
-AVAILABLE_CALCULATORS = ["DFTBP", "AIMS", "MACEOFF", "VASP"]
+AVAILABLE_CALCULATORS = ["DFTBP", "AIMS", "MACEOFF", "UMA", "VASP"]
 logger = logging.getLogger("EnergyCalcTask")
 
 class EnergyCalculationTask(TaskABC):
