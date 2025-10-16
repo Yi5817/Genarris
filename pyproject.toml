@@ -4,7 +4,8 @@ requires = [
     "wheel",
     "swig",
     "Cython",
-    "numpy>=2.0,<2.3"
+    "numpy>=2.0,<2.3",
+    "mpi4py==3.1.5"
 ]
 build-backend = "setuptools.build_meta"
 
@@ -26,7 +27,6 @@ requires-python = ">=3.9,<3.12"
 dependencies = [
     "torch~=2.8.0",
     "numpy>=2.0,<2.3",
-    "swig",
     "numba>=0.60",
     "mpi4py==3.1.5",
     "ase",
@@ -46,7 +46,7 @@ uma = ["fairchem-core"]
 mace = ["mace-torch"]
 
 [project.scripts]
-gnrs = "gnrs.genarris_master:main"
+gnrs = "gnrs.cli:main"
 
 [project.urls]
 repository = "https://github.com/Yi5817/Genarris.git"
