@@ -40,7 +40,8 @@ Install `mpi4py` with the MPI compiler:
 MPICC=$(which mpicc) pip install mpi4py==3.1.5
 ```
 
-> **Note**: On high-performance computing machine, C MPI compiler may differ. Please refer to the [mpi4py documentation](https://mpi4py.readthedocs.io/en/stable/install.html) or contact the system administrator.
+> [!NOTE]
+> On high-performance computing machine, C MPI compiler may differ. Please refer to the [mpi4py documentation](https://mpi4py.readthedocs.io/en/stable/install.html) or contact the system administrator.
 
 ### Install `gnrs` using pip
 
@@ -48,30 +49,25 @@ MPICC=$(which mpicc) pip install mpi4py==3.1.5
    pip install -e .
    ```
 
-   > **Note**: `mpicc` is used to build the C extensions. To use a specific MPI compiler, modify the `mpi_compiler` variable in the [setup.py](./setup.py) file.
+   > [!NOTE]
+   > `mpicc` is used to build the C extensions. To use a specific MPI compiler, modify the `mpi_compiler` variable in the [setup.py](./setup.py) file.
 
 ### Optional Energy Calculators
 
-- Machine learning interatomic potentials
+Genarris supports various energy calculators through the [ASE Calculator](https://ase-lib.org/). These enable energy evaluation and geometry relaxation with machine learning potentials (MLIPs), force field/semi-empirical methods, and DFT packages.
 
-  - **[UMA](https://github.com/facebookresearch/fairchem)**
-    ```bash
-    pip install -e .[uma]
-    ```
-    > :warning: To access gated UMA models, you need to get a HuggingFace account and request access to the [UMA model repository](https://huggingface.co/facebook/UMA).
+> [!TIP]
+> You can implement additional calculators under [`gnrs/energy/`](./gnrs/energy/).
 
-  - **[MACE-OFF](https://github.com/ACEsuit/mace)**
-    ```bash
-    pip install -e .[mace]
-    ```
-- Force Field / Semi-Empirical Methods
-  - **[DFTB+](https://dftbplus.org/)** - Density functional tight binding ([ASE interface docs](https://wiki.fysik.dtu.dk/ase/ase/calculators/dftb.html))
+| Calculator | Type | Install | 
+|------------|------|---------|
+| [UMA](https://github.com/facebookresearch/fairchem) | MLIP | `pip install -e .[uma]` |
+| [MACE-OFF](https://github.com/ACEsuit/mace) | MLIP | `pip install -e .[mace]` |
+| [DFTB+](https://dftbplus.org/) | Semi-Empirical | — |
+| [FHI-aims](https://fhi-aims.org/) | DFT | — |
+| [VASP](https://www.vasp.at/) | DFT | — |
 
-- Density Functional Theory (DFT)
-  - **[FHI-aims](https://fhi-aims.org/)** - All-electron DFT code ([ASE interface docs](https://wiki.fysik.dtu.dk/ase/ase/calculators/FHI-aims.html))
-  - **[VASP](https://www.vasp.at/)** - Plane-wave DFT package ([ASE interface docs](https://wiki.fysik.dtu.dk/ase/ase/calculators/vasp.html))
-
-> **Note**: Users are welcome to implement additional calculators via the [ASE Calculator](https://ase-lib.org/) under [`gnrs/energy/`](./gnrs/energy/)
+> :warning: To access gated UMA models, you need to get a HuggingFace account and request access to the [UMA model repository](https://huggingface.co/facebook/UMA).
 
 ## Quick Start
 
