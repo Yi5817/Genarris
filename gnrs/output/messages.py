@@ -23,7 +23,7 @@ from mpi4py import MPI
 from gnrs.output.templates import ascii_art, citation_v2, citation_v3, pymove
 
 width = 100
-logger = logging.getLogger("output")
+logger = logging.getLogger("genarris")
 wrapper = textwrap.TextWrapper(
     width=width, subsequent_indent=4 * " ", break_long_words=True
 )

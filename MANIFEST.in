@@ -1,25 +1,17 @@
 # Include documentation and license files
 include README.md
 include LICENSE
-include *.yml
-include *.toml
-
-# Include requirements file
-include requirements.txt
+include pyproject.toml
 
 # Include data
 recursive-include gnrs *.json
 
 # Include C
-recursive-include gnrs/generation/cgenarris/src *.c
-recursive-include gnrs/generation/cgenarris/src *.h
-recursive-include gnrs/generation/cgenarris/src *.i
+recursive-include gnrs/generation/cgenarris/src *.c *.h *.i
 recursive-include gnrs/generation/cgenarris/doc *
-recursive-include gnrs/generation/cgenarris *.txt
-recursive-include gnrs/generation/cgenarris *.md
-recursive-include gnrs/generation/cgenarris CMakeLists.txt
+recursive-include gnrs/generation/cgenarris *.txt *.md CMakeLists.txt
 
-# Exclude build artifacts and cache files
+prune cases
 global-exclude *.pyc
 global-exclude *.pyo
 global-exclude *.so

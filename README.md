@@ -6,37 +6,31 @@
 
 <p align="center">
   <a href="https://github.com/Yi5817/Genarris/releases"><img src="https://img.shields.io/badge/version-3.0.0-green" alt="Version 3.0.0"></a>
-  <a href="https://www.python.org/downloads/"><img src="https://img.shields.io/badge/python-3.8%2B-blue" alt="Python 3.8+"></a>
+  <a href="https://www.python.org/downloads/"><img src="https://img.shields.io/badge/python-3.9%2B-blue" alt="Python 3.8+"></a>
   <a href="https://github.com/Yi5817/Genarris/actions/workflows/lint.yml"><img src="https://github.com/Yi5817/Genarris/actions/workflows/lint.yml/badge.svg" alt="Code Style"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-BSD--3--Clause-blue" alt="License"></a>
+  <a href="https://doi.org/10.26434/chemrxiv-2025-046zn"><img src="https://img.shields.io/badge/DOI-10.26434%2Fchemrxiv--2025--046zn-blue" alt="DOI"></a>
 </p>
 
 
-Genarris `gnrs` is a random molecular crystal structure generator.
+Genarris `gnrs` is a random molecular crystal structure generator and a computational workflow for molecular crystal structure prediction (CSP).
 
 ## Installation
 
-### Prerequisites
+Clone the repository:
 
-- **Python 3.8+**
-- **C Compiler with MPI support**
-  
-### Environment Setup
+  ```bash
+  git clone https://github.com/Yi5817/Genarris.git
+  cd Genarris
+  git submodule update --init --recursive
+  ```
 
-1. **Clone the repository**:
+Create and activate the virtual enviornment using your favorite venv tool:
 
-   ```bash
-   git clone https://github.com/Yi5817/Genarris.git
-   cd Genarris
-   git submodule update --init --recursive
-   ```
-
-2. **Create and activate the conda environment**:
-
-   ```bash
-   conda create -n gnrs_env python=3.11
-   conda activate gnrs_env
-   ```
+```bash
+virtualenv -p python3.11 gnrs_env
+source gnrs_env/bin/activate
+```
 
 ### Install MPI Support
 
@@ -46,33 +40,42 @@ Install `mpi4py` with the MPI compiler:
 MPICC=$(which mpicc) pip install mpi4py==3.1.5
 ```
 
-> **Note**: On high-performance computing machine, C MPI compiler may differ. Please refer to the [mpi4py documentation](https://mpi4py.readthedocs.io/en/stable/install.html) or contact the system administrator.
+> [!NOTE]
+> On high-performance computing machine, C MPI compiler may differ. Please refer to the [mpi4py documentation](https://mpi4py.readthedocs.io/en/stable/install.html) or contact the system administrator.
 
-### Install `gnrs`
+### Install `gnrs` using pip
 
    ```bash
-   pip install .
+   pip install -e .
    ```
 
-   > **Note**: `mpicc` is used to build the C extensions. To use a specific MPI compiler, modify the `mpi_compiler` variable in the [setup.py](./setup.py) file.
+   > [!NOTE]
+   > `mpicc` is used to build the C extensions. To use a specific MPI compiler, modify the `mpi_compiler` variable in the [setup.py](./setup.py) file.
 
 ### Optional Energy Calculators
 
-> **Note**: Users are welcome to implement additional calculators under `gnrs/energy/`
+Genarris supports various energy calculators through the [ASE Calculator](https://ase-lib.org/). These enable energy evaluation and geometry relaxation with machine learning interatomic potentials (MLIPs), force field/semi-empirical methods, and DFT packages.
 
-- **[MACE-OFF](https://github.com/ACEsuit/mace)** - Machine learning interatomic potential
-- **[UMA](https://github.com/facebookresearch/fairchem)** - Machine learning interatomic potential
-- **[FHI-aims](https://fhi-aims.org/)** - All-electron DFT code ([ASE docs](https://wiki.fysik.dtu.dk/ase/ase/calculators/FHI-aims.html))
-- **[VASP](https://www.vasp.at/)** - Plane-wave DFT package ([ASE docs](https://wiki.fysik.dtu.dk/ase/ase/calculators/vasp.html))
-- **[DFTB+](https://dftbplus.org/)** - Density functional tight binding ([ASE docs](https://wiki.fysik.dtu.dk/ase/ase/calculators/dftb.html))
+> [!TIP]
+> You can implement additional calculators under [`gnrs/energy/`](./gnrs/energy/).
 
-## Usage
+| Calculator | Type | Install | 
+|------------|------|---------|
+| [UMA](https://github.com/facebookresearch/fairchem) | MLIP | `pip install -e .[uma]` |
+| [MACE-OFF](https://github.com/ACEsuit/mace) | MLIP | `pip install -e .[mace]` |
+| [DFTB+](https://dftbplus.org/) | Semi-Empirical | — |
+| [FHI-aims](https://fhi-aims.org/) | DFT | — |
+| [VASP](https://www.vasp.at/) | DFT | — |
+
+> :warning: To access gated UMA models, you need to get a HuggingFace account and request access to the [UMA model repository](https://huggingface.co/facebook/UMA).
+
+## Quick Start
 
 Genarris uses a [configuration file](https://docs.python.org/3/library/configparser.html) to control crystal structure generation and selection.
 
 ### Basic Workflow
 
-1. **Create a configuration file**
+1. **Create a configuration file** `ui.conf`
    
    Here's an example with key parameters for `generation` and `symm_rigid_press` steps:
 
@@ -110,7 +113,7 @@ Genarris uses a [configuration file](https://docs.python.org/3/library/configpar
    [experimental_structure]
    path = ""
    ```
-2. **Prepare your input molecule geometry file** (any format supported by `ase.io.read()`)
+2. **Prepare your input molecule geometry file** (any format supported by [`ase.io.read()`](https://ase-lib.org/ase/io/io.html#ase.io.read))
 3. **Run Genarris with MPI parallelization**:
 
    ```bash
@@ -122,32 +125,24 @@ Genarris uses a [configuration file](https://docs.python.org/3/library/configpar
    mpirun -np 8 gnrs --config ui.conf
    ```
 
-### Case Studies
+## Case Studies
 
 The [cases](./cases) directory contains crystal structure prediction (CSP) results for 6 organic molecules studied in the [Genarris 3.0 paper](https://doi.org/10.26434/chemrxiv-2025-046zn). Each case includes:
+- **Experimental structures**: From [the Cambridge Structural Database (CSD)](https://www.ccdc.cam.ac.uk/solutions/about-the-csd/)
 - **Generated structures**: CIF files of crystal structures generated by Genarris and relaxed using MACE-OFF23 and PBE+MBD methods
-- **Experimental structures**: From CSD
-- **Analysis data**: Relative lattice energies from MACE-OFF23 and PBE+MBD methods
-
-For detailed results and analysis, see the individual case directories:
-- [Aspirin](./cases/aspirin)
-- [ε-CL-20](./cases/CL-20)
-- [2,4-DNI](./cases/DNI)
-- [δ-HMX](./cases/HMX)
-- [Target I](./cases/Target-I)
-- [Target XXII](./cases/Target_XXII)
+- **Analysis data**: Total energies from MACE-OFF23 and PBE+MBD methods
   
 ## Citation
 
 If you use Genarris, please cite our papers:
 ```bibtex
 @article{genarrisv3,
-    author = {Yang, Yi and Tom, Rithwik and Wui, Jose AGL and Moussa, Jonathan E and Marom, Noa},
-    title = {Genarris 3.0: Generating Close-Packed Molecular Crystal Structures with Rigid Press},
-    journal = {ChemRxiv},
-    year = {2025},
-    url = {https://doi.org/10.26434/chemrxiv-2025-046zn},
-    doi = {10.26434/chemrxiv-2025-046zn}
+  author = {Yang, Yi and Tom, Rithwik and Wui, Jose AGL and Moussa, Jonathan E and Marom, Noa},
+  title = {Genarris 3.0: Generating Close-Packed Molecular Crystal Structures with Rigid Press},
+  journal = {ChemRxiv},
+  year = {2025},
+  url = {https://doi.org/10.26434/chemrxiv-2025-046zn},
+  doi = {10.26434/chemrxiv-2025-046zn}
 }
 
 @article{genarrisv2,

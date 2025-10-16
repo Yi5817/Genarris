@@ -1,50 +1,14 @@
 import os
 import sys
 import importlib
-from subprocess import run, PIPE
-import sysconfig
-from setuptools import find_packages, setup, Extension
+from setuptools import setup, Extension
 
+if sys.version_info < (3, 9):
+    raise SystemExit("Genarris requires Python >= 3.9")
+    
 # Set location of MPI C compiler (mpicc) here:
-# To detect automatically from environment, leave it as None
-MPI_C_COMPILER = None
-
-
-def test_py_version():
-    py_min_version = (3, 8)
-    if sys.version_info < py_min_version:
-        raise SystemExit(
-            f"Genarris installation requires Python {'.'.join(map(str, py_min_version))} or higher."
-        )
-
-
-def set_mpicc():
-    global MPI_C_COMPILER
-    out = run(["which", "mpicc"], stdout=PIPE)
-    if out.returncode != 0 and MPI_C_COMPILER is None:
-        raise SystemExit(
-            "Unable to detect MPI C compiler (mpicc). Please ensure MPI is installed."
-        )
-    else:
-        # Use detected MPI compiler if none was specified
-        if MPI_C_COMPILER is None:
-            MPI_C_COMPILER = out.stdout.decode("ascii").strip()
-
-        print(f"Using MPI C compiler: {MPI_C_COMPILER}")
-        print(
-            "NOTE: It is recommended that all MPI packages "
-            "are installed using the same compiler."
-        )
-
-        # Configure compiler variables
-        ccvars = sysconfig.get_config_vars()
-        for key in ["CC", "LDSHARED"]:
-            if key in ccvars:
-                value = ccvars[key].split()
-                value[0] = MPI_C_COMPILER
-                ccvars[key] = " ".join(value)
-                print(f"Using {key} flags: {ccvars[key]}")
-
+MPICC = os.environ.get("MPICC", "mpicc")
+os.environ.setdefault("CC", MPICC)
 
 # Cgenarris Extension (aka pygenarris)
 def get_pygenarris_sources():
@@ -176,8 +140,6 @@ def get_rigid_press_sources():
 
     return sources, include_rpress
 
-test_py_version()
-set_mpicc()
 sources_pygenarris, include_pygenarris = get_pygenarris_sources()
 pygenarris_mpi = Extension(
     "gnrs.cgenarris.src._pygenarris_mpi",

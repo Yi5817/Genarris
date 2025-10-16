@@ -1,5 +1,5 @@
 """
-This module provides the main running script for Genarris.
+This module provides the workflow orchestration for Genarris.
 
 This source code is licensed under the BSD-3-Clause license found in the
 LICENSE file in the root directory of this source tree.
@@ -27,8 +27,7 @@ from gnrs.restart import restart_init, is_task_completed, load_restart, write_re
 from gnrs.gnrsutil.core import check_if_exp_found
 
 import argparse
-import warnings
-warnings.filterwarnings("ignore", category=RuntimeWarning)
+
 
 class Genarris:
     """Defines the flow of control in Genarris for crystal structure generation and optimization."""
@@ -72,7 +71,7 @@ class Genarris:
         Initialize logger with MPI communicator.
         """
         self.Genlogger = GenarrisLogger(self.comm)
-        self.logger = logging.getLogger("master")
+        self.logger = logging.getLogger("genarris")
 
     def _mpi_init(self) -> None:
         """
@@ -264,34 +263,3 @@ class Genarris:
             else:
                 self.logger.info(f"{task} task was completed before restart")
                 gout.skip_task(task)
-
-def main():
-    """
-    Run the main Genarris program.
-    """
-    parser = argparse.ArgumentParser(description="Genarris3.0")
-    parser.add_argument("--config", required=True, type=str, help="Path to the configuration file")
-    parser.add_argument("--restart", action="store_true", help="Restart Genarris with previous config file")
-    args = parser.parse_args()
-
-    comm = MPI.COMM_WORLD
-    logger = logging.getLogger("main")
-    try:
-        # Initialize and run Genarris
-        gnrs = Genarris(args)
-        gnrs.run()
-        gout.emit("All tasks completed successfully.\nHave a nice day! :-)")
-    except KeyboardInterrupt:
-        logger.warning("Genarris interrupted by user")
-        gout.emit("\n***Genarris was interrupted by user***")
-        comm.Abort(130)
-    except Exception:
-        logger.exception("Genarris exiting due to error")
-        gout.emit("\n***Genarris has abruptly exited. Please see the log for Traceback***")
-        comm.Abort(1)
-    finally:
-        comm.Barrier()
-        MPI.Finalize()
-
-if __name__ == "__main__":
-    main()
