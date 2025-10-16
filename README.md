@@ -54,7 +54,7 @@ MPICC=$(which mpicc) pip install mpi4py==3.1.5
 
 ### Optional Energy Calculators
 
-Genarris supports various energy calculators through the [ASE Calculator](https://ase-lib.org/). These enable energy evaluation and geometry relaxation with machine learning potentials (MLIPs), force field/semi-empirical methods, and DFT packages.
+Genarris supports various energy calculators through the [ASE Calculator](https://ase-lib.org/). These enable energy evaluation and geometry relaxation with machine learning interatomic potentials (MLIPs), force field/semi-empirical methods, and DFT packages.
 
 > [!TIP]
 > You can implement additional calculators under [`gnrs/energy/`](./gnrs/energy/).
