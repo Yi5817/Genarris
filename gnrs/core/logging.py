@@ -34,7 +34,7 @@ class GenarrisLogger:
         self.size = comm.Get_size()
         self.parallel_log = parallel_log
         self._configure()
-        self.logger = logging.getLogger("logging")
+        self.logger = logging.getLogger("genarris")
         self._welcome()
         return
 
