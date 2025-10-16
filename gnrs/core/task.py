@@ -86,7 +86,7 @@ class TaskABC(abc.ABC):
         gout.print_title(title)
 
         self.start_time = time.time()
-        self.debug_mode = self.config["master"]["debug"]
+        self.debug_mode = self.config["master"].get("debug_mode", False)
         self.struct_dir = os.path.join(self.gnrs_info["struct_dir"], task_name)
         self.struct_path = os.path.join(self.struct_dir, "structures.json")
         self.calc_dir = os.path.join(self.gnrs_info["tmp_dir"], task_name)
