@@ -42,8 +42,8 @@ dependencies = [
 ]
 
 [project.optional-dependencies]  # add optional dependencies, e.g. to be installed as pip install .[uma]
-uma = ["fairchem-core"]
-mace = ["mace-torch"]
+uma = ["pandas<=2.3", "fairchem-core"]
+mace = ["pandas<=2.3", "mace-torch"]
 
 [project.scripts]
 gnrs = "gnrs.cli:main"
