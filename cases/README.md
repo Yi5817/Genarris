@@ -1,6 +1,6 @@
 # Case Studies
 
-Here are case studies of various molecular crystals in [Genarris 3.0](https://doi.org/10.26434/chemrxiv-2025-046zn) paper.
+Here are case studies of various molecular crystals in [Genarris 3.0](https://doi.org/10.1021/acs.jctc.5c01080) paper.
 
 
 | Case | CSD Ref Code | Formula | Z | Z' | Polymorph | Predicted Exp. |
