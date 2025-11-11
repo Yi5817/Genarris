@@ -17,7 +17,7 @@ Computer Physics Communications, 2020, 250, p.107170.
 citation_v3 = """
 Yang, Y., Tom, R., Wui, J.A.G.L., Moussa, J.E., and Marom, N.
 Genarris 3.0: Generating Close-Packed Molecular Crystal Structures with Rigid Press. 
-ChemRxiv, 2025, doi:10.26434/chemrxiv-2025-046zn
+Journal of Chemical Theory and Computation, 2025, 2025, 21, 21, 11318-11332.
 """
 
 pymove = """
