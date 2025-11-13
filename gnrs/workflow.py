@@ -200,12 +200,17 @@ class Genarris:
             self.comm, self.config, self.gnrs_info, "ap", "window"
         ).run()
 
+        # Register enegy tasks
         self.executors["maceoff"] = lambda: EnergyCalculationTask(
             self.comm, self.config, self.gnrs_info, "maceoff"
         ).run()
 
         self.executors["uma"] = lambda: EnergyCalculationTask(
             self.comm, self.config, self.gnrs_info, "uma"
+        ).run()
+
+        self.executors["aimnet"] = lambda: EnergyCalculationTask(
+            self.comm, self.config, self.gnrs_info, "aimnet"
         ).run()
 
         self.executors["aims"] = lambda: EnergyCalculationTask(
@@ -229,6 +234,18 @@ class Genarris:
             self.comm, self.config, self.gnrs_info, "bfgs", "uma"
         ).run()
 
+        self.executors["bfgs_aimnet"] = lambda: GeometryOptimizationTask(
+            self.comm, self.config, self.gnrs_info, "bfgs", "aimnet"
+        ).run()
+
+        self.executors["bfgs_aims"] = lambda: GeometryOptimizationTask(
+            self.comm, self.config, self.gnrs_info, "bfgs", "aims"
+        ).run()
+
+        self.executors["bfgs_vasp"] = lambda: GeometryOptimizationTask(
+            self.comm, self.config, self.gnrs_info, "bfgs", "vasp"
+        ).run()
+
         # Register lbfgs tasks
         self.executors["lbfgs_mace"] = lambda: GeometryOptimizationTask(
             self.comm, self.config, self.gnrs_info, "lbfgs", "maceoff"
@@ -236,6 +253,10 @@ class Genarris:
 
         self.executors["lbfgs_uma"] = lambda: GeometryOptimizationTask(
             self.comm, self.config, self.gnrs_info, "lbfgs", "uma"
+        ).run()
+
+        self.executors["lbfgs_aimnet"] = lambda: GeometryOptimizationTask(
+            self.comm, self.config, self.gnrs_info, "lbfgs", "aimnet"
         ).run()
 
     def _run_tasks(self, tasks: list) -> None:
