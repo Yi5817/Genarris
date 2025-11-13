@@ -63,6 +63,7 @@ Genarris supports various energy calculators through the [ASE Calculator](https:
 |------------|------|---------|
 | [UMA](https://github.com/facebookresearch/fairchem) | MLIP | `pip install -e .[uma]` |
 | [MACE-OFF](https://github.com/ACEsuit/mace) | MLIP | `pip install -e .[mace]` |
+| [AIMNet2](https://github.com/isayevlab/aimnetcentral) | MLIP | `pip install git+https://github.com/isayevlab/aimnetcentral.git` |
 | [DFTB+](https://dftbplus.org/) | Semi-Empirical | — |
 | [FHI-aims](https://fhi-aims.org/) | DFT | — |
 | [VASP](https://www.vasp.at/) | DFT | — |
