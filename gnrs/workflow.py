@@ -19,6 +19,7 @@ from mpi4py import MPI
 
 from gnrs.core import folders
 from gnrs.core.logging import GenarrisLogger
+from gnrs.core.registry import resolve_task
 import gnrs.output as gout
 from gnrs.parallel import init_parallel
 from gnrs.parser import UserSettingsParser, UserSettingsSanityChecker
@@ -40,7 +41,6 @@ class Genarris:
         self.config = {}
         self.gnrs_info = {}
         self.restart = args.restart
-        self.executors = {}
 
         self._mpi_init()
         self._log_init()
@@ -53,8 +53,7 @@ class Genarris:
             self._folders_init()
         else:
             self.attempt_restart()
-        
-        self._register_tasks()
+
         self.comm.barrier()
         self.logger.info("Genarris initialized successfully")
 
@@ -162,103 +161,6 @@ class Genarris:
             folders.setup_main_folders(self.gnrs_info)
             folders.copy_molecule(self.config, self.gnrs_info)
 
-    def _register_tasks(self) -> None:
-        """
-        Register all available job types that can be executed
-        """
-        from gnrs.generation import StructureGenerationTask
-        from gnrs.optimize import GeometryOptimizationTask
-        from gnrs.descriptor import DescriptorEvaluationTask
-        from gnrs.cluster import ClusterSelectionTask
-        from gnrs.energy import EnergyCalculationTask
-
-        # Register generation task
-        self.executors["generation"] = lambda: StructureGenerationTask(
-            self.comm, self.config, self.gnrs_info
-        ).run()
-
-        # Register optimization tasks
-        self.executors["symm_rigid_press"] = lambda: GeometryOptimizationTask(
-            self.comm, self.config, self.gnrs_info, "symm_rigid_press"
-        ).run()
-
-        self.executors["rigid_press"] = lambda: GeometryOptimizationTask(
-            self.comm, self.config, self.gnrs_info, "rigid_press"
-        ).run()
-
-        # Register descriptor tasks
-        self.executors["acsf"] = lambda: DescriptorEvaluationTask(
-            self.comm, self.config, self.gnrs_info, "acsf"
-        ).run()
-
-        # Register cluster tasks
-        self.executors["ap_center"] = lambda: ClusterSelectionTask(
-            self.comm, self.config, self.gnrs_info, "ap", "center"
-        ).run()
-
-        self.executors["ap_window"] = lambda: ClusterSelectionTask(
-            self.comm, self.config, self.gnrs_info, "ap", "window"
-        ).run()
-
-        # Register enegy tasks
-        self.executors["maceoff"] = lambda: EnergyCalculationTask(
-            self.comm, self.config, self.gnrs_info, "maceoff"
-        ).run()
-
-        self.executors["uma"] = lambda: EnergyCalculationTask(
-            self.comm, self.config, self.gnrs_info, "uma"
-        ).run()
-
-        self.executors["aimnet"] = lambda: EnergyCalculationTask(
-            self.comm, self.config, self.gnrs_info, "aimnet"
-        ).run()
-
-        self.executors["aims"] = lambda: EnergyCalculationTask(
-            self.comm, self.config, self.gnrs_info, "aims"
-        ).run()
-
-        self.executors["vasp"] = lambda: EnergyCalculationTask(
-            self.comm, self.config, self.gnrs_info, "vasp"
-        ).run()
-
-        self.executors["dftb"] = lambda: EnergyCalculationTask(
-            self.comm, self.config, self.gnrs_info, "dftb"
-        ).run()
-
-        # Register bfgs tasks
-        self.executors["bfgs_mace"] = lambda: GeometryOptimizationTask(
-            self.comm, self.config, self.gnrs_info, "bfgs", "maceoff"
-        ).run()
-
-        self.executors["bfgs_uma"] = lambda: GeometryOptimizationTask(
-            self.comm, self.config, self.gnrs_info, "bfgs", "uma"
-        ).run()
-
-        self.executors["bfgs_aimnet"] = lambda: GeometryOptimizationTask(
-            self.comm, self.config, self.gnrs_info, "bfgs", "aimnet"
-        ).run()
-
-        self.executors["bfgs_aims"] = lambda: GeometryOptimizationTask(
-            self.comm, self.config, self.gnrs_info, "bfgs", "aims"
-        ).run()
-
-        self.executors["bfgs_vasp"] = lambda: GeometryOptimizationTask(
-            self.comm, self.config, self.gnrs_info, "bfgs", "vasp"
-        ).run()
-
-        # Register lbfgs tasks
-        self.executors["lbfgs_mace"] = lambda: GeometryOptimizationTask(
-            self.comm, self.config, self.gnrs_info, "lbfgs", "maceoff"
-        ).run()
-
-        self.executors["lbfgs_uma"] = lambda: GeometryOptimizationTask(
-            self.comm, self.config, self.gnrs_info, "lbfgs", "uma"
-        ).run()
-
-        self.executors["lbfgs_aimnet"] = lambda: GeometryOptimizationTask(
-            self.comm, self.config, self.gnrs_info, "lbfgs", "aimnet"
-        ).run()
-
     def _run_tasks(self, tasks: list) -> None:
         """
         Run specific tasks in config file
@@ -270,14 +172,16 @@ class Genarris:
         gout.emit(f"Executing {len(tasks)} configured tasks")
         
         for task in tasks:
-            if task not in self.executors:
-                self.logger.error(f"Unknown task: {task}")
-                gout.emit(f"Error: Task '{task}' is not registered. Skipping.")
+            try:
+                cls, extra_args = resolve_task(task)
+            except ValueError:
+                self.logger.error(f"Unknown task: {task}.")
+                gout.emit(f"Error: Unknown task: {task}. Skipping.")
                 continue
-                
+
             if not is_task_completed(task):
                 gout.emit(f"Running task: {task}")
-                self.executors[task]()
+                cls(self.comm, self.config, self.gnrs_info, *extra_args).run()
                 write_restart()
                 test_bcast()
                 check_if_exp_found(self.config, self.gnrs_info)

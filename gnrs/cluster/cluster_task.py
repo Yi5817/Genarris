@@ -48,7 +48,7 @@ class ClusterSelectionTask(TaskABC):
         self.slct_name = selection.lower()
         self.slct_file = f"gnrs.cluster.selection.{self.slct_name}"
         self.slct_class = f"{selection.upper()}Selection"
-        self.task_name = f"{self.clstr_name}-{self.slct_name}"
+        self.task_name = f"{self.clstr_name}_{self.slct_name}"
 
     def initialize(self) -> None:
         """

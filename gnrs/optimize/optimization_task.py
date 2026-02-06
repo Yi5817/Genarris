@@ -57,7 +57,7 @@ class GeometryOptimizationTask(TaskABC):
         if energy_method is not None:
             self.energy_method = energy_method.lower()
             self.energy_class = f"{self.energy_method.upper()}Energy"
-            self.task_name = f"{self.opt_name}-{self.energy_method}"
+            self.task_name = f"{self.opt_name}_{self.energy_method}"
         else:
             self.energy_method = None
             self.task_name = self.opt_name

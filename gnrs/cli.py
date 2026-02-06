@@ -10,16 +10,16 @@ from __future__ import annotations
 __author__ = ["Yi Yang", "Rithwik Tom"]
 __email__ = "yiy5@andrew.cmu.edu"
 __group__ = "https://www.noamarom.com/"
-import logging
-from mpi4py import MPI
-
-import gnrs.output as gout
-from gnrs.workflow import Genarris
 
 import argparse
+import logging
 import warnings
+
+from mpi4py import MPI
+
 warnings.filterwarnings("ignore", category=UserWarning)
 warnings.filterwarnings("ignore", category=RuntimeWarning)
+
 
 def main():
     """
@@ -32,22 +32,27 @@ def main():
 
     comm = MPI.COMM_WORLD
     logger = logging.getLogger("genarris")
+    aborted = False
     try:
         # Initialize and run Genarris
+        from gnrs.workflow import Genarris
+        import gnrs.output as gout
         gnrs_workflow = Genarris(args)
         gnrs_workflow.run()
         gout.emit("All tasks completed successfully.\nHave a nice day! :-)")
     except KeyboardInterrupt:
         logger.warning("Genarris interrupted by user")
-        gout.emit("\n***Genarris was interrupted by user***")
+        aborted = True
         comm.Abort(130)
     except Exception:
         logger.exception("Genarris exiting due to error")
-        gout.emit("\n***Genarris has abruptly exited. Please see the log for Traceback***")
+        aborted = True
         comm.Abort(1)
     finally:
-        comm.Barrier()
-        MPI.Finalize()
+        if not aborted:
+            comm.Barrier()
+            MPI.Finalize()
+
 
 if __name__ == "__main__":
     main()
