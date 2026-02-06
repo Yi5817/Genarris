@@ -146,6 +146,7 @@ pygenarris_mpi = Extension(
     include_dirs=include_pygenarris,
     sources=sources_pygenarris,
     extra_compile_args=["-std=gnu99", "-O3"],
+    swig_opts=["-python", "-I./gnrs/cgenarris/src/", "-I./gnrs/cgenarris/src/spglib_src"],
 )
 
 # Add rigid_press extension
@@ -156,10 +157,10 @@ rigid_press = Extension(
     sources=sources_rigid_press,
     extra_compile_args=["-std=gnu99", "-O3"],
     libraries=["lapack", "blas"],
+    swig_opts=["-python", "-I./gnrs/cgenarris/src/rpack/rigid_press", "-I./gnrs/cgenarris/src/spglib_src"],
 )
 
 setup(
     ext_modules=[pygenarris_mpi, rigid_press],
-    py_modules=["pygenarris_mpi", "rigid_press"],
-    zip_safe=False
+    zip_safe=False,
 )
