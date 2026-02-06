@@ -112,6 +112,7 @@ Genarris uses a [configuration file](https://docs.python.org/3/library/configpar
    maxiter                      = 5000
 
    [experimental_structure]
+   # path to the experimental structure file if known
    path = ""
    ```
 2. **Prepare your input molecule geometry file** (any format supported by [`ase.io.read()`](https://ase-lib.org/ase/io/io.html#ase.io.read))
@@ -138,7 +139,6 @@ The [cases](./cases) directory contains crystal structure prediction (CSP) resul
 If you use Genarris, please cite our papers:
 ```bibtex
 @article{genarrisv3,
-  author = {Yang, Yi and Tom, Rithwik and Wui, Jose AGL and Moussa, Jonathan E and Marom, Noa},
   title = {Genarris 3.0: Generating Close-Packed Molecular Crystal Structures with Rigid Press},
   author={Yang, Yi and Tom, Rithwik and Wui, Jose AGL and Moussa, Jonathan E and Marom, Noa},
   journal={Journal of Chemical Theory and Computation},
