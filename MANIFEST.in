@@ -4,12 +4,12 @@ include LICENSE
 include pyproject.toml
 
 # Include data
-recursive-include gnrs *.json
+recursive-include gnrs/parser *.json
 
-# Include C
-recursive-include gnrs/generation/cgenarris/src *.c *.h *.i
-recursive-include gnrs/generation/cgenarris/doc *
-recursive-include gnrs/generation/cgenarris *.txt *.md CMakeLists.txt
+# Include C extension sources (cgenarris submodule)
+recursive-include gnrs/cgenarris/src *.c *.h *.i
+recursive-include gnrs/cgenarris/doc *
+recursive-include gnrs/cgenarris *.txt *.md CMakeLists.txt
 
 prune cases
 global-exclude *.pyc
@@ -20,4 +20,4 @@ global-exclude *.dll
 global-exclude __pycache__
 global-exclude .git*
 global-exclude .DS_Store
-global-exclude *.egg-info/* 
+global-exclude *.egg-info/*
