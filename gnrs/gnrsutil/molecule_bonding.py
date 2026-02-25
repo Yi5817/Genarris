@@ -10,6 +10,9 @@ __author__ = ["Yi Yang", "Rithwik Tom"]
 __email__ = "yiy5@andrew.cmu.edu"
 __group__ = "https://www.noamarom.com/"
 
+import yaml
+from importlib.resources import files
+
 import numpy as np
 import networkx as nx
 from ase.io import read
@@ -21,10 +24,13 @@ vdw_radii = vdw.vdw_radii.copy()
 vdw_radii[1] = 1.1
 import gnrs.output as gout
 
+_H_BOND_PARAMS = yaml.safe_load(
+    files("gnrs.gnrsutil").joinpath("h_bond.yaml").read_text()
+)
+
 intermolecular_dist = {
     "vdw": {},
-    # These are cutoff distances for specific 3 body hydrogen bonds
-    "h_bond": {"OH-O": 1.4, "OH-N": 1.5, "NH-O": 1.5, "NH-N": 1.65},
+    "h_bond": _H_BOND_PARAMS["h_bond"],
 }
 
 def construct_pair_keys(elements: list[str]) -> np.ndarray:
@@ -255,9 +261,14 @@ class MoleculeBonding:
                     elif len(bonding) == 2:
                         bond_ele = self.ele[bonding]
                         unique_ele = np.unique(bond_ele)
+                        # C-O-C
                         if len(unique_ele) == 1 and unique_ele[0] == "C":
                             self.acceptor_idx.append(i)
+                        # H-O-H
                         elif len(unique_ele) == 1 and unique_ele[0] == "H":
+                            self.acceptor_idx.append(i)
+                        # R-O-H
+                        elif "H" in bond_ele:
                             self.acceptor_idx.append(i)
 
                 # Check for terminal nitrogen
