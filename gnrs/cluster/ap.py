@@ -20,6 +20,7 @@ from bisect import bisect_left
 from sklearn.cluster import AffinityPropagation
 from sklearn.metrics.pairwise import euclidean_distances
 
+import gnrs.parallel as gp
 import gnrs.output as gout
 from gnrs.core.cluster import ClusterABC
 
@@ -188,6 +189,7 @@ class APCluster(ClusterABC):
             convergence_iter=self.convergence_iter,
             copy=True,
             affinity="precomputed",
+            random_state=gp.base_seed,
         )
 
         logger.info(f"Started AP clustering")

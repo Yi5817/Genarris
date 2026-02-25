@@ -27,6 +27,7 @@ def main():
     """
     parser = argparse.ArgumentParser(description="Genarris3.0")
     parser.add_argument("-c", "--config", required=True, type=str, help="Path to the configuration file")
+    parser.add_argument("-d", "--seed", type=int, help="Random seed", default=42)
     parser.add_argument("--restart", action="store_true", help="Restart Genarris with previous config file")
     args = parser.parse_args()
 

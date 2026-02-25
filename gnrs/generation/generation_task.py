@@ -70,7 +70,7 @@ class StructureGenerationTask(TaskABC):
         Returns:
             Task settings dictionary
         """
-        seed = self.config["master"].get("seed", np.random.randint(0, 2**31))
+        seed = int(self.config["generation"].get("seed", 42))
         task_set = {
             "seed": seed,
             "z": self.config["master"]["z"],

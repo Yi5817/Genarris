@@ -19,6 +19,7 @@ from mpi4py import MPI
 from sklearn.decomposition import PCA
 from sklearn.preprocessing import StandardScaler
 
+import gnrs.parallel as gp
 import gnrs.output as gout
 from gnrs.core.task import TaskABC
 from gnrs.parallel.io import write_parallel
@@ -177,7 +178,12 @@ class DescriptorEvaluationTask(TaskABC):
             
             n_samples, n_features = features.shape
             logger.info(f"PCA input: {n_samples} samples with {n_features} features")
-            pca = PCA(n_components=self.n_components, whiten=True)
+
+            pca = PCA(
+                n_components=self.n_components,
+                whiten=True,
+                random_state=gp.base_seed,
+            )
             pca.fit(features)
             explained_var = np.sum(pca.explained_variance_ratio_)
             logger.info(f"PCA compression: {pca.n_components_} components explain {explained_var:.4f} of variance")

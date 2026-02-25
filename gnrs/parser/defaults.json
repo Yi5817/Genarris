@@ -19,7 +19,8 @@
      "tol": 0.1,
      "lattice_norm_dev": 0.4,
      "lattice_angle_std": 8, 
-	"natural_cutoff_mult": 1.1
+	"natural_cutoff_mult": 1.1,
+    "seed": 42
     },
     "rigid_press":{
 	"natural_cutoff_mult": 1.1,

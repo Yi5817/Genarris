@@ -44,10 +44,16 @@ class KMEANSCluster(ClusterABC):
         """
         Initialize the k-means clustering.
         """
+        import gnrs.parallel as gp
+
         self.features = np.array(
             [x.info[self.feature_name][0, :] for x in self.structs.values()]
         )
-        self.kmeans = MiniBatchKMeans(**self.tsk_set, batch_size=len(self.features))
+        self.kmeans = MiniBatchKMeans(
+            **self.tsk_set,
+            batch_size=len(self.features),
+            random_state=gp.base_seed,
+        )
         logger.info("Started kmeans clustering")
         gout.emit("Running kmeans clustering...")
 

@@ -40,12 +40,13 @@ class Genarris:
 
         self.config = {}
         self.gnrs_info = {}
+        self.seed = args.seed
         self.restart = args.restart
 
         self._mpi_init()
         self._log_init()
         self._output_init()
-        self._parallel_init()
+        self._parallel_init(seed=self.seed)
         self._gnrs_info_init()
         self._config_init(args)
         restart_init(self.comm, self.config, self.gnrs_info)
@@ -81,11 +82,11 @@ class Genarris:
         self.size = self.comm.Get_size()
         self.is_master = self.rank == 0
 
-    def _parallel_init(self) -> None:
+    def _parallel_init(self, seed: int = 42) -> None:
         """
         Initialize parallel processing environment.
         """
-        init_parallel(self.comm)
+        init_parallel(self.comm, seed=seed)
 
     def _output_init(self) -> None:
         """
