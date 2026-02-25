@@ -15,6 +15,7 @@ _TASK_TYPES = {
     "optimize": ("gnrs.optimize", "GeometryOptimizationTask"),
     "descriptor": ("gnrs.descriptor", "DescriptorEvaluationTask"),
     "cluster": ("gnrs.cluster", "ClusterSelectionTask"),
+    "dedup": ("gnrs.deduplication", "DuplicateRemovalTask"),
 }
 
 _ENERGY_METHODS = {"maceoff", "uma", "aimnet", "aims", "vasp", "dftb"}
@@ -48,6 +49,11 @@ def resolve_task(task_name: str):
     if name in _RIGID_PRESS_OPTIMIZERS:
         cls = _import_class(*_TASK_TYPES["optimize"])
         return cls, (name,)
+    
+    # duplicate removal
+    if name == "dedup":
+        cls = _import_class(*_TASK_TYPES["dedup"])
+        return cls, ()
 
     # 3) optimizer + energy: bfgs_maceoff, lbfgs_uma, ...
     for opt in _OPTIMIZERS:
