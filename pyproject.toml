@@ -59,5 +59,6 @@ version = {attr = "gnrs.__version__"}
 include = ["gnrs*"]
 
 [tool.setuptools.package-data]
-"gnrs.parser" = ["defaults.json"]
+"gnrs.parser" = ["*.yaml"]
+"gnrs.gnrsutil" = ["*.yaml"]
 "gnrs.cgenarris" = ["src/**/*.c", "src/**/*.h", "src/**/*.i"]

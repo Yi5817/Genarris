@@ -1,0 +1,74 @@
+# PyMoVE bond-neighborhood linear regression model for molecular volume prediction.
+#
+# Each key is a sorted elemental fragment string produced by BondNeighborhood;
+# the value is the fitted regression coefficient (Angstrom^3 per fragment).
+# The model intercept is 0.
+#
+# Source:  CSD (Cambridge Structural Database) statistical analysis
+# Reference: PyMoVE — https://github.com/manny405/PyMoVE
+
+fragment_coef:
+  MC_volume:  1.38732781    # Monte Carlo base volume multiplier
+  HC:         1.09273374
+  HOC:        0.01984596
+  OOCC:      -5.83779431
+  HHHCC:      3.03098325
+  ON:        -2.44819463
+  OC:        -3.19448159
+  CCCC:       0.60461945
+  OCCO:       5.70153497
+  HCCC:      -0.22730391
+  ClC:        2.68279888
+  NC:         0.34512353
+  CCCN:      -0.11118681
+  OONC:       3.00057338
+  NPP:        4.59332838
+  HHNC:      -0.23272109
+  HNCC:       2.78659772
+  HCNN:      -2.87304195
+  FC:         0.89258333
+  BrC:        2.23787589
+  NCN:        1.93557232
+  ICCC:       5.16266751
+  CCC:        1.84458424
+  HHHCN:      2.74767878
+  HNCS:       5.54271523
+  HCCS:       0.10956046
+  HHHCSi:     4.38654368
+  HB:         1.03917423
+  NCC:        2.81809621
+  CCNN:      -2.52236071
+  SC:         1.09844288
+  HHHCS:      0.4967574
+  NCO:        2.73880443
+  HNCN:      -0.49803522
+  ClP:        1.68784377
+  IC:        -0.27383809
+  OCP:        3.54043547
+  NNN:        0.63538187
+  CNNN:      -3.11453747
+  HHHNC:     -5.11258648
+  HHCCS:     -1.01933284
+  NCCC:       1.5332678
+  HHCC:       0.32195421
+  NCCN:       1.79623041
+  CNNS:       1.83284527
+  SP:         6.25311953
+  SCN:       -4.88660802
+  HCCNO:     -3.14142807
+  SCS:       -1.63444334
+  HHCOO:     -7.94330151
+  HHCNN:     -2.25539996
+  OCSi:      -0.41931587
+  CCCSe:     -1.11906979
+  CCCTe:     -2.25206549
+  ONN:       -1.55124899
+  HHCCN:     -0.4613776
+  ONCC:       0.5797792
+  OONN:      -0.8123834
+  HOCC:       2.7653278
+  HO:        -3.49700741
+  HHCCP:      1.37890689
+  HCCOO:     -0.02064372
+  CCCS:       1.74777657
+  CCCSi:      7.82082655

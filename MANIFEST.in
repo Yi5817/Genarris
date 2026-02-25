@@ -4,7 +4,8 @@ include LICENSE
 include pyproject.toml
 
 # Include data
-recursive-include gnrs/parser *.json
+recursive-include gnrs/parser *.yaml
+recursive-include gnrs/gnrsutil *.yaml
 
 # Include C extension sources (cgenarris submodule)
 recursive-include gnrs/cgenarris/src *.c *.h *.i

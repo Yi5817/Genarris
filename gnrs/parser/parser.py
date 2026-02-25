@@ -16,7 +16,7 @@ import json
 import yaml
 from ast import literal_eval
 from configparser import ConfigParser
-import importlib.resources as pkg_resources
+from importlib.resources import files
 from gnrs.output import emit
 
 logger = logging.getLogger("parser")
@@ -123,15 +123,14 @@ class UserSettingsParser:
 
     def _load_defaults(self) -> dict:
         """
-        Load default settings from package defaults.json.
+        Load default settings from package defaults.yaml.
         
         Returns:
             Dictionary containing default settings
         """
-        logger.info("Loading defaults.json")
-        with pkg_resources.path("gnrs.parser", "defaults.json") as de_file:
-            defaults = de_file.read_text()
-        return json.loads(defaults)
+        logger.info("Loading defaults.yaml")
+        defaults_text = files("gnrs.parser").joinpath("defaults.yaml").read_text()
+        return yaml.safe_load(defaults_text)
 
     def update_settings_with_defaults(self) -> None:
         """
