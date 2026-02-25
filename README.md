@@ -181,6 +181,15 @@ If you use Genarris, please cite our papers:
 }
 ```
 
+## Applications
+
+Genarris has been applied to a wide range of molecular crystal studies:
+
+| Project | Description | Links |
+|---------|-------------|-------|
+| **FastCSP** | Accelerated Molecular Crystal Structure Prediction with Universal Model for Atoms | [![arXiv](https://img.shields.io/badge/arXiv-2508.02641-b31b1b)](https://arxiv.org/abs/2508.02641) [![Code](https://img.shields.io/badge/Code-fairchem-blue)](https://github.com/facebookresearch/fairchem) |
+| **OMC25** | Open Molecular Crystals 2025 — 27M+ molecular crystal structures for training ML interatomic potentials | [![DOI](https://img.shields.io/badge/DOI-10.1038%2Fs41597--026--06628--2-blue)](https://doi.org/10.1038/s41597-026-06628-2) [![Dataset](https://img.shields.io/badge/Dataset-HuggingFace-yellow)](https://huggingface.co/datasets/facebook/OMC25) |
+
 ## Contributing
 
 Contributions are welcome! Please feel free to submit a Pull Request.
