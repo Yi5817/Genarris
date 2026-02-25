@@ -70,9 +70,9 @@ class StructureGenerationTask(TaskABC):
         Returns:
             Task settings dictionary
         """
-        seed = int(self.config["generation"].get("seed", 42))
+        self.seed = int(self.config["generation"].get("seed", 42))
         task_set = {
-            "seed": seed,
+            "seed": self.seed,
             "z": self.config["master"]["z"],
             "molecule_path": self.config["master"]["molecule_path"],
             **self.config["generation"]
@@ -265,7 +265,7 @@ class StructureGenerationTask(TaskABC):
             
             pred_volume = 0.0
             for molecule_path, st in zip(self.gnrs_info["molecule_path"], self.stoic):
-                pred_volume += predict_cell_volume(molecule_path) * st
+                pred_volume += predict_cell_volume(molecule_path, seed=self.seed) * st
             
             self.ucv_mean = pred_volume * Z * self.ucv_mult
             elapsed_time = time.time() - start_time
