@@ -41,6 +41,9 @@ symm_rigid_press:
   maxiter: 5000
   debug_flag: false
 
+ap:
+  max_ap_workers: 8
+
 maceoff:
   model_size: large
   save_flag: true
