@@ -18,10 +18,14 @@ import networkx as nx
 from ase.io import read
 from ase.data import atomic_numbers, vdw
 from ase.neighborlist import NeighborList, natural_cutoffs
-# Update Hydrogen radii - set it to 1.1A instead of 1.2A
-# Reasoning is here: https://pubs.acs.org/doi/full/10.1021/jp953141%2B
-vdw_radii = vdw.vdw_radii.copy()
-vdw_radii[1] = 1.1
+
+# Update Hydrogen radii — 1.1 A instead of the default 1.2 A.
+# Rationale: https://pubs.acs.org/doi/full/10.1021/jp953141%2B
+try:
+    vdw_radii = vdw.vdw_radii.copy()
+    vdw_radii[1] = 1.1
+except (TypeError, AttributeError):
+    vdw_radii = None
 import gnrs.output as gout
 
 _H_BOND_PARAMS = yaml.safe_load(
@@ -149,7 +153,7 @@ class MoleculeBonding:
         ---------
         vdw_mult: float
             Multiplicative factor for the cutoff distance
-                for vdw type contacts.
+            for vdw type contacts.
             A cutoff value of 0.85 is well supported by statistical analysis
             for these types of contacts.
         """
@@ -192,7 +196,7 @@ class MoleculeBonding:
         ---------
         vdw_mult: float
             Multiplicative factor for the cutoff distance
-                for vdw type contacts.
+            for vdw type contacts.
             A cutoff value of 0.85 is well supported by statistical analysis
             for these types of contacts.
         """

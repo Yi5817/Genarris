@@ -31,11 +31,10 @@ class EnergyCalculatorABC(abc.ABC):
 
     Supports two execution modes:
     1. Direct mode (ranks <= GPUs or CPU-only calculators):
-       Every rank loads the model and computes locally.
+    Every rank loads the model and computes locally.
 
     2. Worker/feeder mode (ranks > GPUs, GPU-based calculators):
-       Worker ranks (one per GPU) load models. Feeder ranks send
-       structures to their assigned worker and receive results back.
+    Worker ranks (one per GPU) load models. Feeder ranks send structures to their assigned worker and receive results back.
     """
 
     requires_gpu: bool = False
