@@ -1,0 +1,117 @@
+/* Hero section on landing page */
+.hero-section {
+    text-align: center;
+    padding: 1.5rem 0 1rem;
+}
+
+.hero-section img {
+    max-width: 320px;
+    margin-bottom: 0.5rem;
+}
+
+/* Feature grid */
+.feature-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 1.2rem;
+    margin: 1.5rem 0;
+}
+
+.feature-card {
+    border: 1px solid var(--color-sidebar-background-border);
+    border-radius: 8px;
+    padding: 1.2rem;
+    transition: box-shadow 0.2s ease, transform 0.15s ease;
+}
+
+.feature-card:hover {
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+    transform: translateY(-2px);
+}
+
+.feature-card h3 {
+    margin-top: 0;
+    font-size: 1rem;
+}
+
+.feature-card p {
+    margin-bottom: 0;
+    font-size: 0.9rem;
+    opacity: 0.85;
+}
+
+/* Autodoc styling refinements */
+.sig-name.descname {
+    font-weight: 700;
+}
+
+/* Override Furo's negative margins and text-indent on signatures */
+dl.py dt .sig:not(.sig-inline) {
+    margin-left: 0;
+    margin-right: 0;
+    text-indent: 0;
+    padding: 0.4rem 0.6rem;
+    overflow-wrap: anywhere;
+}
+
+dl.py.class > dt,
+dl.py.function > dt,
+dl.py.method > dt,
+dl.py.attribute > dt,
+dl.py.property > dt {
+    background: var(--color-background-secondary);
+    border-left: 4px solid var(--color-brand-primary);
+    border-radius: 0 4px 4px 0;
+}
+
+/* [source] link: hidden by default, show on hover */
+dl.py dt .viewcode-link {
+    display: none;
+}
+
+dl.py dt:hover .viewcode-link {
+    display: inline;
+}
+
+/* Parameter tables in napoleon output */
+.field-list dt {
+    font-weight: 600;
+}
+
+/* Badge images inline */
+.badges img {
+    vertical-align: middle;
+}
+
+/* Calculator table */
+table.calc-table {
+    border-collapse: separate;
+    border-spacing: 0;
+    border-radius: 8px;
+    overflow: hidden;
+    border: 1px solid var(--color-background-border);
+}
+
+table.calc-table thead tr th {
+    background: var(--color-background-secondary);
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    padding: 0.7rem 1rem;
+}
+
+table.calc-table tbody tr td {
+    padding: 0.6rem 1rem;
+    vertical-align: middle;
+}
+
+table.calc-table tbody tr:hover {
+    background: var(--color-background-hover);
+}
+
+table.calc-table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+table.calc-table a {
+    font-weight: 600;
+}
