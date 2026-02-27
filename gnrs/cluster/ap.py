@@ -70,6 +70,18 @@ class APCluster(ClusterABC):
         self.ap_model = None
         self.max_ap_attempts = self.tsk_set.get("max_ap_attempts", 10)
 
+        # Limit the number of ranks that run AP fitting
+        max_ap_workers = self.tsk_set.get("max_ap_workers", 8)
+        self.n_ap_workers = min(max_ap_workers, self.size)
+        self.is_ap_worker = self.rank < self.n_ap_workers
+
+        # Sub-communicator spanning only the AP worker ranks. Non-workers
+        # receive MPI.COMM_NULL which must never be used for collectives.
+        self.ap_comm = self.comm.Split(
+            color=0 if self.is_ap_worker else MPI.UNDEFINED,
+            key=self.rank,
+        )
+
     def initialize(self) -> None:
         """
         Initialize the clustering by gathering crystal structures and computing similarity matrix.
@@ -85,7 +97,7 @@ class APCluster(ClusterABC):
             [xtal.info[self.feature_name][0, :] for xtal in self.structs.values()]
         )
         local_ids = list(self.structs.keys())
-        
+
         all_features = self.comm.gather(local_features, root=0)
         all_ids = self.comm.gather(local_ids, root=0)
         if self.is_master:
@@ -113,17 +125,20 @@ class APCluster(ClusterABC):
 
             if not os.path.exists(self.simmat_file):
                 gout.emit(f"Creating similarity matrix file: {self.simmat_file}")
-                sim_mat = -euclidean_distances(features, squared=True)
+                chunk_size = min(1000, n_samples)
                 sim_mat_file = np.memmap(
                     self.simmat_file,
                     dtype="float32",
                     mode="w+",
                     shape=(n_samples, n_samples),
                 )
-                sim_mat_file[:] = sim_mat[:]
+                for i in range(0, n_samples, chunk_size):
+                    end_i = min(i + chunk_size, n_samples)
+                    sim_mat_file[i:end_i, :] = -euclidean_distances(
+                        features[i:end_i], features, squared=True
+                    )
                 sim_mat_file.flush()
                 self.sim_mat = sim_mat_file
-                del sim_mat
             else:
                 gout.emit(f"Loading similarity matrix file: {self.simmat_file}")
                 self.sim_mat = np.memmap(
@@ -158,9 +173,14 @@ class APCluster(ClusterABC):
             self.ids = None
             self.sim_mat = None
             n_samples = None
-            
+
         n_samples = self.comm.bcast(n_samples, root=0)
-        if not self.is_master:
+        self._n_samples = n_samples
+
+        # Only AP workers need the similarity matrix for fitting.
+        # Non-workers only need self.ids (via broadcast in predict) and
+        # self.result (broadcast at the end of fit).
+        if not self.is_master and self.is_ap_worker:
             self.sim_mat = np.memmap(
                 self.simmat_file,
                 dtype="float32",
@@ -170,87 +190,146 @@ class APCluster(ClusterABC):
             self.ids = np.memmap(
                 self.ids_file, dtype="<U15", mode="r", shape=(n_samples,)
             )
-
-        if self.preference_range == "quantile":
-            self.preference_range = [
-                np.quantile(self.sim_mat, 0.05),
-                np.quantile(self.sim_mat, 0.95),
-            ]
-            gout.emit(f"Using quantile preference range: {self.preference_range}")
-        elif self.preference_range == "mean-median":
-            self.preference_range = sorted(
-                [np.mean(self.sim_mat), np.median(self.sim_mat)]
+        elif not self.is_master:
+            self.ids = np.memmap(
+                self.ids_file, dtype="<U15", mode="r", shape=(n_samples,)
             )
-            gout.emit(f"Using mean-median preference range: {self.preference_range}")
 
-        self.ap_model = AffinityPropagation(
-            damping=self.damping,
-            max_iter=self.max_iter,
-            convergence_iter=self.convergence_iter,
-            copy=True,
-            affinity="precomputed",
-            random_state=gp.base_seed,
+        # Preference range: compute on rank 0 only, then broadcast to all.
+        if self.is_master:
+            if self.preference_range == "quantile":
+                self.preference_range = [
+                    float(np.quantile(self.sim_mat, 0.05)),
+                    float(np.quantile(self.sim_mat, 0.95)),
+                ]
+            elif self.preference_range == "mean-median":
+                self.preference_range = sorted(
+                    [float(np.mean(self.sim_mat)), float(np.median(self.sim_mat))]
+                )
+        else:
+            self.preference_range = None
+        self.preference_range = self.comm.bcast(self.preference_range, root=0)
+        gout.emit(f"Using preference range: {self.preference_range}")
+
+        if self.is_ap_worker:
+            self.ap_model = AffinityPropagation(
+                damping=self.damping,
+                max_iter=self.max_iter,
+                convergence_iter=self.convergence_iter,
+                copy=True,
+                affinity="precomputed",
+                random_state=gp.base_seed,
+            )
+
+        logger.info(f"Started AP clustering with {self.n_ap_workers} AP workers out of {self.size} ranks")
+        gout.emit(
+            f"Running AP clustering targeting {self.n_clusters} clusters "
+            f"with {self.n_ap_workers} AP workers out of {self.size} ranks"
         )
-
-        logger.info(f"Started AP clustering")
-        gout.emit(f"Running AP clustering targeting {self.n_clusters} clusters")
 
     def fit(self) -> None:
         """
         Fit the clustering model to the data.
+
+        Only AP-worker ranks run AP clustering.
         """
         n_attempts = 0
-        pref_range = self.preference_range
+        pref_range = list(self.preference_range)
+        converged_result = None
+        result = None
 
         while n_attempts < self.max_sampling_attempts:
             gout.emit(
-                f"Beginning attempt {n_attempts} with preference range [{pref_range[0]:.4f}, {pref_range[-1]:.4f}] on {self.size} processes"
+                f"Beginning attempt {n_attempts} with preference range "
+                f"[{pref_range[0]:.4f}, {pref_range[-1]:.4f}] "
+                f"on {self.n_ap_workers} AP workers"
             )
 
-            pref = round(
-                pref_range[-1]
-                + float(pref_range[0] - pref_range[-1])
-                * float(self.rank + 1)
-                / float(self.size + 1),
-                4
-            )
-
-            try:
-                result = self._affinity_propagation(pref, pref_range)
-            except StopIteration:
-                continue
-
-            n_clusters_pref = self.comm.gather(
-                [result["n_clusters"], result["preference"]], root=0
-            )
-            if self.is_master:
-                converged_result = self.check_convergence(
-                    n_clusters_pref, pref_range, n_attempts
+            if self.is_ap_worker:
+                ap_rank = self.ap_comm.Get_rank()
+                ap_size = self.ap_comm.Get_size()
+                pref = round(
+                    pref_range[-1]
+                    + float(pref_range[0] - pref_range[-1])
+                    * float(ap_rank + 1)
+                    / float(ap_size + 1),
+                    4
                 )
-            else:
-                converged_result = None
-            del n_clusters_pref
+
+                try:
+                    result = self._affinity_propagation(pref, pref_range)
+                    ap_payload = [result["n_clusters"], result["preference"]]
+                except StopIteration:
+                    result = None
+                    ap_payload = [None, None]
+
+                n_clusters_pref = self.ap_comm.gather(ap_payload, root=0)
+                if self.is_master:
+                    # Filter out workers that failed (StopIteration) while
+                    # preserving the AP-worker rank index for each entry.
+                    valid_indices = [
+                        i for i, p in enumerate(n_clusters_pref) if p[0] is not None
+                    ]
+                    valid = [n_clusters_pref[i] for i in valid_indices]
+                    if valid:
+                        converged_result = self.check_convergence(
+                            valid, pref_range, n_attempts
+                        )
+                        # Map the index within `valid` back to the AP-worker rank.
+                        if converged_result["rank"] is not None:
+                            converged_result["rank"] = valid_indices[
+                                converged_result["rank"]
+                            ]
+                    else:
+                        converged_result = {
+                            "converged": False,
+                            "rank": None,
+                            "pref": None,
+                            "n_cluster": None,
+                            "new_pref_range": pref_range,
+                        }
+                else:
+                    converged_result = None
+                del n_clusters_pref
+                converged_result = self.ap_comm.bcast(converged_result, root=0)
+
+            # Broadcast convergence status to all ranks
             converged_result = self.comm.bcast(converged_result, root=0)
 
             if converged_result["converged"]:
-                if converged_result["rank"] == self.rank:
+                if self.is_ap_worker and converged_result["rank"] == ap_rank:
                     self.result = result
                 break
             else:
                 pref_range = converged_result["new_pref_range"]
             gout.emit(
-                f"Attempt {n_attempts}: Preference range updated: [{pref_range[0]:.4f}, {pref_range[-1]:.4f}]"
+                f"Attempt {n_attempts}: Preference range updated: "
+                f"[{pref_range[0]:.4f}, {pref_range[-1]:.4f}]"
             )
             n_attempts += 1
 
-        if converged_result["converged"]:
+        if converged_result is not None and converged_result["converged"]:
             gout.emit(f"Affinity Propagation with fixed number of clusters succeeded!")
         else:
             gout.emit(
-                f"Failed to cluster to {self.n_clusters} clusters with tolerance {self.clusters_tol}"
+                f"Failed to cluster to {self.n_clusters} clusters "
+                f"with tolerance {self.clusters_tol}"
             )
 
-        self.result = self.comm.bcast(result, root=converged_result["rank"])
+        # The winning rank is identified within the AP sub-communicator.
+        # Broadcast the result from the winning AP worker to all ranks
+        if converged_result is not None and converged_result["converged"]:
+            winning_ap_rank = converged_result["rank"]
+        else:
+            winning_ap_rank = 0
+
+        # Map the AP-local rank back to the global rank
+        winning_global_rank = winning_ap_rank
+
+        self.result = self.comm.bcast(
+            self.result if self.rank == winning_global_rank else None,
+            root=winning_global_rank,
+        )
         n_clusters_done = self.result["n_clusters"]
         gout.emit(f"Affinity Propagation completed with {n_clusters_done} clusters")
         logger.info(f"Completed AP fitting with {n_clusters_done} clusters")
@@ -277,6 +356,10 @@ class APCluster(ClusterABC):
         """
         Finalize the clustering process.
         """
+        if self.ap_comm is not None and self.ap_comm != MPI.COMM_NULL:
+            self.ap_comm.Free()
+            self.ap_comm = None
+
         logger.info("Completed AP clustering")
         gout.emit("Completed AP clustering.\n")
         gout.emit("")
