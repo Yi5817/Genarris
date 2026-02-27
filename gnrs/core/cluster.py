@@ -47,6 +47,7 @@ class ClusterABC(abc.ABC):
         2. Fit the clustering model
         3. Predict clusters
         4. Finalize
+        5. Clean up
         
         Args:
             struct_dict: Crystal structures
@@ -59,7 +60,18 @@ class ClusterABC(abc.ABC):
         self.fit()
         self.final_n_clusters = self.predict()
         self.finalize()
+        self.cleanup()
         return self.final_n_clusters
+
+    def cleanup(self) -> None:
+        """
+        Remove feature descriptors from xtal.info
+        """
+        feature_name = getattr(self, "feature_name", None)
+        if feature_name is None:
+            return
+        for xtal in self.structs.values():
+            xtal.info.pop(feature_name, None)
 
     @abc.abstractmethod
     def initialize(self) -> None:
