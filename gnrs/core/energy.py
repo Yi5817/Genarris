@@ -17,7 +17,6 @@ __email__ = "yiy5@andrew.cmu.edu"
 __group__ = "https://www.noamarom.com/"
 
 import abc
-import logging
 from collections import deque
 from typing import Any, Callable, Optional
 
@@ -25,9 +24,6 @@ from mpi4py import MPI
 from ase import Atoms
 
 from gnrs.core.gpu import GPUDeviceManager, TAG_WORK_DATA, TAG_WORK_RESULT, TAG_SHUTDOWN
-
-logger = logging.getLogger("EnergyCalculator")
-
 
 class EnergyCalculatorABC(abc.ABC):
     """

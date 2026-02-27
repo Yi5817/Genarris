@@ -21,9 +21,7 @@ from typing import Optional
 import torch
 from mpi4py import MPI
 
-import gnrs.output as gout
-
-logger = logging.getLogger("GPUManager")
+logger = logging.getLogger("gpu")
 
 # MPI tags for worker/feeder communication
 TAG_WORK_REQUEST = 100
@@ -75,8 +73,8 @@ class GPUDeviceManager:
         self._device: Optional[str] = None
         self._assign_device()
 
-        logger.debug(
-            f"Rank {self.rank}: role={self._is_worker} device={self._device} (gpus={self.num_gpus} workers={self._num_workers} feeders={self.size - self._num_workers})"
+        logger.info(
+            f"GPU Device Manager: gpus={self.num_gpus} workers={self._num_workers} feeders={self.num_feeders}"
         )
 
     def _assign_device(self) -> None:
