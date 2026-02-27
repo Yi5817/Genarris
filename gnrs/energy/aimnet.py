@@ -12,32 +12,29 @@ __author__ = ["Yi Yang", "Rithwik Tom"]
 __email__ = "yiy5@andrew.cmu.edu"
 __group__ = "https://www.noamarom.com/"
 
-import torch
 from ase import Atoms
-from aimnet.calculators import AIMNet2ASE
 
 from gnrs.core.energy import EnergyCalculatorABC
 
 
 class AIMNETEnergy(EnergyCalculatorABC):
+    """Computes the energy using AIMNet model.
+
+    GPU device assignment is managed by the base class via ``GPUDeviceManager``.
+    Feeder ranks skip model loading entirely; only GPU workers instantiate
+    the AIMNet calculator.
     """
-    Computes the energy using AIMNet model.
-    """
+
+    requires_gpu = True
+
     def __init__(self, *args) -> None:
         super().__init__(*args)
-        if torch.cuda.is_available():
-            num_gpus = torch.cuda.device_count()
-            if num_gpus > 0:
-                gpu_id = self.rank % num_gpus
-                device = f"cuda:{gpu_id}"
-                torch.cuda.set_device(gpu_id)
-            else:
-                device = "cpu"
-        else:
-            device = "cpu"
-        model = self.tsk_set.get("model", "aimnet2")
-        self.calc = AIMNet2ASE(model)
-        self.calc.base_calc.set_lrcoulomb_method('ewald')
+        if self._gpu_mgr is None or self._gpu_mgr.is_worker:
+            from aimnet.calculators import AIMNet2ASE
+
+            model = self.tsk_set.get("model", "aimnet2")
+            self.calc = AIMNet2ASE(model)
+            self.calc.base_calc.set_lrcoulomb_method("ewald")
 
     def initialize(self) -> None:
         """
