@@ -8,7 +8,7 @@
 
 <p align="center" class="badges">
 <a href="https://github.com/Yi5817/Genarris/releases"><img src="https://img.shields.io/badge/version-3.0.0-green" alt="Version 3.0.0"></a>
-<a href="https://www.python.org/downloads/"><img src="https://img.shields.io/badge/python-3.9%2B-blue" alt="Python 3.9+"></a>
+<a href="https://www.python.org/downloads/"><img src="https://img.shields.io/badge/python-3.10%2B-blue" alt="Python 3.10+"></a>
 <a href="https://github.com/Yi5817/Genarris/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-BSD--3--Clause-blue" alt="License"></a>
 <a href="https://doi.org/10.1021/acs.jctc.5c01080"><img src="https://img.shields.io/badge/DOI-10.1021%2Facs.jctc.5c01080-blue" alt="DOI"></a>
 </p>

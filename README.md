@@ -8,8 +8,9 @@
   <a href="https://github.com/Yi5817/Genarris/releases"><img src="https://img.shields.io/badge/version-3.0.0-green" alt="Version 3.0.0"></a>
   <a href="https://www.python.org/downloads/"><img src="https://img.shields.io/badge/python-3.10%2B-blue" alt="Python 3.10+"></a>
   <a href="https://github.com/Yi5817/Genarris/actions/workflows/lint.yml"><img src="https://github.com/Yi5817/Genarris/actions/workflows/lint.yml/badge.svg" alt="Code Style"></a>
-  <a href="LICENSE"><img src="https://img.shields.io/badge/license-BSD--3--Clause-blue" alt="License"></a>
+  <a href="https://github.com/Yi5817/Genarris/actions/workflows/docs.yml"><img src="https://github.com/Yi5817/Genarris/actions/workflows/docs.yml/badge.svg" alt="Documentation"></a>
   <a href="https://doi.org/10.1021/acs.jctc.5c01080"><img src="https://img.shields.io/badge/DOI-10.1021%2Facs.jctc.5c01080-blue" alt="DOI"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-BSD--3--Clause-blue" alt="License"></a>
 </p>
 
 
@@ -32,12 +33,13 @@ virtualenv -p python3.11 gnrs_env
 source gnrs_env/bin/activate
 ```
 
-### Install MPI Support
+### Install Build Dependencies
 
-Install `mpi4py` with the MPI compiler:
+Install build dependencies and `mpi4py` with the correct MPI compiler **before** installing the package:
 
 ```bash
-MPICC=$(which mpicc) pip install mpi4py==3.1.5
+pip install "setuptools>=61.0" wheel "swig>=4.1,<4.3" Cython "numpy>=2.0,<2.3"
+MPICC=$(which mpicc) pip install mpi4py --no-cache-dir
 ```
 
 > [!NOTE]
@@ -46,11 +48,13 @@ MPICC=$(which mpicc) pip install mpi4py==3.1.5
 ### Install `gnrs` using pip
 
    ```bash
-   pip install -e .
+   pip install -e . --no-build-isolation
    ```
 
    > [!NOTE]
-   > `mpicc` is used to build the C extensions. To use a specific MPI compiler, modify the `mpi_compiler` variable in the [setup.py](./setup.py) file.
+   > `mpicc` is used to build the C extensions. To use a specific MPI compiler, modify the `MPICC` variable in [`setup.py`](./setup.py).
+   >
+   > The `rigid_press` extension links against BLAS and LAPACK (`-llapack -lblas` by default). On HPC systems where library names differ (e.g., [NVPL on TACC Vista](https://docs.tacc.utexas.edu/hpc/vista/#compiler-examples)), edit the `libraries` and `library_dirs` fields of the `rigid_press` Extension in `setup.py` before installing. See the [installation guide](https://yi5817.github.io/Genarris/user/install.html) for details.
 
 ### Optional Energy Calculators
 

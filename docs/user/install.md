@@ -41,12 +41,14 @@ conda activate gnrs_env
 
 `````
 
-## Install MPI Support
+## Install Build Dependencies
 
-Install `mpi4py` with the system MPI compiler:
+Install the build dependencies **before** installing the package, so that
+`mpi4py` is compiled against the correct MPI compiler on your system:
 
 ```bash
-MPICC=$(which mpicc) pip install mpi4py==3.1.5
+pip install "setuptools>=61.0" wheel "swig>=4.1,<4.3" Cython "numpy>=2.0,<2.3"
+MPICC=$(which mpicc) pip install mpi4py --no-cache-dir
 ```
 
 :::{note}
@@ -57,13 +59,37 @@ or your system administrator.
 
 ## Install the package
 
+Use `--no-build-isolation` so the build uses the `mpi4py` you just installed
+(instead of re-installing it in an isolated environment):
+
 ```bash
-pip install -e .
+pip install -e . --no-build-isolation
 ```
 
 :::{note}
-`mpicc` is used to build the C extensions. To use a specific MPI compiler,
-modify the `mpi_compiler` variable in `setup.py`.
+**MPI compiler:** `mpicc` is used to build the C extensions. To use a
+different MPI compiler, modify the `MPICC` variable in `setup.py`.
+
+**BLAS/LAPACK:** The `rigid_press` extension links against BLAS and LAPACK
+(`-llapack -lblas` by default). On HPC systems the library names or paths may
+differ — edit the `libraries` and `library_dirs` fields of the `rigid_press`
+Extension in `setup.py` before installing.
+
+**Example — TACC Vista (aarch64, NVPL):**
+Vista uses [NVIDIA Performance Libraries (NVPL)](https://docs.tacc.utexas.edu/hpc/vista/#compiler-examples)
+instead of the standard BLAS/LAPACK. After loading the `nvpl` module
+(`module load nvpl`), update `setup.py`:
+```python
+rigid_press = Extension(
+    "gnrs.cgenarris.src.rpack.rigid_press._rigid_press",
+    include_dirs=include_rigid_press,
+    sources=sources_rigid_press,
+    extra_compile_args=["-std=gnu99", "-O3"],
+    libraries=["nvpl_blas_lp64_gomp", "nvpl_lapack_lp64_gomp"],
+    library_dirs=[os.path.join(os.environ.get("TACC_NVPL_DIR"), "lib")],
+    swig_opts=["-I./gnrs/cgenarris/src/rpack/rigid_press", "-I./gnrs/cgenarris/src/spglib_src"],
+)
+```
 :::
 
 ## Optional Energy Calculators
