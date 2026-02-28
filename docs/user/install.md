@@ -20,7 +20,7 @@ git submodule update --init --recursive
 ````{tab-item} venv
 
 ```bash
-python3.11 -m venv gnrs_env
+python3 -m venv gnrs_env
 source gnrs_env/bin/activate
 ```
 ````
@@ -47,7 +47,7 @@ Install the build dependencies **before** installing the package, so that
 `mpi4py` is compiled against the correct MPI compiler on your system:
 
 ```bash
-pip install "setuptools>=61.0" wheel "swig>=4.1,<4.3" Cython "numpy>=2.0,<2.3"
+pip install "setuptools>=61.0" wheel "swig>=4.1,<4.3" pybind11 Cython "numpy>=2.0,<2.3"
 MPICC=$(which mpicc) pip install mpi4py --no-cache-dir
 ```
 
@@ -59,8 +59,7 @@ or your system administrator.
 
 ## Install the package
 
-Use `--no-build-isolation` so the build uses the `mpi4py` you just installed
-(instead of re-installing it in an isolated environment):
+Use `--no-build-isolation` so the build uses the `mpi4py` you just installed:
 
 ```bash
 pip install -e . --no-build-isolation
