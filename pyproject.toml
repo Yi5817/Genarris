@@ -2,10 +2,9 @@
 requires = [
     "setuptools>=61.0",
     "wheel",
-    "swig",
+    "swig>=4.1,<4.3",
     "Cython",
     "numpy>=2.0,<2.3",
-    "mpi4py==3.1.5",
 ]
 build-backend = "setuptools.build_meta"
 
@@ -14,7 +13,8 @@ name = "gnrs"
 dynamic = ["version"]
 description = "A random molecular crystal structure generator"
 readme = "README.md"
-license = {file = "LICENSE"}
+license = "BSD-3-Clause"
+license-files = ["LICENSE"]
 authors = [
     {name = "Yi Yang", email = "yiy5@andrew.cmu.edu"},
     {name = "Rithwik Tom"}
@@ -28,7 +28,7 @@ dependencies = [
     "torch~=2.8.0",
     "numpy>=2.0,<2.3",
     "numba>=0.60",
-    "mpi4py==3.1.5",
+    "mpi4py",
     "ase",
     "spglib",
     "pymatgen",
