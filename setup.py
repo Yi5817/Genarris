@@ -141,12 +141,17 @@ def get_rigid_press_sources():
     return sources, include_rpress
 
 sources_pygenarris, include_pygenarris = get_pygenarris_sources()
+mpi4py_include = importlib.import_module("mpi4py").get_include()
 pygenarris_mpi = Extension(
     "gnrs.cgenarris.src._pygenarris_mpi",
     include_dirs=include_pygenarris,
     sources=sources_pygenarris,
     extra_compile_args=["-std=gnu99", "-O3"],
-    swig_opts=["-I./gnrs/cgenarris/src/", "-I./gnrs/cgenarris/src/spglib_src"],
+    swig_opts=[
+        "-I./gnrs/cgenarris/src/",
+        "-I./gnrs/cgenarris/src/spglib_src",
+        f"-I{mpi4py_include}",
+    ],
 )
 
 # Add rigid_press extension
