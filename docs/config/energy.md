@@ -57,21 +57,112 @@ model = aimnet2
 
 ---
 
+## DFT execution modes
+
+DFT calculators (`aims`, `vasp`) support two execution modes via the
+`dft_mode` option:
+
+`parallel` (default)
+: Every Genarris MPI rank launches its own DFT subprocess.  This is the
+  original behavior, suitable when each rank has dedicated cores for its
+  DFT job (e.g. via `use_slurm` host pinning).
+
+`serial`
+: Structures from **all** ranks are gathered to rank 0 via MPI.  Rank 0
+  runs each DFT calculation sequentially, giving the DFT binary the
+  full SLURM / MPI allocation (e.g. `srun -n 256 aims.x`).  Results are
+  broadcast back so every rank has the computed energies.  This avoids
+  nested-MPI conflicts and is recommended when you have relatively few
+  structures but need maximum parallelism per DFT job.
+
+  Works with any number of Genarris ranks -- use many ranks for earlier
+  steps (generation, clustering) and the same job transitions seamlessly
+  into serial DFT when that task is reached.
+
+:::{dropdown} SLURM script + config for ``dft_mode = serial`` (recommended)
+:icon: terminal
+
+```bash
+#!/bin/bash
+#SBATCH --nodes=4
+#SBATCH --ntasks-per-node=64
+#SBATCH --ntasks=256
+#SBATCH --time=48:00:00
+
+# 256 ranks for generation/clustering/descriptor steps.
+# During DFT tasks, all structures are gathered to rank 0, which
+# calls "srun -n 256 aims.x" for each structure one at a time.
+mpirun -np 256 gnrs -c ui.conf
+```
+
+```ini
+[aims]
+command               = /path/to/aims.x
+species_dir           = /path/to/species_defaults/defaults_2020/light
+energy_settings_path  = ./aims_settings.json
+num_cores             = 256
+mpi_launcher          = srun
+dft_mode              = serial
+```
+
+With this setup, during DFT steps rank 0 calls
+`srun -n 256 /path/to/aims.x` for each structure sequentially.
+Other Genarris ranks wait at the MPI gather/broadcast.  `num_cores`
+can be set independently of the Genarris rank count -- e.g. 128 Genarris
+ranks for generation but `num_cores = 256` to give each DFT job more
+cores than Genarris ranks.
+:::
+
+:::{dropdown} SLURM script + config for ``dft_mode = parallel``
+:icon: terminal
+
+```bash
+#!/bin/bash
+#SBATCH --nodes=4
+#SBATCH --ntasks-per-node=64
+#SBATCH --ntasks=256
+#SBATCH --time=48:00:00
+
+# 4 Genarris ranks, each launches its own DFT subprocess with 64 cores.
+# Total: 4 concurrent DFT jobs * 64 cores = 256 cores.
+mpirun -np 4 gnrs -c ui.conf
+```
+
+```ini
+[aims]
+command               = /path/to/aims.x
+species_dir           = /path/to/species_defaults/defaults_2020/light
+energy_settings_path  = ./aims_settings.json
+num_cores             = 64
+mpi_launcher          = mpirun
+dft_mode              = parallel
+use_slurm             = True
+```
+
+Each rank runs its own DFT subprocess pinned to a specific SLURM host.
+Use this when you have many structures and want concurrent DFT jobs.
+:::
+
+---
+
 ## `aims`
 
 [FHI-aims](https://fhi-aims.org/) all-electron DFT via the ASE calculator.
 
 ```ini
 [aims]
-command               = mpirun -np 128 /path/to/aims.x
+command               = /path/to/aims.x
 species_dir           = /path/to/species_defaults/defaults_2020/light
 energy_settings_path  = ./aims_settings.json
 num_cores             = 128
+mpi_launcher          = mpirun
+dft_mode              = parallel
 use_slurm             = False
 ```
 
 `command` : `str`.
-: Command to invoke FHI-aims (including MPI launcher).
+: Path to the FHI-aims binary. Do **not** include `mpirun`/`srun` here;
+  the MPI launcher is controlled by `mpi_launcher`.
 
 `species_dir` : `str`.
 : Path to the FHI-aims `species_defaults` directory.
@@ -107,10 +198,30 @@ use_slurm             = False
 :::
 
 `num_cores` : `int`.
-: CPU cores per FHI-aims process. Used when `use_slurm` is `True`.
+: CPU cores per DFT process. Required when `mpi_launcher` is not `none`.
+
+`mpi_launcher` : `str` | default = `mpirun`.
+: MPI launcher to use for DFT runs. One of:
+  - `mpirun` -- launch with `mpirun -np {num_cores}`.
+  - `srun` -- launch with `srun -n {num_cores}`.
+  - `ibrun` -- launch with `ibrun`.
+  - `none` -- run the binary directly with no MPI wrapper. Use this when
+    the job is already running inside an MPI allocation (e.g. the SLURM
+    job script already uses `srun`).
+
+`dft_mode` : `str` | default = `parallel`.
+: DFT execution mode. One of:
+  - `parallel` -- every Genarris MPI rank runs its own DFT subprocess
+    (original behavior).
+  - `serial` -- structures are gathered to rank 0, which runs DFT
+    sequentially.  Results are broadcast back.  The DFT binary gets the
+    full allocation.  Works with any number of Genarris ranks (e.g.
+    `mpirun -np 128 gnrs ...` for generation, then serial DFT).
 
 `use_slurm` : `bool` | default = `False`.
-: Parse SLURM node list and pin each MPI rank to a host.
+: When `mpi_launcher` is `mpirun` and `dft_mode` is `parallel`, parse
+  SLURM node list and pin each rank to a specific host. Ignored when
+  `mpi_launcher` is `srun` or `none`, or when `dft_mode` is `serial`.
 
 ---
 
@@ -120,24 +231,36 @@ use_slurm             = False
 
 ```ini
 [vasp]
-command               = mpirun -np 128 /path/to/vasp_std
+command               = /path/to/vasp_std
 energy_settings_path  = ./vasp_settings.json
 num_cores             = 128
+mpi_launcher          = mpirun
+dft_mode              = parallel
 use_slurm             = False
 ```
 
 `command` : `str`.
-: Command to invoke VASP.
+: Path to the VASP binary. Do **not** include `mpirun`/`srun` here;
+  the MPI launcher is controlled by `mpi_launcher`.
 
 `energy_settings_path` : `str`.
 : Path to a JSON file with VASP settings
   (passed to [`ase.calculators.vasp.Vasp`](https://ase-lib.org/ase/calculators/vasp.html#id2)).
 
 `num_cores` : `int`.
-: CPU cores per VASP process. Used with `use_slurm`.
+: CPU cores per DFT process. Required when `mpi_launcher` is not `none`.
+
+`mpi_launcher` : `str` | default = `mpirun`.
+: MPI launcher for DFT runs. One of `mpirun`, `srun`, `ibrun`, or `none`.
+  See the `aims` section above for details.
+
+`dft_mode` : `str` | default = `parallel`.
+: DFT execution mode (`serial` or `parallel`).
+  See the `aims` section above for details.
 
 `use_slurm` : `bool` | default = `False`.
-: Pin ranks to SLURM hosts.
+: When `mpi_launcher` is `mpirun` and `dft_mode` is `parallel`, pin
+  each rank to a SLURM host. Ignored for `srun`, `none`, or `serial`.
 
 ---
 

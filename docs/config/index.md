@@ -11,7 +11,7 @@ symmetry-preserving rigid press, deduplicate, evaluate energies with
 MACE-OFF, compute ACSF descriptors, cluster via Affinity Propagation and
 select representatives, relax with BFGS + MACE-OFF, and deduplicate again.
 
-:::{dropdown} Show full `ui.conf`
+:::{dropdown} `ui.conf`
 :icon: file-code
 :open:
 
@@ -20,16 +20,10 @@ select representatives, relax with BFGS + MACE-OFF, and deduplicate again.
 name                        = aspirin
 molecule_path               = ["aspirin.xyz"]
 Z                           = 4
+log_level                   = info
 
 [workflow]
-tasks                       = ['generation',
-                               'symm_rigid_press',
-                               'dedup',
-                               'maceoff',
-                               'acsf',
-                               'ap_center',
-                               'bfgs_maceoff',
-                               'dedup']
+tasks                       = ['generation', 'symm_rigid_press', 'dedup', 'maceoff', 'acsf', 'ap_center', 'bfgs_maceoff', 'dedup']
 
 [generation]
 num_structures_per_spg      = 4000
@@ -48,7 +42,6 @@ sr                          = 0.85
 method                      = BFGS
 tol                         = 0.01
 natural_cutoff_mult         = 1.2
-debug_flag                  = False
 
 [dedup]
 stol                        = 0.5
@@ -88,7 +81,13 @@ steps                       = 1000
 cell_opt                    = True
 fix_sym                     = True
 ```
+
 :::
+
+## SLURM Job Scripts for DFT
+
+To use DFT (FHI-aims / VASP), add the corresponding section to your
+config.  See {doc}`energy` for all DFT options and `dft_mode` details.
 
 ## Sections
 
