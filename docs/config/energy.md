@@ -124,7 +124,7 @@ cores than Genarris ranks.
 #SBATCH --time=48:00:00
 
 # 4 Genarris ranks, each launches its own DFT subprocess with 64 cores.
-# Total: 4 concurrent DFT jobs * 64 cores = 256 cores.
+# Total: 4 parallel DFT jobs * 64 cores = 256 cores.
 mpirun -np 4 gnrs -c ui.conf
 ```
 
@@ -140,7 +140,7 @@ use_slurm             = True
 ```
 
 Each rank runs its own DFT subprocess pinned to a specific SLURM host.
-Use this when you have many structures and want concurrent DFT jobs.
+Use this when you have many structures and want parallel DFT jobs.
 :::
 
 ---
