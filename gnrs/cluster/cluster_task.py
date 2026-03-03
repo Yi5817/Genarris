@@ -135,8 +135,9 @@ class ClusterSelectionTask(TaskABC):
             )
             return
         
-        if type(task_set[self.clstr_name]["clusters_tol"]) is float:
-            task_set[self.clstr_name]["clusters_tol"] = int(task_set[self.clstr_name]["clusters_tol"] * task_set[self.clstr_name]["n_clusters"])
+        clusters_tol = task_set[self.clstr_name].get("clusters_tol", 0.5)
+        if type(clusters_tol) is float:
+            task_set[self.clstr_name]["clusters_tol"] = int(clusters_tol * task_set[self.clstr_name]["n_clusters"])
         
         self._run_cluster(task_set[self.clstr_name])
         self._run_selection(task_set[self.slct_name])

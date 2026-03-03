@@ -56,7 +56,7 @@ class APCluster(ClusterABC):
         self.max_sampling_attempts = self.tsk_set.get("max_sampling_attempts", 10)
         # Clustering parameters
         self.n_clusters = self.tsk_set.get("n_clusters")
-        self.clusters_tol = self.tsk_set.get("clusters_tol", 0.5)
+        self.clusters_tol = self.tsk_set.get("clusters_tol")
         self.debug_mode = self.tsk_set.get("debug_mode", False)
         # Files
         self.ids_file = self.tsk_set.get("ids_file", "ids.dat")
