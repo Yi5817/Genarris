@@ -10,11 +10,11 @@ __author__ = ["Yi Yang", "Rithwik Tom"]
 __email__ = "yiy5@andrew.cmu.edu"
 __group__ = "https://www.noamarom.com/"
 
-import subprocess
 from ase import Atoms
 from ase.calculators.aims import Aims, AimsProfile
 
 from gnrs.core.energy import EnergyCalculatorABC
+from gnrs.gnrsutil.mpi_cmd import build_dft_command
 
 
 class AIMSEnergy(EnergyCalculatorABC):
@@ -24,13 +24,11 @@ class AIMSEnergy(EnergyCalculatorABC):
 
     def __init__(self, *args) -> None:
         super().__init__(*args)
-        if self.tsk_set.get("use_slurm", False):
-            cmd = "scontrol show hostname $SLURM_JOB_NODELIST"
-            all_hosts = subprocess.check_output(cmd, shell=True).decode().strip().split('\n')
-            host = all_hosts[self.rank+1]
-            prof = AimsProfile(f'mpirun -host {host} -np {self.tsk_set["num_cores"]} {self.tsk_set["command"]}', default_species_directory=self.tsk_set["species_dir"])
-        else:
-            prof = AimsProfile(self.tsk_set["command"], default_species_directory=self.tsk_set["species_dir"])
+        command = build_dft_command(self.tsk_set, self.rank)
+        prof = AimsProfile(
+            command,
+            default_species_directory=self.tsk_set["species_dir"],
+        )
         self.calc = Aims(profile=prof, **self.tsk_set['energy_settings'])
 
     def initialize(self) -> None:

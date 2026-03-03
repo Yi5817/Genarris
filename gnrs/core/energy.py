@@ -3,10 +3,6 @@ Abstract base class for energy calculators.
 
 This module provides the base class for implementing energy calculators.
 
-It supports a GPU worker/feeder pattern: when running with more MPI ranks
-than GPUs, only a subset of ranks (workers) load models onto GPUs.
-The remaining ranks (feeders) send structures to workers via MPI.
-
 This source code is licensed under the BSD-3-Clause license found in the
 LICENSE file in the root directory of this source tree.
 """
@@ -17,6 +13,7 @@ __email__ = "yiy5@andrew.cmu.edu"
 __group__ = "https://www.noamarom.com/"
 
 import abc
+import logging
 from collections import deque
 from typing import Any, Callable, Optional
 
@@ -25,16 +22,27 @@ from ase import Atoms
 
 from gnrs.core.gpu import GPUDeviceManager, TAG_WORK_DATA, TAG_WORK_RESULT, TAG_SHUTDOWN
 
+logger = logging.getLogger("energy")
+
+_VALID_DFT_MODES = {"serial", "parallel"}
+
+
 class EnergyCalculatorABC(abc.ABC):
     """
     Abstract base class for energy calculators.
-
-    Supports two execution modes:
-    1. Direct mode (ranks <= GPUs or CPU-only calculators):
+    It supports three execution modes:
+    1. Direct mode (default for CPU-only / MLIP calculators):
     Every rank loads the model and computes locally.
 
     2. Worker/feeder mode (ranks > GPUs, GPU-based calculators):
-    Worker ranks (one per GPU) load models. Feeder ranks send structures to their assigned worker and receive results back.
+    Worker ranks (one per GPU) load models.  Feeder ranks send structures
+    to workers via MPI.
+
+    3. Serial DFT mode:
+    Only rank 0 runs the DFT calculator.  Results are broadcast to all
+    ranks afterwards. Use when the DFT binary needs the full allocation.
+
+    All energy calculators should inherit this class.
     """
 
     requires_gpu: bool = False
@@ -55,6 +63,13 @@ class EnergyCalculatorABC(abc.ABC):
         self.tsk_set = task_settings
         self.energy_name = energy_name
         self.calc = None
+
+        dft_mode = task_settings.get("dft_mode", "parallel")
+        if dft_mode not in _VALID_DFT_MODES:
+            raise ValueError(
+                f"Invalid dft_mode={dft_mode!r}. Must be one of {_VALID_DFT_MODES}."
+            )
+        self._dft_serial_mode = dft_mode == "serial"
 
         self._gpu_mgr = None
         self._use_worker_feeder = False
@@ -100,7 +115,9 @@ class EnergyCalculatorABC(abc.ABC):
             structs: structure dictionary
             on_structure_done: used for checkpoint saves
         """
-        if not self._use_worker_feeder:
+        if self._dft_serial_mode:
+            self._serial_dft_batch(structs, on_structure_done)
+        elif not self._use_worker_feeder:
             for xtal in structs.values():
                 self.run(xtal)
                 if on_structure_done is not None:
@@ -111,6 +128,37 @@ class EnergyCalculatorABC(abc.ABC):
             self._feeder_loop(structs, on_structure_done)
 
         self.comm.Barrier()
+
+    def _serial_dft_batch(
+        self,
+        structs: dict[str, Atoms],
+        on_structure_done: Optional[Callable[[], None]],
+    ) -> None:
+        """
+        Serial DFT mode: only rank 0 runs the DFT calculator.
+        """
+        local_items = list(structs.items())
+        all_items = self.comm.gather(local_items, root=0)
+
+        energy_map: dict[str, float] | None = None
+        if self.is_master:
+            flat = [(n, x) for rank_items in all_items for n, x in rank_items]
+            logger.info(
+                "dft_mode=serial: rank 0 processing %d structures",
+                len(flat),
+            )
+            energy_map = {}
+            for name, xtal in flat:
+                self.run(xtal)
+                energy_map[name] = xtal.info.get(self.energy_name, 0)
+                if on_structure_done is not None:
+                    on_structure_done()
+
+        energy_map = self.comm.bcast(energy_map, root=0)
+
+        for name, xtal in structs.items():
+            if self.energy_name not in xtal.info and name in energy_map:
+                xtal.info[self.energy_name] = energy_map[name]
 
     def _worker_loop(
         self,

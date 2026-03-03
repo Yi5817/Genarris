@@ -35,13 +35,18 @@ class GeometryOptimizerABC(abc.ABC):
     """
     Abstract class for Geometry optimization methods.
 
-    Supports two execution modes:
+    Supports three execution modes:
     1. Direct mode (ranks <= GPUs or CPU-only calculators):
     Every rank runs the optimizer locally.
 
     2. Worker/feeder mode (ranks > GPUs, GPU-based calculators):
-    Worker ranks run optimizations on GPU. Feeder ranks send structures
-    to their assigned worker and receive optimized results back.
+    Worker ranks run optimizations on GPU.  Feeder ranks send
+    structures to their assigned worker and receive optimized
+    results back.
+
+    3. Serial DFT mode:
+    Only rank 0 runs optimizations.  Results are broadcast to all
+    ranks.  Use when the DFT binary needs the full allocation.
 
     All optimizers should inherit this class.
     """
@@ -54,6 +59,7 @@ class GeometryOptimizerABC(abc.ABC):
         energy_method: str | None = None,
         energy_calc: any | None = None,
         gpu_mgr: GPUDeviceManager | None = None,
+        dft_serial_mode: bool = False,
     ) -> None:
         """
         Initialize the geometry optimizer.
@@ -65,6 +71,8 @@ class GeometryOptimizerABC(abc.ABC):
             energy_method: Energy calculation method
             energy_calc: ASE calculator
             gpu_mgr: GPU device manager
+            dft_serial_mode: If True, only rank 0 runs optimizations and
+            results are broadcast to all ranks.
         """
         self.opt_name = opt_name
         self.comm = comm
@@ -79,6 +87,7 @@ class GeometryOptimizerABC(abc.ABC):
         self._use_worker_feeder = (
             gpu_mgr is not None and gpu_mgr.num_feeders > 0
         )
+        self._dft_serial_mode = dft_serial_mode
 
     def run(self, xtal: Atoms) -> None:
         """
@@ -110,7 +119,9 @@ class GeometryOptimizerABC(abc.ABC):
             structs: structure dictionary
             on_structure_done: used for checkpoint saves
         """
-        if not self._use_worker_feeder:
+        if self._dft_serial_mode:
+            self._serial_dft_batch(structs, on_structure_done)
+        elif not self._use_worker_feeder:
             for xtal in structs.values():
                 self.run(xtal)
                 if on_structure_done is not None:
@@ -121,6 +132,44 @@ class GeometryOptimizerABC(abc.ABC):
             self._feeder_loop(structs, on_structure_done)
 
         self.comm.Barrier()
+
+    def _serial_dft_batch(
+        self,
+        structs: dict[str, Atoms],
+        on_structure_done: Optional[Callable[[], None]],
+    ) -> None:
+        """
+        Serial DFT mode: only rank 0 runs optimizations.
+        """
+        local_items = list(structs.items())
+        all_items = self.comm.gather(local_items, root=0)
+
+        results: dict[str, tuple[dict, np.ndarray, np.ndarray]] | None = None
+        if self.is_master:
+            flat = [(n, x) for rank_items in all_items for n, x in rank_items]
+            logger.info(
+                "dft_mode=serial: rank 0 optimizing %d structures",
+                len(flat),
+            )
+            results = {}
+            for name, xtal in flat:
+                self.run(xtal)
+                results[name] = (
+                    xtal.info.copy(),
+                    np.array(xtal.positions),
+                    np.array(xtal.cell),
+                )
+                if on_structure_done is not None:
+                    on_structure_done()
+
+        results = self.comm.bcast(results, root=0)
+
+        for name, xtal in structs.items():
+            if name in results:
+                info, positions, cell = results[name]
+                xtal.info.update(info)
+                xtal.positions = positions
+                xtal.cell = cell
 
     def _worker_loop(
         self,

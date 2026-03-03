@@ -114,7 +114,7 @@ class EnergyCalculationTask(TaskABC):
         if task_settings.get("save_flag"):
             save_cb = lambda: self.dsdict.checkpoint_save(self.rank_calc_dir)
 
-        if calc.requires_gpu and calc._use_worker_feeder:
+        if calc._dft_serial_mode or (calc.requires_gpu and calc._use_worker_feeder):
             calc.run_batch(self.structs, on_structure_done=save_cb)
         else:
             for xtal in self.structs.values():

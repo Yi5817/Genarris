@@ -47,6 +47,16 @@ ap:
 dedup:
   group_by_spg: true
 
+aims:
+  mpi_launcher: mpirun
+  use_slurm: false
+  dft_mode: parallel
+
+vasp:
+  mpi_launcher: mpirun
+  use_slurm: false
+  dft_mode: parallel
+
 maceoff:
   model_size: large
   save_flag: true

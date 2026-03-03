@@ -10,11 +10,11 @@ __author__ = ["Yi Yang", "Rithwik Tom"]
 __email__ = "yiy5@andrew.cmu.edu"
 __group__ = "https://www.noamarom.com/"
 
-import subprocess
 from ase import Atoms
 from ase.calculators.vasp import Vasp
 
 from gnrs.core.energy import EnergyCalculatorABC
+from gnrs.gnrsutil.mpi_cmd import build_dft_command
 
 
 class VASP(EnergyCalculatorABC):
@@ -25,13 +25,7 @@ class VASP(EnergyCalculatorABC):
 
     def __init__(self, *args) -> None:
         super().__init__(*args)
-        if self.tsk_set.get("use_slurm", False):
-            cmd = "scontrol show hostname $SLURM_JOB_NODELIST"
-            all_hosts = subprocess.check_output(cmd, shell=True).decode().strip().split('\n')
-            host = all_hosts[self.rank+1]
-            command = f'mpirun -host {host} -np {self.tsk_set["num_cores"]} {self.tsk_set["command"]}'
-        else:
-            command = self.tsk_set["command"]
+        command = build_dft_command(self.tsk_set, self.rank)
         self.calc = Vasp(command=command, **self.tsk_set['energy_settings'])
 
     def initialize(self) -> None:
