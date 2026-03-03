@@ -10,8 +10,8 @@ sys.path.insert(0, os.path.abspath(".."))
 project = "Genarris"
 copyright = "2025, Noa Marom Group"
 author = "Yi Yang, Rithwik Tom"
-release = "3.0.0"
-version = "3.0"
+release = "3.1.0"
+version = "3.1"
 
 # -- General configuration -----------------------------------------------------
 extensions = [
