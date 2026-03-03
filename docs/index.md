@@ -15,10 +15,6 @@
 
 *A scalable, MPI-parallel Crystal Structure Prediction workflow for organic molecular crystals.*
 
-**Genarris** (`gnrs`) generates random molecular crystal structures and drives
-CSP workflows from generation through energy evaluation, clustering,
-and selection. 
-
 🏛️ Developed by the [Noa Marom Group](https://www.noamarom.com/software/genarris) at Carnegie Mellon University.
 
 ---
@@ -54,7 +50,7 @@ Run your first CSP workflow step by step.
 
 **📖 API Reference**
 ^^^
-Full module and class documentation.
+Learn about `gnrs` API.
 :::
 
 :::{grid-item-card}
@@ -74,33 +70,27 @@ CSP results and applications.
 :gutter: 3
 
 :::{grid-item-card} 🔬 Structure Generation
-Generate random molecular crystal structures across all 230 space groups with
-configurable packing parameters and volume estimation.
+Random crystal generation across all 230 space groups.
 :::
 
 :::{grid-item-card} 📐 Rigid Press
-Improve packing acceptance rates with symmetry-preserving rigid-press geometry
-optimization.
+Improve efficiency of close-packed molecular crystal generation.
 :::
 
 :::{grid-item-card} 🧠 ML Potentials
-Evaluate energies with state-of-the-art MLIPs including **UMA**, **MACE-OFF**,
-and **AIMNet2** with GPU acceleration.
+Evaluate energies with state-of-the-art MLIPs including UMA, MACE-OFF, and AIMNet2 with GPU acceleration.
 :::
 
 :::{grid-item-card} 📊 Clustering & Selection
-Cluster structures using Affinity Propagation or K-Means with ACSF descriptors.
-Select representatives via center or energy-window strategies.
+AP / K-Means clustering with ACSF descriptors and flexible selection strategies.
 :::
 
-:::{grid-item-card} ⚡ MPI Parallelization
-Scale across hundreds of cores with MPI-parallel execution. GPU worker/feeder
-pattern for efficient resource utilization.
+:::{grid-item-card} ⚡ MPI Parallel
+Scales to hundreds of cores with GPU worker/feeder pattern.
 :::
 
 :::{grid-item-card} 🧩 Modular Workflow
-Configure multi-step CSP pipelines via simple INI files. Extensible architecture
-with abstract base classes for custom implementations.
+Configurable CSP workflows with extensible base classes.
 :::
 
 ::::
@@ -119,15 +109,15 @@ with abstract base classes for custom implementations.
 * - [UMA](https://github.com/facebookresearch/fairchem)
   - {bdg-success}`MLIP`
   - ✅
-  - Universal Model for Atoms from Meta FAIR
+  - Universal Model for Atoms from [Meta FAIR](https://ai.meta.com/research/) Chemistry Team.
 * - [MACE-OFF](https://github.com/ACEsuit/mace)
   - {bdg-success}`MLIP`
   - ✅
-  - MACE-OFF organic molecular crystals model
+  - Transferable Organic Force Fields
 * - [AIMNet2](https://github.com/isayevlab/aimnetcentral)
   - {bdg-success}`MLIP`
   - ✅
-  - AIMNet2 neural network potential
+  - Flexible long-range interactions
 * - [DFTB+](https://dftbplus.org/)
   - {bdg-warning}`Semi-Empirical`
   - —
