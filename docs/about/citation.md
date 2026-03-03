@@ -6,13 +6,13 @@ If you use Genarris in your research, please cite the relevant papers below.
 
 > Yang, Y., Tom, R., Wui, J. A., Moussa, J. E., & Marom, N.
 > Genarris 3.0: Generating Close-Packed Molecular Crystal Structures with Rigid Press.
-> *Journal of Chemical Theory and Computation*, **21**, 11318–11332 (2025).
+> *J. Chem. Theory Comput.*, **21**, 11318–11332 (2025).
 
 ```bibtex
 @article{genarrisv3,
   title   = {Genarris 3.0: Generating Close-Packed Molecular Crystal Structures with Rigid Press},
   author  = {Yang, Yi and Tom, Rithwik and Wui, Jose AGL and Moussa, Jonathan E and Marom, Noa},
-  journal = {Journal of Chemical Theory and Computation},
+  journal = {J. Chem. Theory Comput.},
   volume  = {21},
   number  = {21},
   pages   = {11318--11332},
@@ -25,14 +25,14 @@ If you use Genarris in your research, please cite the relevant papers below.
 
 > Tom, R., Rose, T., Bier, I., O'Brien, H., Vázquez-Mayagoitia, Á., & Marom, N.
 > Genarris 2.0: A random structure generator for molecular crystals.
-> *Computer Physics Communications*, **250**, 107170 (2020).
+> *Comput. Phys. Commun.*, **250**, 107170 (2020).
 
 ```bibtex
 @article{genarrisv2,
   title   = {Genarris 2.0: A random structure generator for molecular crystals},
   author  = {Tom, Rithwik and Rose, Timothy and Bier, Imanuel and O'Brien, Harriet
              and V{\'a}zquez-Mayagoitia, {\'A}lvaro and Marom, Noa},
-  journal = {Computer Physics Communications},
+  journal = {Comput. Phys. Commun.},
   volume  = {250},
   pages   = {107170},
   year    = {2020},
@@ -46,7 +46,7 @@ If you use Genarris in your research, please cite the relevant papers below.
 > Oberhofer, H., & Marom, N.
 > Genarris: Random generation of molecular crystal structures and fast screening
 > with a Harris approximation.
-> *The Journal of Chemical Physics*, **148**, 24 (2018).
+> *J. Chem. Phys.*, **148**, 24 (2018).
 
 ```bibtex
 @article{genarrisv1,
@@ -55,7 +55,7 @@ If you use Genarris in your research, please cite the relevant papers below.
   author  = {Li, Xiayue and Curtis, Farren S and Rose, Timothy and Schober, Christoph
              and Vazquez-Mayagoitia, Alvaro and Reuter, Karsten and Oberhofer, Harald
              and Marom, Noa},
-  journal = {The Journal of Chemical Physics},
+  journal = {J. Chem. Phys.},
   volume  = {148},
   number  = {24},
   year    = {2018},
@@ -68,14 +68,14 @@ If you use Genarris in your research, please cite the relevant papers below.
 > Bier, I. & Marom, N.
 > Machine learned model for solid form volume estimation based on packing-accessible
 > surface and molecular topological fragments.
-> *The Journal of Physical Chemistry A*, **124**, 10330-10345 (2020).
+> *J. Phys. Chem. A*, **124**, 10330-10345 (2020).
 
 ```bibtex
 @article{pymove,
   title   = {Machine learned model for solid form volume estimation based on
              packing-accessible surface and molecular topological fragments},
   author  = {Bier, Imanuel and Marom, Noa},
-  journal = {The Journal of Physical Chemistry A},
+  journal = {J. Phys. Chem. A},
   volume  = {124},
   number  = {49},
   pages   = {10330--10345},
