@@ -2,7 +2,7 @@ name: build-docs
 
 on:
   push:
-    branches: [fix_bugs]
+    branches: [master]
     paths:
       - "docs/**"
       - "gnrs/**"
