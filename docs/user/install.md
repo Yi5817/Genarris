@@ -74,6 +74,7 @@ different MPI compiler, modify the `MPICC` variable in `setup.py`.
 
 **Example — TACC Vista (aarch64, NVPL):**
 Vista uses [NVIDIA Performance Libraries (NVPL)](https://docs.tacc.utexas.edu/hpc/vista/#compiler-examples) instead of the standard BLAS/LAPACK. After loading the `nvpl` module (`module load nvpl`), update `setup.py`:
+
 ```python
 rigid_press = Extension(
     "gnrs.cgenarris.src.rpack.rigid_press._rigid_press",
@@ -85,6 +86,7 @@ rigid_press = Extension(
     swig_opts=["-I./gnrs/cgenarris/src/rpack/rigid_press", "-I./gnrs/cgenarris/src/spglib_src"],
 )
 ```
+
 :::
 
 ## Optional Energy Calculators
@@ -122,7 +124,7 @@ pip install git+https://github.com/isayevlab/aimnetcentral.git
 ### DFT and Semi-Empirical
 
 | Calculator | Type | Notes |
-|:-----------|:-----|:------|
+| :--------- | :--- | :---- |
 | [DFTB+](https://dftbplus.org/) | Semi-Empirical | Install separately; provide path in config |
 | [FHI-aims](https://fhi-aims.org/) | DFT | Licensed software; provide binary path in config |
 | [VASP](https://www.vasp.at/) | DFT | Licensed software; provide binary path in config |

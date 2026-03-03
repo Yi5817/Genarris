@@ -57,7 +57,8 @@ lattice_angle_std       = 8
   of integers (e.g. `[14, 19]`) restricts generation to those space groups only.
 
 `generation_type` : `str` | default = `crystal`.
-: Generation mode. Currently only `crystal` is supported. 
+: Generation mode. Currently only `crystal` is supported.
+
   ```{note}
   Multi-component crystals are coming soon!
   ```
@@ -68,7 +69,8 @@ lattice_angle_std       = 8
   Usually no change needed.
 
 `stoichiometry` : `list[int]` | default = `[1]`.
-: Molecular stoichiometry. `[1]` for a single-component crystal. 
+: Molecular stoichiometry. `[1]` for a single-component crystal.
+
   ```{note}
   Multi-component crystals are coming soon!
   ```
