@@ -73,6 +73,7 @@ class DuplicateRemovalTask(TaskABC):
             "ltol": cfg.get("ltol", 0.5),
             "angle_tol": cfg.get("angle_tol", 10),
             "energy_key": cfg.get("energy_key", None),
+            "group_by_spg": cfg.get("group_by_spg", True),
         }
         return task_set
 
@@ -106,31 +107,42 @@ class DuplicateRemovalTask(TaskABC):
         os.chdir(self.calc_dir)
 
         energy_key = task_set.pop("energy_key")
+        use_spg_groups = task_set.pop("group_by_spg")
         matcher = StructureMatcher(**task_set)
 
-        # Gather all structures and group by space group
         all_structs = gp.comm.gather(self.structs, root=0)
 
-        spg_groups = {}
-        spg_keys = []
+        combined = {}
         if gp.is_master:
-            combined = {}
             for d in all_structs:
                 combined.update(d)
             del all_structs
-            spg_groups = group_by_spg(combined)
-            del combined
-            spg_keys = sorted(spg_groups.keys())
-            gout.emit(f"# of space groups: {len(spg_keys)}")
 
-        spg_keys = gp.comm.bcast(spg_keys, root=0)
+        if use_spg_groups:
+            spg_groups = {}
+            spg_keys = []
+            if gp.is_master:
+                spg_groups = group_by_spg(combined)
+                spg_keys = sorted(spg_groups.keys())
+                gout.emit(f"Deduplicating {len(combined)} structures across {len(spg_keys)} space groups")
+                del combined
 
-        # Remove duplicates from each space group in parallel
-        unique = {}
-        for spg in spg_keys:
-            pool = spg_groups.pop(spg, {}) if gp.is_master else {}
-            kept = dedup_group(pool, matcher, spg, energy_key)
-            unique.update(kept)
+            spg_keys = gp.comm.bcast(spg_keys, root=0)
+
+            unique = {}
+            for spg in spg_keys:
+                pool = spg_groups.pop(spg, {}) if gp.is_master else {}
+                kept = dedup_group(pool, matcher, spg, energy_key)
+                unique.update(kept)
+        else:
+            if gp.is_master:
+                gout.emit(
+                    f"Deduplicating all {len(combined)} structures"
+                )
+            unique = dedup_group(
+                combined if gp.is_master else {},
+                matcher, None, energy_key,
+            )
 
         # Scatter deduplicated pool back across ranks
         ds = DistributedStructs(unique)

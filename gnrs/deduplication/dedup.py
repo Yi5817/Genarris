@@ -161,9 +161,8 @@ def dedup_group(
             best = _select(cluster, energy_key)
             kept[best] = cluster[best]
 
-            logger.debug(
-                f"SPG {spg}: remaining pool: {len(pool)}"
-            )
+            tag = f"SPG {spg}" if spg is not None else "ALL"
+            logger.debug(f"{tag}: remaining pool: {len(pool)}")
 
     kept = gp.comm.bcast(kept, root=0)
     return kept
