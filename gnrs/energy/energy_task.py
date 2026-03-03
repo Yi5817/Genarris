@@ -35,7 +35,8 @@ class EnergyCalculationTask(TaskABC):
         comm: MPI.Comm, 
         config: dict, 
         gnrs_info: dict, 
-        energy_method: str
+        energy_method: str,
+        instance_id: str | None = None,
     ) -> None:
         """
         Initialize the energy calculation task.
@@ -45,8 +46,9 @@ class EnergyCalculationTask(TaskABC):
             config: Config dictionary
             gnrs_info: Genarris info dictionary
             energy_method: Energy calculation method
+            instance_id: Unique ID for this task instance
         """
-        super().__init__(comm, config, gnrs_info)
+        super().__init__(comm, config, gnrs_info, instance_id=instance_id)
         self.energy_name = energy_method.lower()
         self.energy_class = self.energy_name.upper() + "Energy"
         self.energy_file = f"gnrs.energy.{self.energy_name}"
@@ -63,15 +65,16 @@ class EnergyCalculationTask(TaskABC):
         """
         Initialize the energy calculation task.
         """
-        title = "Energy Calculation: " + self.energy_name
+        iid = self._instance_id or self.energy_name
+        title = f"Energy Calculation: {iid}"
         super().initialize(self.energy_name, title)
-        logger.info(f"Starting energy calculation task: {self.energy_name}")
+        logger.info(f"Starting energy calculation task: {iid}")
 
     def pack_settings(self) -> dict:
         """
         Pack the settings for the energy calculation task.
         """
-        task_set = {**self.config[self.energy_name]}
+        task_set = {**self._merge_config(self.energy_name, self._active_instance_id)}
         return task_set
 
     def print_settings(self, task_settings: dict) -> None:

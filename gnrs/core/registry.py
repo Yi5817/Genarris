@@ -8,6 +8,8 @@ LICENSE file in the root directory of this source tree.
 from __future__ import annotations
 
 import importlib
+from collections import Counter
+from typing import NamedTuple
 
 _TASK_TYPES = {
     "generation": ("gnrs.generation", "StructureGenerationTask"),
@@ -29,6 +31,54 @@ _CLUSTERERS = {"ap", "kmeans"}
 _SELECTORS = {"center", "window"}
 
 _DESCRIPTORS = {"acsf"}
+
+
+class TaskSpec(NamedTuple):
+    """
+    Specification for a single task.
+
+    Args:
+        task_type: Task type name (e.g. "dedup", "acsf").
+        instance_id: Unique ID for folders and restart tracking.
+        cls: Task class.
+        extra_args: Extra args for the task constructor.
+    """
+    task_type: str
+    instance_id: str
+    cls: type
+    extra_args: tuple
+
+
+def resolve_tasks(task_list: list[str]) -> list[TaskSpec]:
+    """
+    Resolve a full workflow task list into `TaskSpec` objects.
+
+    Duplicate task names are auto-indexed (e.g. "dedup_1", "dedup_2").
+
+    Args:
+        task_list: Raw task names from `config["workflow"]["tasks"]`.
+
+    Returns:
+        List of TaskSpec objects.
+    """
+    counts = Counter(task_list)
+    seen = {}
+    specs = []
+
+    for raw_name in task_list:
+        cls, extra_args = resolve_task(raw_name)
+        task_type = raw_name.strip().lower()
+
+        if counts[raw_name] > 1:
+            idx = seen.get(task_type, 0) + 1
+            seen[task_type] = idx
+            instance_id = f"{task_type}_{idx}"
+        else:
+            instance_id = task_type
+
+        specs.append(TaskSpec(task_type, instance_id, cls, extra_args))
+
+    return specs
 
 
 def resolve_task(task_name: str):

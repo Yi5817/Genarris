@@ -38,7 +38,8 @@ class DescriptorEvaluationTask(TaskABC):
         comm: MPI.Comm, 
         config: dict, 
         gnrs_info: dict, 
-        descriptor: str
+        descriptor: str,
+        instance_id: str | None = None,
     ) -> None:
         """Initialize the descriptor evaluation task.
         
@@ -47,8 +48,9 @@ class DescriptorEvaluationTask(TaskABC):
             config: Config dictionary
             gnrs_info: Genarris info dictionary
             descriptor: Descriptor class name
+            instance_id: Unique ID for this task instance
         """
-        super().__init__(comm, config, gnrs_info)
+        super().__init__(comm, config, gnrs_info, instance_id=instance_id)
         self.desc_name = descriptor.lower()
         self.task_name = self.desc_name
         self.desc_file = f"gnrs.descriptor.{self.desc_name}"
@@ -69,9 +71,10 @@ class DescriptorEvaluationTask(TaskABC):
         """
         Initialize the descriptor evaluation task.
         """
-        title = f"Descriptor Evaluation: {self.desc_name}"
+        iid = self._instance_id or self.task_name
+        title = f"Descriptor Evaluation: {iid}"
         super().initialize(self.task_name, title)
-        logger.info(f"Starting descriptor evaluation task: {self.desc_name}")
+        logger.info(f"Starting descriptor evaluation task: {iid}")
 
     def pack_settings(self) -> dict:
         """
@@ -81,7 +84,7 @@ class DescriptorEvaluationTask(TaskABC):
             Task settings dictionary
         """
         task_set = {"molecule_path": self.gnrs_info["molecule_path"]}
-        task_set.update(self.config[self.task_name])
+        task_set.update(self._merge_config(self.task_name, self._active_instance_id))
         return task_set
 
     def print_settings(self, task_set: dict) -> None:

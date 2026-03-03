@@ -19,7 +19,7 @@ from mpi4py import MPI
 
 from gnrs.core import folders
 from gnrs.core.logging import GenarrisLogger
-from gnrs.core.registry import resolve_task
+from gnrs.core.registry import resolve_tasks
 import gnrs.output as gout
 from gnrs.parallel import init_parallel
 from gnrs.parser import UserSettingsParser, UserSettingsSanityChecker
@@ -169,23 +169,27 @@ class Genarris:
         Args:
             tasks: List of task names to execute
         """
-        self.logger.info(f"Running configured tasks: {tasks}")
-        gout.emit(f"Executing {len(tasks)} configured tasks")
-        
-        for task in tasks:
-            try:
-                cls, extra_args = resolve_task(task)
-            except ValueError:
-                self.logger.error(f"Unknown task: {task}.")
-                gout.emit(f"Error: Unknown task: {task}. Skipping.")
-                continue
+        try:
+            task_specs = resolve_tasks(tasks)
+        except ValueError as exc:
+            self.logger.error(str(exc))
+            gout.emit(f"Error: {exc}")
+            return
 
-            if not is_task_completed(task):
-                gout.emit(f"Running task: {task}")
-                cls(self.comm, self.config, self.gnrs_info, *extra_args).run()
+        self.logger.info(f"Running configured tasks: {[s.instance_id for s in task_specs]}")
+        gout.emit(f"Executing {len(task_specs)} configured tasks")
+        
+        for spec in task_specs:
+            if not is_task_completed(spec.instance_id):
+                gout.emit(f"Running task: {spec.instance_id}")
+                spec.cls(
+                    self.comm, self.config, self.gnrs_info,
+                    *spec.extra_args,
+                    instance_id=spec.instance_id,
+                ).run()
                 write_restart()
                 test_bcast()
                 check_if_exp_found(self.config, self.gnrs_info)
             else:
-                self.logger.info(f"{task} task was completed before restart")
-                gout.skip_task(task)
+                self.logger.info(f"{spec.instance_id} task was completed before restart")
+                gout.skip_task(spec.instance_id)

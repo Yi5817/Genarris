@@ -38,7 +38,8 @@ class GeometryOptimizationTask(TaskABC):
         config: dict, 
         gnrs_info: dict, 
         optimizer: str, 
-        energy_method: str | None = None
+        energy_method: str | None = None,
+        instance_id: str | None = None,
     ) -> None:
         """
         Initialize the geometry optimization task.
@@ -49,8 +50,9 @@ class GeometryOptimizationTask(TaskABC):
             gnrs_info: Genarris info dictionary
             optimizer: Optimizer
             energy_method: Energy calculator(optional)
+            instance_id: Unique ID for this task instance
         """
-        super().__init__(comm, config, gnrs_info)
+        super().__init__(comm, config, gnrs_info, instance_id=instance_id)
         self.opt_name = optimizer.lower()
         self.opt_class = f"{self.opt_name.upper()}Optimizer"
         # Set task name and energy method
@@ -73,9 +75,10 @@ class GeometryOptimizationTask(TaskABC):
         """
         Initialize the optimization task.
         """
-        title = f"Geometry Optimization: {self.task_name}"
+        iid = self._instance_id or self.task_name
+        title = f"Geometry Optimization: {iid}"
         super().initialize(self.task_name, title)
-        logger.info(f"Starting geometry optimization task: {self.task_name}")
+        logger.info(f"Starting geometry optimization task: {iid}")
 
         # If struct_path specified, use it instead of default
         spath = self.config[self.opt_name].get("struct_path")
@@ -133,6 +136,9 @@ class GeometryOptimizationTask(TaskABC):
         task_set = {}
         if self.opt_name in self.config:
             task_set.update(self.config[self.opt_name])
+        overrides = self.config.get(self._active_instance_id, {}) if self._active_instance_id != self.task_name else {}
+        if overrides:
+            task_set.update(overrides)
 
         if self.opt_name in ["rigid_press", "symm_rigid_press"]:
             task_set["z"] = self.config["master"]["z"]

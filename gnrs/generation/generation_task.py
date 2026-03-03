@@ -33,7 +33,13 @@ class StructureGenerationTask(TaskABC):
     Task for generating crystal structures.
     """
     
-    def __init__(self, comm: MPI.Comm, config: dict, gnrs_info: dict) -> None:
+    def __init__(
+        self,
+        comm: MPI.Comm,
+        config: dict,
+        gnrs_info: dict,
+        instance_id: str | None = None,
+    ) -> None:
         """
         Initialize the structure generation task.
         
@@ -41,8 +47,9 @@ class StructureGenerationTask(TaskABC):
             comm: MPI communicator
             config: Config dictionary
             gnrs_info: Genarris info dictionary
+            instance_id: Unique ID for this task instance
         """
-        super().__init__(comm, config, gnrs_info)
+        super().__init__(comm, config, gnrs_info, instance_id=instance_id)
         self.task_name = "generation"
         self.generation_type = None
         self.spg_distribution = None

@@ -30,9 +30,15 @@ class DuplicateRemovalTask(TaskABC):
     Task for removing duplicate crystal structures from the pool.
     """
 
-    TASK_NAME = "duplicate_removal"
+    TASK_NAME = "dedup"
 
-    def __init__(self, comm: MPI.Comm, config: dict, gnrs_info: dict) -> None:
+    def __init__(
+        self,
+        comm: MPI.Comm,
+        config: dict,
+        gnrs_info: dict,
+        instance_id: str | None = None,
+    ) -> None:
         """
         Initialize the duplicate removal task.
 
@@ -40,14 +46,16 @@ class DuplicateRemovalTask(TaskABC):
             comm: MPI communicator
             config: Config dictionary
             gnrs_info: Genarris info dictionary
+            instance_id: Unique ID for this task instance
         """
-        super().__init__(comm, config, gnrs_info)
+        super().__init__(comm, config, gnrs_info, instance_id=instance_id)
 
     def initialize(self) -> None:
         """
         Initialize the duplicate removal task.
         """
-        title = f"Duplicate Removal: {self.TASK_NAME}"
+        iid = self._instance_id or self.TASK_NAME
+        title = f"Duplicate Removal: {iid}"
         super().initialize(self.TASK_NAME, title)
 
     def pack_settings(self) -> dict:
@@ -57,7 +65,9 @@ class DuplicateRemovalTask(TaskABC):
         Returns:
             Task settings dictionary
         """
-        cfg = self.config.get(self.TASK_NAME, {})
+        cfg = self._merge_config(self.TASK_NAME, self._active_instance_id)
+        if not cfg:
+            cfg = self.config.get("dedup", {})
         task_set = {
             "stol": cfg.get("stol", 0.5),
             "ltol": cfg.get("ltol", 0.5),

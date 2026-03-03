@@ -29,7 +29,15 @@ class ClusterSelectionTask(TaskABC):
     """
     Task for performing cluster selection.
     """
-    def __init__(self, comm: MPI.Comm, config: dict, gnrs_info: dict, cluster: str, selection: str) -> None:
+    def __init__(
+        self,
+        comm: MPI.Comm,
+        config: dict,
+        gnrs_info: dict,
+        cluster: str,
+        selection: str,
+        instance_id: str | None = None,
+    ) -> None:
         """
         Initialize the cluster selection task.
         
@@ -39,8 +47,9 @@ class ClusterSelectionTask(TaskABC):
             gnrs_info: Genarris info dictionary
             cluster: Clustering class name
             selection: Selection class name
+            instance_id: Unique ID for this task instance
         """
-        super().__init__(comm, config, gnrs_info)
+        super().__init__(comm, config, gnrs_info, instance_id=instance_id)
         self.clstr_name = cluster.lower()
         self.clstr_file = f"gnrs.cluster.{self.clstr_name}"
         self.clstr_class = f"{cluster.upper()}Cluster"
@@ -54,7 +63,8 @@ class ClusterSelectionTask(TaskABC):
         """
         Initialize the cluster selection task.
         """
-        title = f"Cluster-Selection: {self.task_name}"
+        iid = self._instance_id or self.task_name
+        title = f"Cluster-Selection: {iid}"
         super().initialize(self.task_name, title)
         # Import required modules
         try:
@@ -81,9 +91,10 @@ class ClusterSelectionTask(TaskABC):
         Returns:
             Task settings dictionary
         """
+        overrides = self.config.get(self._active_instance_id, {}) if self._active_instance_id != self.task_name else {}
         task_set = {}
-        task_set[self.clstr_name] = self.config[self.clstr_name].copy()
-        task_set[self.slct_name] = self.config[self.slct_name].copy()
+        task_set[self.clstr_name] = {**self.config.get(self.clstr_name, {}), **overrides.get(self.clstr_name, {})}
+        task_set[self.slct_name] = {**self.config.get(self.slct_name, {}), **overrides.get(self.slct_name, {})}
         return task_set
 
     def print_settings(self, task_set: dict) -> None:
