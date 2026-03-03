@@ -154,6 +154,7 @@ user/quickstart
 ```{toctree}
 :caption: Reference
 :hidden:
+config/index
 api/index
 ```
 
@@ -168,7 +169,6 @@ dev/dev
 :hidden:
 
 about/case_studies
-about/examples
 about/changelog
 about/citation
 about/license

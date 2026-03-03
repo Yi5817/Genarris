@@ -38,6 +38,7 @@ myst_enable_extensions = [
     "tasklist",
     "substitution",
     "amsmath",
+    "dollarmath",
 ]
 myst_heading_anchors = 3
 
