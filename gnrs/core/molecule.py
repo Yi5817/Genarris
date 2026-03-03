@@ -49,7 +49,7 @@ class Molecule(Atoms):
         """
         com = self.get_center_of_mass()
         self.translate(-1 * com)
-        eig_val, eig_vec = self.get_moments_of_inertia(vectors=True)
-        pos = self.get_positions()
-        pos = np.dot(eig_vec, pos.transpose())
-        self.set_positions(pos.transpose())
+        _, axes = self.get_moments_of_inertia(vectors=True)
+        if np.linalg.det(axes) < 0:
+            axes[-1] *= -1
+        self.set_positions(self.get_positions() @ axes.T)
