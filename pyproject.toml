@@ -2,19 +2,19 @@
 requires = [
     "setuptools>=61.0",
     "wheel",
-    "swig",
+    "swig>=4.1,<4.3",
     "Cython",
     "numpy>=2.0,<2.3",
-    "mpi4py==3.1.5"
+    "mpi4py",
 ]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "gnrs"
-version = "3.0.0"
+dynamic = ["version"]
 description = "A random molecular crystal structure generator"
 readme = "README.md"
-license = {file = "LICENSE"}
+license = {text = "BSD-3-Clause"}
 authors = [
     {name = "Yi Yang", email = "yiy5@andrew.cmu.edu"},
     {name = "Rithwik Tom"}
@@ -28,7 +28,7 @@ dependencies = [
     "torch~=2.8.0",
     "numpy>=2.0,<2.3",
     "numba>=0.60",
-    "mpi4py==3.1.5",
+    "mpi4py",
     "ase",
     "spglib",
     "pymatgen",
@@ -50,12 +50,15 @@ gnrs = "gnrs.cli:main"
 
 [project.urls]
 repository = "https://github.com/Yi5817/Genarris.git"
-home = "https://www.noamarom.com/software/genarris"
+homepage = "https://www.noamarom.com/software/genarris"
 
-[tool.setuptools]
-packages = ["gnrs"]
-include-package-data = true
+[tool.setuptools.dynamic]
+version = {attr = "gnrs.__version__"}
+
+[tool.setuptools.packages.find]
+include = ["gnrs*"]
 
 [tool.setuptools.package-data]
-"gnrs.parser" = ["defaults.json"]
-"gnrs.generation.cgenarris" = ["src/**/*"]
+"gnrs.parser" = ["*.yaml"]
+"gnrs.gnrsutil" = ["*.yaml"]
+"gnrs.cgenarris" = ["src/**/*.c", "src/**/*.h", "src/**/*.i"]

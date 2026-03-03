@@ -21,12 +21,12 @@ from gnrs.core.task import TaskABC
 from gnrs.parallel.structs import DistributedStructs
 import gnrs.output as gout
 
-AVAILABLE_CALCULATORS = ["DFTBP", "AIMS", "MACEOFF", "UMA", "VASP"]
+AVAILABLE_CALCULATORS = ["DFTBP", "AIMS", "MACEOFF", "UMA", "VASP", "AIMNET"]
 logger = logging.getLogger("EnergyCalcTask")
 
 class EnergyCalculationTask(TaskABC):
     """
-    Task for computing energy using DFT or semi-empirical method.
+    Task for computing energy using DFT, semi-empirical, or MLIP methods.
     Uses ASE calculators for energy evaluation.
     """
 
@@ -35,17 +35,20 @@ class EnergyCalculationTask(TaskABC):
         comm: MPI.Comm, 
         config: dict, 
         gnrs_info: dict, 
-        energy_method: str
+        energy_method: str,
+        instance_id: str | None = None,
     ) -> None:
-        """Initialize the energy calculation task.
+        """
+        Initialize the energy calculation task.
         
         Args:
             comm: MPI communicator
             config: Config dictionary
             gnrs_info: Genarris info dictionary
             energy_method: Energy calculation method
+            instance_id: Unique ID for this task instance
         """
-        super().__init__(comm, config, gnrs_info)
+        super().__init__(comm, config, gnrs_info, instance_id=instance_id)
         self.energy_name = energy_method.lower()
         self.energy_class = self.energy_name.upper() + "Energy"
         self.energy_file = f"gnrs.energy.{self.energy_name}"
@@ -62,15 +65,16 @@ class EnergyCalculationTask(TaskABC):
         """
         Initialize the energy calculation task.
         """
-        title = "Energy Calculation: " + self.energy_name
+        iid = self._instance_id or self.energy_name
+        title = f"Energy Calculation: {iid}"
         super().initialize(self.energy_name, title)
-        logger.info(f"Starting energy calculation task: {self.energy_name}")
+        logger.info(f"Starting energy calculation task: {iid}")
 
     def pack_settings(self) -> dict:
         """
         Pack the settings for the energy calculation task.
         """
-        task_set = {**self.config[self.energy_name]}
+        task_set = {**self._merge_config(self.energy_name, self._active_instance_id)}
         return task_set
 
     def print_settings(self, task_settings: dict) -> None:
@@ -106,10 +110,17 @@ class EnergyCalculationTask(TaskABC):
 
         # Calculate energy
         calc = self.energy_calc(self.comm, task_settings, self.energy_name)
-        for xtal in self.structs.values():
-            calc.run(xtal)
-            if task_settings["save_flag"]:
-                self.dsdict.checkpoint_save(self.rank_calc_dir)
+        save_cb = None
+        if task_settings.get("save_flag"):
+            save_cb = lambda: self.dsdict.checkpoint_save(self.rank_calc_dir)
+
+        if calc._dft_serial_mode or (calc.requires_gpu and calc._use_worker_feeder):
+            calc.run_batch(self.structs, on_structure_done=save_cb)
+        else:
+            for xtal in self.structs.values():
+                calc.run(xtal)
+                if save_cb is not None:
+                    save_cb()
 
     def collect_results(self) -> None:
         """

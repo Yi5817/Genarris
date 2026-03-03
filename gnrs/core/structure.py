@@ -359,17 +359,15 @@ class Structure(object):
 
     def get_geometry_atom_format(self):
         """
-        Should be renamed to: convert/get_aims()
-        There should be a master convert or get function that accepts str
-            argument for: 'aims', 'json', 'pymatgen', 'ase'
+        Convert structure to FHI-aims geometry format.
 
-        Takes a np.ndarry with standard "geometry" format.
+        Takes a np.ndarray with standard "geometry" format.
         Returns a string with structure in standard aims format.
-        If atom's spin is spedcified, it's value is located on the line below the atom's coordinates.
-        similarly with charge and relaxation constraint.
+        If atom's spin is specified, its value is located on the line
+        below the atom's coordinates. Similarly with charge and
+        relaxation constraint.
 
-        MODIFIED TO WORK WITH MOLECULES: It's ridiculous that this didn't work
-          if there were no lattice vectors.
+        Modified to handle molecules without lattice vectors.
         """
         lattice_vectors = self.get_lattice_vectors()
         atom_string = ""

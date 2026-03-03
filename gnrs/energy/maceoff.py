@@ -13,31 +13,28 @@ __author__ = ["Yi Yang", "Rithwik Tom"]
 __email__ = "yiy5@andrew.cmu.edu"
 __group__ = "https://www.noamarom.com/"
 
-import torch
 from ase import Atoms
-from mace.calculators import mace_off
 
 from gnrs.core.energy import EnergyCalculatorABC
 
 
 class MACEOFFEnergy(EnergyCalculatorABC):
+    """Computes the energy using MACE-OFF model.
+
+    GPU device assignment is managed by the base class via ``GPUDeviceManager``.
+    Feeder ranks skip model loading entirely; only GPU workers instantiate
+    the MACE calculator.
     """
-    Computes the energy using MACE-OFF model.
-    """
+
+    requires_gpu = True
+
     def __init__(self, *args) -> None:
         super().__init__(*args)
-        if torch.cuda.is_available():
-            num_gpus = torch.cuda.device_count()
-            if num_gpus > 0:
-                gpu_id = self.rank % num_gpus
-                device = f"cuda:{gpu_id}"
-                torch.cuda.set_device(gpu_id)
-            else:
-                device = "cpu"
-        else:
-            device = "cpu"
-        model_size = self.tsk_set.get("model_size", "large")
-        self.calc = mace_off(model=model_size, device=device)
+        if self._gpu_mgr is None or self._gpu_mgr.is_worker:
+            from mace.calculators import mace_off
+
+            model_size = self.tsk_set.get("model_size", "large")
+            self.calc = mace_off(model=model_size, device=self.device)
 
     def initialize(self) -> None:
         """

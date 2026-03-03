@@ -1,8 +1,10 @@
 """
 Genarris: A random molecular crystal structure generator.
+
+This source code is licensed under the BSD-3-Clause license found in the
+LICENSE file in the root directory of this source tree.
 """
 
-__version__ = "3.0.0"
-__author__ = "Yi Yang, Rithwik Tom"
-__email__ = "yiy5@andrew.cmu.edu"
-__license__ = "BSD-3-Clause"
+from __future__ import annotations
+
+__version__ = "3.1.0"

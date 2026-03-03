@@ -38,7 +38,8 @@ class GeometryOptimizationTask(TaskABC):
         config: dict, 
         gnrs_info: dict, 
         optimizer: str, 
-        energy_method: str | None = None
+        energy_method: str | None = None,
+        instance_id: str | None = None,
     ) -> None:
         """
         Initialize the geometry optimization task.
@@ -49,15 +50,16 @@ class GeometryOptimizationTask(TaskABC):
             gnrs_info: Genarris info dictionary
             optimizer: Optimizer
             energy_method: Energy calculator(optional)
+            instance_id: Unique ID for this task instance
         """
-        super().__init__(comm, config, gnrs_info)
+        super().__init__(comm, config, gnrs_info, instance_id=instance_id)
         self.opt_name = optimizer.lower()
         self.opt_class = f"{self.opt_name.upper()}Optimizer"
         # Set task name and energy method
         if energy_method is not None:
             self.energy_method = energy_method.lower()
             self.energy_class = f"{self.energy_method.upper()}Energy"
-            self.task_name = f"{self.opt_name}-{self.energy_method}"
+            self.task_name = f"{self.opt_name}_{self.energy_method}"
         else:
             self.energy_method = None
             self.task_name = self.opt_name
@@ -73,9 +75,10 @@ class GeometryOptimizationTask(TaskABC):
         """
         Initialize the optimization task.
         """
-        title = f"Geometry Optimization: {self.task_name}"
+        iid = self._instance_id or self.task_name
+        title = f"Geometry Optimization: {iid}"
         super().initialize(self.task_name, title)
-        logger.info(f"Starting geometry optimization task: {self.task_name}")
+        logger.info(f"Starting geometry optimization task: {iid}")
 
         # If struct_path specified, use it instead of default
         spath = self.config[self.opt_name].get("struct_path")
@@ -133,6 +136,9 @@ class GeometryOptimizationTask(TaskABC):
         task_set = {}
         if self.opt_name in self.config:
             task_set.update(self.config[self.opt_name])
+        overrides = self.config.get(self._active_instance_id, {}) if self._active_instance_id != self.task_name else {}
+        if overrides:
+            task_set.update(overrides)
 
         if self.opt_name in ["rigid_press", "symm_rigid_press"]:
             task_set["z"] = self.config["master"]["z"]
@@ -178,15 +184,17 @@ class GeometryOptimizationTask(TaskABC):
         Args:
             task_set: Task settings dictionary
         """
-        # Load settings if neccessary and Create energy calculator
+        gpu_mgr = None
+        dft_serial = False
         if self.energy_method is not None:
             set_file = self.energy_set.get("energy_settings_path")
             if set_file is not None:
                 with open(set_file, "r") as jfile:
                     self.energy_set["energy_settings"] = json.load(jfile)
-            # Get energy calculator
             ec_obj = self.energy_calc(self.comm, self.energy_set, self.energy_method)
             e_calc = ec_obj.get_calculator()
+            gpu_mgr = ec_obj._gpu_mgr
+            dft_serial = ec_obj._dft_serial_mode
         else:
             e_calc = None
 
@@ -200,14 +208,12 @@ class GeometryOptimizationTask(TaskABC):
         # Run optimization
         gout.emit("Optimizing structures...")
         opt = self.opt_calc(
-            self.comm, task_set, self.opt_name, self.energy_method, e_calc
+            self.comm, task_set, self.opt_name, self.energy_method, e_calc,
+            gpu_mgr, dft_serial,
         )
-        
-        for _id, xtal in self.structs.items():
-            opt.run(xtal)
-            self.dsdict.checkpoint_save(self.rank_calc_dir)
 
-        self.comm.barrier()
+        save_cb = lambda: self.dsdict.checkpoint_save(self.rank_calc_dir)
+        opt.run_batch(self.structs, on_structure_done=save_cb)
         gout.emit("Completed optimizations.")
 
     def collect_results(self):

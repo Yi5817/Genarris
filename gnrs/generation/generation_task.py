@@ -33,7 +33,13 @@ class StructureGenerationTask(TaskABC):
     Task for generating crystal structures.
     """
     
-    def __init__(self, comm: MPI.Comm, config: dict, gnrs_info: dict) -> None:
+    def __init__(
+        self,
+        comm: MPI.Comm,
+        config: dict,
+        gnrs_info: dict,
+        instance_id: str | None = None,
+    ) -> None:
         """
         Initialize the structure generation task.
         
@@ -41,8 +47,9 @@ class StructureGenerationTask(TaskABC):
             comm: MPI communicator
             config: Config dictionary
             gnrs_info: Genarris info dictionary
+            instance_id: Unique ID for this task instance
         """
-        super().__init__(comm, config, gnrs_info)
+        super().__init__(comm, config, gnrs_info, instance_id=instance_id)
         self.task_name = "generation"
         self.generation_type = None
         self.spg_distribution = None
@@ -70,9 +77,9 @@ class StructureGenerationTask(TaskABC):
         Returns:
             Task settings dictionary
         """
-        seed = self.config["master"].get("seed", np.random.randint(0, 2**31))
+        self.seed = int(self.config["generation"].get("seed", 42))
         task_set = {
-            "seed": seed,
+            "seed": self.seed,
             "z": self.config["master"]["z"],
             "molecule_path": self.config["master"]["molecule_path"],
             **self.config["generation"]
@@ -86,7 +93,7 @@ class StructureGenerationTask(TaskABC):
             task_set["spg_distribution_type"] = "custom"
 
         self.ucv_mean = task_set.pop("ucv_mean", task_set.pop("unit_cell_volume_mean", None))
-        self.ucv_std = task_set.pop("ucv_std", task_set.pop("unit_cell_volume", None))
+        self.ucv_std = task_set.pop("ucv_std", task_set.pop("unit_cell_volume_std", None))
         self.ucv_mult = task_set.pop("ucv_mult", task_set.pop("volume_mult", 1.5))
         self.sr = task_set.pop("sr", task_set.pop("specific_radius_proportion", 0.95))
         self._predict_cell_volume(task_set["z"])
@@ -265,7 +272,7 @@ class StructureGenerationTask(TaskABC):
             
             pred_volume = 0.0
             for molecule_path, st in zip(self.gnrs_info["molecule_path"], self.stoic):
-                pred_volume += predict_cell_volume(molecule_path) * st
+                pred_volume += predict_cell_volume(molecule_path, seed=self.seed) * st
             
             self.ucv_mean = pred_volume * Z * self.ucv_mult
             elapsed_time = time.time() - start_time

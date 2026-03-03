@@ -3,8 +3,8 @@ import sys
 import importlib
 from setuptools import setup, Extension
 
-if sys.version_info < (3, 9):
-    raise SystemExit("Genarris requires Python >= 3.9")
+if sys.version_info < (3, 10):
+    raise SystemExit("Genarris requires Python >= 3.10")
     
 # Set location of MPI C compiler (mpicc) here:
 MPICC = os.environ.get("MPICC", "mpicc")
@@ -141,11 +141,17 @@ def get_rigid_press_sources():
     return sources, include_rpress
 
 sources_pygenarris, include_pygenarris = get_pygenarris_sources()
+mpi4py_include = importlib.import_module("mpi4py").get_include()
 pygenarris_mpi = Extension(
     "gnrs.cgenarris.src._pygenarris_mpi",
     include_dirs=include_pygenarris,
     sources=sources_pygenarris,
     extra_compile_args=["-std=gnu99", "-O3"],
+    swig_opts=[
+        "-I./gnrs/cgenarris/src/",
+        "-I./gnrs/cgenarris/src/spglib_src",
+        f"-I{mpi4py_include}",
+    ],
 )
 
 # Add rigid_press extension
@@ -156,10 +162,10 @@ rigid_press = Extension(
     sources=sources_rigid_press,
     extra_compile_args=["-std=gnu99", "-O3"],
     libraries=["lapack", "blas"],
+    swig_opts=["-I./gnrs/cgenarris/src/rpack/rigid_press", "-I./gnrs/cgenarris/src/spglib_src"],
 )
 
 setup(
     ext_modules=[pygenarris_mpi, rigid_press],
-    py_modules=["pygenarris_mpi", "rigid_press"],
-    zip_safe=False
+    zip_safe=False,
 )

@@ -83,7 +83,7 @@ class DistributedStructs:
         pmg_target = AseAtomsAdaptor.get_structure(target)
 
         if settings is None:
-            settings = {"stol": 0.5, "ltol": 0.5, "angle_tol": 10, "attempt_supercell": True}
+            settings = {"stol": 0.5, "ltol": 0.5, "angle_tol": 10}
         matcher = StructureMatcher(**settings)
 
         match_list = []

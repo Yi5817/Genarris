@@ -16,41 +16,35 @@ from __future__ import annotations
 __author__ = ["Vahe Gharakhanyan"]
 __email__ = "vaheg@meta.com"
 
-import torch
 from ase import Atoms
-from fairchem.core import pretrained_mlip, FAIRChemCalculator
 
 from gnrs.core.energy import EnergyCalculatorABC
 
 
 class UMAEnergy(EnergyCalculatorABC):
+    """Computes the energy using UMA model.
+
+    GPU device assignment is managed by the base class via ``GPUDeviceManager``.
+    Feeder ranks skip model loading entirely; only GPU workers instantiate
+    the FAIRChem calculator.
     """
-    Computes the energy using UMA model.
-    """
+
+    requires_gpu = True
+
     def __init__(self, *args) -> None:
         super().__init__(*args)
-        if torch.cuda.is_available():
-            num_gpus = torch.cuda.device_count()
-            if num_gpus > 0:
-                gpu_id = self.rank % num_gpus
-                device = f"cuda:{gpu_id}"
-                torch.cuda.set_device(gpu_id)
-            else:
-                device = "cpu"
-        else:
-            device = "cpu"
-        model_name = self.tsk_set.get("model_name", "uma-s-1p1")
-        task_name = self.tsk_set.get("task_name", "omc")
-        # make sure you applied for model access to the
-        # UMA model repository on HuggingFace, and have
-        # logged in to Hugging Face using an access token
-        self.calc = FAIRChemCalculator(
-            pretrained_mlip.get_predict_unit(
-                model_name,
-                device=device
-            ),
-            task_name=task_name
-        )
+        if self._gpu_mgr is None or self._gpu_mgr.is_worker:
+            from fairchem.core import pretrained_mlip, FAIRChemCalculator
+
+            model_name = self.tsk_set.get("model_name", "uma-s-1p1")
+            task_name = self.tsk_set.get("task_name", "omc")
+            self.calc = FAIRChemCalculator(
+                pretrained_mlip.get_predict_unit(
+                    model_name,
+                    device=self.device,
+                ),
+                task_name=task_name,
+            )
 
     def initialize(self) -> None:
         """

@@ -1,0 +1,6 @@
+sphinx>=7.0
+furo
+myst-parser
+sphinx-copybutton
+sphinx-togglebutton
+sphinx-design

@@ -1,0 +1,7 @@
+# Hydrogen-bond cutoff distances (Angstrom) for three-body intermolecular contacts.
+
+h_bond:
+  OH-O:  1.40
+  OH-N:  1.50
+  NH-O:  1.50
+  NH-N:  1.65

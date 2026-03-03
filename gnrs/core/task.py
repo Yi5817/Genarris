@@ -34,7 +34,13 @@ class TaskABC(abc.ABC):
     - Clustering and selection
     """
 
-    def __init__(self, comm: MPI.Comm, config: dict, gnrs_info: dict) -> None:
+    def __init__(
+        self,
+        comm: MPI.Comm,
+        config: dict,
+        gnrs_info: dict,
+        instance_id: str | None = None,
+    ) -> None:
         """
         Initialize the task with MPI communicator and settings.
         
@@ -42,6 +48,7 @@ class TaskABC(abc.ABC):
             comm: MPI communicator
             config: Config dictionary
             gnrs_info: Genarris info dictionary
+            instance_id: Unique ID for this task.
         """
         self.comm = comm
         self.rank = comm.Get_rank()
@@ -49,6 +56,7 @@ class TaskABC(abc.ABC):
         self.is_master = self.rank == 0
         self.config = config
         self.gnrs_info = gnrs_info
+        self._instance_id = instance_id
 
     def run(self) -> None:
         """
@@ -73,6 +81,22 @@ class TaskABC(abc.ABC):
         self.analyze()
         self.finalize()
 
+    def _merge_config(self, task_type: str, instance_id: str) -> dict:
+        """
+        Merge base task-type config with per-instance overrides.
+
+        Args:
+            task_type: Task type name (e.g. "dedup").
+            instance_id: This run's unique instance ID (e.g. "dedup_2").
+
+        Returns:
+            Merged settings dictionary.
+        """
+        base = self.config.get(task_type, {}).copy()
+        if instance_id != task_type:
+            base.update(self.config.get(instance_id, {}))
+        return base
+
     @abc.abstractmethod
     def initialize(self, task_name: str, title: str) -> None:
         """
@@ -82,16 +106,19 @@ class TaskABC(abc.ABC):
             task_name: Name of the task
             title: Title to display for the task
         """
+        instance_id = self._instance_id or task_name
+        self._active_instance_id = instance_id
+
         self.comm.barrier()
         gout.print_title(title)
 
         self.start_time = time.time()
         self.debug_mode = self.config["master"].get("debug_mode", False)
-        self.struct_dir = os.path.join(self.gnrs_info["struct_dir"], task_name)
+        self.struct_dir = os.path.join(self.gnrs_info["struct_dir"], instance_id)
         self.struct_path = os.path.join(self.struct_dir, "structures.json")
-        self.calc_dir = os.path.join(self.gnrs_info["tmp_dir"], task_name)
+        self.calc_dir = os.path.join(self.gnrs_info["tmp_dir"], instance_id)
 
-        self.gnrs_info[task_name] = {
+        self.gnrs_info[instance_id] = {
             "start_time": self.start_time,
             "status": "running",
             "struct_dir": self.struct_dir,
@@ -105,7 +132,7 @@ class TaskABC(abc.ABC):
             self.structs = read_parallel(last_struct_path)
             ds = DistributedStructs(self.structs)
             n_structs = ds.get_num_structs()
-            gout.emit(f"Starting {task_name} task with {n_structs} Structures.")
+            gout.emit(f"Starting {instance_id} task with {n_structs} Structures.")
 
     @abc.abstractmethod
     def pack_settings(self) -> dict:
@@ -168,12 +195,13 @@ class TaskABC(abc.ABC):
         Args:
             task_name: Name of the task
         """
+        instance_id = self._active_instance_id
         self.gnrs_info["last_struct_path"] = self.struct_path
-        self.gnrs_info[task_name]["results"] = self.struct_path
-        self.gnrs_info[task_name]["status"] = "completed"
-        end_time = self.gnrs_info[task_name]["end_time"] = time.time()
+        self.gnrs_info[instance_id]["results"] = self.struct_path
+        self.gnrs_info[instance_id]["status"] = "completed"
+        end_time = self.gnrs_info[instance_id]["end_time"] = time.time()
         elapsed = end_time - self.start_time
-        gout.emit(f"Completed {task_name} task in {elapsed:.2f} seconds.")
+        gout.emit(f"Completed {instance_id} task in {elapsed:.2f} seconds.")
         gout.section_complete()
         os.chdir(self.gnrs_info["work_dir"])
         self.comm.Barrier()
