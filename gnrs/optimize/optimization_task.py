@@ -185,6 +185,7 @@ class GeometryOptimizationTask(TaskABC):
             task_set: Task settings dictionary
         """
         # Load settings if neccessary and Create energy calculator
+        gpu_mgr = None
         if self.energy_method is not None:
             set_file = self.energy_set.get("energy_settings_path")
             if set_file is not None:
@@ -193,6 +194,7 @@ class GeometryOptimizationTask(TaskABC):
             # Get energy calculator
             ec_obj = self.energy_calc(self.comm, self.energy_set, self.energy_method)
             e_calc = ec_obj.get_calculator()
+            gpu_mgr = ec_obj._gpu_mgr
         else:
             e_calc = None
 
@@ -206,14 +208,12 @@ class GeometryOptimizationTask(TaskABC):
         # Run optimization
         gout.emit("Optimizing structures...")
         opt = self.opt_calc(
-            self.comm, task_set, self.opt_name, self.energy_method, e_calc
+            self.comm, task_set, self.opt_name, self.energy_method, e_calc,
+            gpu_mgr,
         )
-        
-        for _id, xtal in self.structs.items():
-            opt.run(xtal)
-            self.dsdict.checkpoint_save(self.rank_calc_dir)
 
-        self.comm.barrier()
+        save_cb = lambda: self.dsdict.checkpoint_save(self.rank_calc_dir)
+        opt.run_batch(self.structs, on_structure_done=save_cb)
         gout.emit("Completed optimizations.")
 
     def collect_results(self):
