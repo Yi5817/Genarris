@@ -96,31 +96,26 @@ def write_parallel(file_path: str, struct_dict: dict,
         mode: File opening mode
     """
     
-    if not struct_dict:
+    str_list = [f'"{k}": {encode(v)},\n' for k, v in struct_dict.items()]
+
+    if gather:
+        str_list = gp.comm.gather(str_list, root=0)
+        if gp.is_master:
+            str_list = [s for sublist in str_list if sublist for s in sublist]
+            if not str_list:
+                logger.info("No structures to write!")
+                return
+            logger.info(f"Writing {len(str_list)} structures to file")
+    elif not str_list:
         logger.info("No structures to write!")
         return
 
-    # Convert to list of JSON strings
-    str_list = [f'"{k}": {encode(v)},\n' for k, v in struct_dict.items()]
-    
-    if gather:
-        str_list = gp.comm.gather(str_list, root=0)
-        if gp.is_master and str_list:
-            num_structs = sum(len(e) for e in str_list)
-            logger.info(f"Writing {num_structs} structures to file")
-
-    if gp.is_master:
-        # Flatten
-        if gather and str_list:
-            str_list = [s for sublist in str_list for s in sublist]
-            
-        if str_list:
-            str_list[-1] = str_list[-1][:-2]
-            
-            with open(file_path, mode) as wfile:
-                wfile.write("{\n")
-                wfile.writelines(str_list)
-                wfile.write("\n}")
+    if gp.is_master and str_list:
+        str_list[-1] = str_list[-1][:-2]
+        with open(file_path, mode) as wfile:
+            wfile.write("{\n")
+            wfile.writelines(str_list)
+            wfile.write("\n}")
 
 
 def read_parallel(file_path: str, scatter: bool = True) -> dict:
