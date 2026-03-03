@@ -99,11 +99,10 @@ Genarris uses a [configuration file](https://docs.python.org/3/library/configpar
    [generation]
    num_structures_per_spg      = 4000
    sr                          = 0.95
-   # sr is an alias for specific_radius_proportion
    max_attempts_per_spg        = 100000000
    tol                         = 0.01
-   unit_cell_volume_mean       = predict
-   volume_mult                 = 1.5 
+   ucv_mean                    = predict
+   ucv_mult                    = 1.5 
    max_attempts_per_volume     = 10000000
    spg_distribution_type       = standard
    generation_type             = crystal
