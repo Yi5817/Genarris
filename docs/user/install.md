@@ -2,8 +2,8 @@
 
 ## Prerequisites
 
-- 🐍 **Python** 3.10 – 3.11
-- ⚙️ **MPI compiler** (`mpicc`) for parallel execution
+- 🐍 **Python** 3.10+
+- ⚙️ **MPI compiler**
 
 ## Clone the repo
 
@@ -69,15 +69,11 @@ pip install -e . --no-build-isolation
 **MPI compiler:** `mpicc` is used to build the C extensions. To use a
 different MPI compiler, modify the `MPICC` variable in `setup.py`.
 
-**BLAS/LAPACK:** The `rigid_press` extension links against BLAS and LAPACK
-(`-llapack -lblas` by default). On HPC systems the library names or paths may
-differ — edit the `libraries` and `library_dirs` fields of the `rigid_press`
-Extension in `setup.py` before installing.
+**BLAS/LAPACK:** `rigid_press` extension links against BLAS and LAPACK
+(`-llapack -lblas` by default). On HPC systems the library names or paths may differ — edit the `libraries` and `library_dirs` fields of the `rigid_press` extension in `setup.py` before installing.
 
 **Example — TACC Vista (aarch64, NVPL):**
-Vista uses [NVIDIA Performance Libraries (NVPL)](https://docs.tacc.utexas.edu/hpc/vista/#compiler-examples)
-instead of the standard BLAS/LAPACK. After loading the `nvpl` module
-(`module load nvpl`), update `setup.py`:
+Vista uses [NVIDIA Performance Libraries (NVPL)](https://docs.tacc.utexas.edu/hpc/vista/#compiler-examples) instead of the standard BLAS/LAPACK. After loading the `nvpl` module (`module load nvpl`), update `setup.py`:
 ```python
 rigid_press = Extension(
     "gnrs.cgenarris.src.rpack.rigid_press._rigid_press",
