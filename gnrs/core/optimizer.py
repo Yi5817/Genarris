@@ -37,11 +37,11 @@ class GeometryOptimizerABC(abc.ABC):
 
     Supports two execution modes:
     1. Direct mode (ranks <= GPUs or CPU-only calculators):
-       Every rank runs the optimizer locally.
+    Every rank runs the optimizer locally.
 
     2. Worker/feeder mode (ranks > GPUs, GPU-based calculators):
-       Worker ranks run optimizations on-GPU. Feeder ranks send structures
-       to their assigned worker and receive fully-optimized results back.
+    Worker ranks run optimizations on GPU. Feeder ranks send structures
+    to their assigned worker and receive optimized results back.
 
     All optimizers should inherit this class.
     """
