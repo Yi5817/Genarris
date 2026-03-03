@@ -93,7 +93,7 @@ class StructureGenerationTask(TaskABC):
             task_set["spg_distribution_type"] = "custom"
 
         self.ucv_mean = task_set.pop("ucv_mean", task_set.pop("unit_cell_volume_mean", None))
-        self.ucv_std = task_set.pop("ucv_std", task_set.pop("unit_cell_volume", None))
+        self.ucv_std = task_set.pop("ucv_std", task_set.pop("unit_cell_volume_std", None))
         self.ucv_mult = task_set.pop("ucv_mult", task_set.pop("volume_mult", 1.5))
         self.sr = task_set.pop("sr", task_set.pop("specific_radius_proportion", 0.95))
         self._predict_cell_volume(task_set["z"])
