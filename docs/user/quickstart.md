@@ -9,8 +9,8 @@ Genarris uses a [configuration file](https://docs.python.org/3/library/configpar
 to control each step of the CSP pipeline. A typical workflow consists of:
 
 1. **Structure Generation** – Random crystal structures across space groups
-2. **Rigid Press** – Geometry optimization to improve packing
-3. **Energy Evaluation** – Compute energies with MLIPs or DFT
+2. **Rigid Press** – Geometry optimization to improve close-packed structures
+3. **Energy Evaluation** – Compute energies and relax geometries with MLIPs or DFT
 4. **Descriptor Computation** – Calculate fingerprints (ACSF)
 5. **Clustering & Selection** – Group similar structures and select representatives
 
@@ -18,7 +18,7 @@ to control each step of the CSP pipeline. A typical workflow consists of:
 
 Provide conformer geometry in any format supported by
 [`ase.io.read()`](https://ase-lib.org/ase/io/io.html#ase.io.read)
-(e.g., `.xyz`, `.cif`, `.mol`, `.in`).
+(e.g., `.xyz`, `.mol`, `.in`).
 
 ## Step 2: Create Configuration File
 
