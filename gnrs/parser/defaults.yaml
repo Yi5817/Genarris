@@ -44,6 +44,9 @@ symm_rigid_press:
 ap:
   max_ap_workers: 8
 
+dedup:
+  group_by_spg: true
+
 maceoff:
   model_size: large
   save_flag: true
