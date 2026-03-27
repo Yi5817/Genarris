@@ -35,11 +35,12 @@ source gnrs_env/bin/activate
 
 ### Install Build Dependencies
 
-Install build dependencies and `mpi4py` with the correct MPI compiler **before** installing the package:
+Install build dependencies, PyTorch, and `mpi4py` with the correct MPI compiler **before** installing the package:
 
 ```bash
-pip install "setuptools>=61.0" wheel "swig>=4.1,<4.3" pybind11 Cython "numpy>=2.0,<2.3"
-MPICC=$(which mpicc) pip install mpi4py --no-cache-dir
+pip install "setuptools>=61.0" wheel "swig>=4.1,<4.3" Cython "numpy>=2.0,<2.3"
+pip install torch==2.8.0 --index-url https://download.pytorch.org/whl/cu129
+MPICC=$(which mpicc) pip install mpi4py --no-binary mpi4py
 ```
 
 > [!NOTE]
