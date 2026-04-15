@@ -1,5 +1,24 @@
 # Changelog
 
+## v3.1.1 (2026-04)
+
+All changes in this release by [@Yi5817](https://github.com/Yi5817).
+
+### Fixed
+- Fix NaN bug in cgenarris crystal generation (`3366fbb`).
+
+### Changed
+- Add git-tag-based release versioning with `setuptools-scm`.
+
+### Documentation
+- Improve installation documentation (`45237f6`).
+
+### CI / Chores
+- Add GitHub Actions release workflow with release-drafter and GitHub Release
+  asset uploads.
+
+---
+
 ## v3.1.0 (2026-03)
 
 All changes in this release by [@Yi5817](https://github.com/Yi5817).
