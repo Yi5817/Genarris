@@ -2,6 +2,7 @@
 requires = [
     "setuptools>=61.0",
     "wheel",
+    "setuptools-scm>=8",
     "swig>=4.1,<4.3",
     "Cython",
     "numpy>=2.0,<2.3",
@@ -23,7 +24,7 @@ maintainers = [
     {name = "Yi Yang", email = "yiy5@andrew.cmu.edu"},
 ]
 keywords = ["crystal structure", "molecular crystals", "crystal structure prediction", "materials science"]
-requires-python = ">=3.9,<3.12"
+requires-python = ">=3.10,<3.12"
 dependencies = [
     "torch~=2.8.0",
     "numpy>=2.0,<2.3",
@@ -52,8 +53,10 @@ gnrs = "gnrs.cli:main"
 repository = "https://github.com/Yi5817/Genarris.git"
 homepage = "https://www.noamarom.com/software/genarris"
 
-[tool.setuptools.dynamic]
-version = {attr = "gnrs.__version__"}
+[tool.setuptools_scm]
+version_scheme = "no-guess-dev"
+local_scheme = "no-local-version"
+tag_regex = '^gnrs-(?P<version>\d+(?:\.\d+)*)$'
 
 [tool.setuptools.packages.find]
 include = ["gnrs*"]

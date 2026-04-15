@@ -2,6 +2,8 @@
 
 import os
 import sys
+from importlib.metadata import PackageNotFoundError
+from importlib.metadata import version as _get_version
 
 # -- Path setup ----------------------------------------------------------------
 sys.path.insert(0, os.path.abspath(".."))
@@ -10,8 +12,12 @@ sys.path.insert(0, os.path.abspath(".."))
 project = "Genarris"
 copyright = "2025, Noa Marom Group"
 author = "Yi Yang, Rithwik Tom"
-release = "3.1.0"
-version = "3.1"
+
+try:
+    release = _get_version("gnrs")
+except PackageNotFoundError:
+    release = "3.1.1"
+version = ".".join(release.split(".")[:2])
 
 # -- General configuration -----------------------------------------------------
 extensions = [

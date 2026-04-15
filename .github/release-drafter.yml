@@ -1,0 +1,55 @@
+tag-prefix: gnrs-
+name-template: "gnrs-$RESOLVED_VERSION"
+tag-template: "gnrs-$RESOLVED_VERSION"
+
+categories:
+  - title: "Highlights"
+    labels:
+      - highlight
+  - title: "New Features / Enhancements"
+    labels:
+      - enhancement
+      - feature
+  - title: "Bug Fixes"
+    labels:
+      - bug
+      - fix
+  - title: "Documentation"
+    labels:
+      - documentation
+      - docs
+  - title: "Tests"
+    labels:
+      - test
+  - title: "CI / Chores"
+    labels:
+      - ci
+      - chore
+      - dependencies
+  - title: "Deprecations"
+    labels:
+      - deprecation
+  - title: "Other Changes"
+    labels:
+      - "*"
+
+version-resolver:
+  major:
+    labels:
+      - major
+  minor:
+    labels:
+      - minor
+  patch:
+    labels:
+      - patch
+  default: patch
+
+exclude-contributors:
+  - github-actions
+  - dependabot
+
+template: |
+  ## What's Changed
+
+  $CHANGES
