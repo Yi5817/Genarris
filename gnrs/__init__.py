@@ -7,4 +7,9 @@ LICENSE file in the root directory of this source tree.
 
 from __future__ import annotations
 
-__version__ = "3.1.0"
+from importlib.metadata import PackageNotFoundError, version
+
+try:
+    __version__ = version("gnrs")
+except PackageNotFoundError:
+    __version__ = "3.1.1"
