@@ -1,4 +1,4 @@
-tag-prefix: gnrs
+tag-prefix: gnrs-
 name-template: "gnrs-$RESOLVED_VERSION"
 tag-template: "gnrs-$RESOLVED_VERSION"
 
