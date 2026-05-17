@@ -122,10 +122,20 @@ class GeometryOptimizerABC(abc.ABC):
         if self._dft_serial_mode:
             self._serial_dft_batch(structs, on_structure_done)
         elif not self._use_worker_feeder:
-            for xtal in structs.values():
-                self.run(xtal)
+            failed = []
+            for name, xtal in list(structs.items()):
+                try:
+                    self.run(xtal)
+                except (ValueError, RuntimeError) as e:
+                    logger.warning(
+                        "Optimization failed for %s: %s", name, e,
+                    )
+                    failed.append(name)
+                    continue
                 if on_structure_done is not None:
                     on_structure_done()
+            for name in failed:
+                del structs[name]
         elif self._gpu_mgr.is_worker:
             self._worker_loop(structs, on_structure_done)
         else:
