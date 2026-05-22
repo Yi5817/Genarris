@@ -5,7 +5,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/Yi5817/Genarris/releases"><img src="https://img.shields.io/badge/version-3.1.0-green" alt="Version 3.1.0"></a>
+  <a href="https://github.com/Yi5817/Genarris/releases"><img src="https://img.shields.io/github/v/release/Yi5817/Genarris?filter=gnrs-*&display_name=release&label=version&color=green" alt="Version"></a>
   <a href="https://www.python.org/downloads/"><img src="https://img.shields.io/badge/python-3.10%2B-blue" alt="Python 3.10+"></a>
   <a href="https://github.com/Yi5817/Genarris/actions/workflows/lint.yml"><img src="https://github.com/Yi5817/Genarris/actions/workflows/lint.yml/badge.svg" alt="Code Style"></a>
   <a href="https://yi5817.github.io/Genarris/"><img src="https://github.com/Yi5817/Genarris/actions/workflows/docs.yml/badge.svg" alt="Documentation"></a>
@@ -29,7 +29,7 @@ Clone the repository:
 Create and activate the virtual enviornment using your favorite venv tool:
 
 ```bash
-virtualenv -p python3.11 gnrs_env
+python3 -m venv gnrs_env
 source gnrs_env/bin/activate
 ```
 
