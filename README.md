@@ -77,6 +77,18 @@ Genarris supports various energy calculators through the [ASE Calculator](https:
 
 > :warning: To access gated UMA models, you need to get a HuggingFace account and request access to the [UMA model repository](https://huggingface.co/facebook/UMA).
 
+### Updating
+
+`git pull` alone does **not** sync submodules. To update an existing clone, run:
+
+```bash
+git pull
+git submodule sync --recursive
+git submodule update --init --recursive
+```
+
+`sync` is only required when `.gitmodules` changes (URL, branch, or path), but running it every time is harmless.
+
 ## Quick Start
 
 Genarris uses a [configuration file](https://docs.python.org/3/library/configparser.html) to control crystal structure generation and selection.
