@@ -89,6 +89,18 @@ rigid_press = Extension(
 
 :::
 
+## Updating
+
+`git pull` alone does **not** sync submodules. To update an existing clone, run:
+
+```bash
+git pull
+git submodule sync --recursive
+git submodule update --init --recursive
+```
+
+`sync` is only required when `.gitmodules` changes (URL, branch, or path), but running it every time is harmless.
+
 ## Optional Energy Calculators
 
 Genarris supports various energy calculators through the
