@@ -5,7 +5,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/Yi5817/Genarris/releases"><img src="https://img.shields.io/badge/version-3.1.0-green" alt="Version 3.1.0"></a>
+  <a href="https://github.com/Yi5817/Genarris/releases"><img src="https://img.shields.io/github/v/release/Yi5817/Genarris?filter=gnrs-*&display_name=release&label=version&color=green" alt="Version"></a>
   <a href="https://www.python.org/downloads/"><img src="https://img.shields.io/badge/python-3.10%2B-blue" alt="Python 3.10+"></a>
   <a href="https://github.com/Yi5817/Genarris/actions/workflows/lint.yml"><img src="https://github.com/Yi5817/Genarris/actions/workflows/lint.yml/badge.svg" alt="Code Style"></a>
   <a href="https://yi5817.github.io/Genarris/"><img src="https://github.com/Yi5817/Genarris/actions/workflows/docs.yml/badge.svg" alt="Documentation"></a>
@@ -29,7 +29,7 @@ Clone the repository:
 Create and activate the virtual enviornment using your favorite venv tool:
 
 ```bash
-virtualenv -p python3.11 gnrs_env
+python3 -m venv gnrs_env
 source gnrs_env/bin/activate
 ```
 
@@ -76,6 +76,18 @@ Genarris supports various energy calculators through the [ASE Calculator](https:
 | [VASP](https://www.vasp.at/) | DFT | — |
 
 > :warning: To access gated UMA models, you need to get a HuggingFace account and request access to the [UMA model repository](https://huggingface.co/facebook/UMA).
+
+### Updating
+
+`git pull` alone does **not** sync submodules. To update an existing clone, run:
+
+```bash
+git pull
+git submodule sync --recursive
+git submodule update --init --recursive
+```
+
+`sync` is only required when `.gitmodules` changes (URL, branch, or path), but running it every time is harmless.
 
 ## Quick Start
 

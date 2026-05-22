@@ -42,9 +42,12 @@ def read_geometry_out(file_path: str) -> dict:
 
     str_data = gp.comm.scatter(str_data, root=0)
     struct_list = [
-        str2atoms(str_geo.split("\n"))
-        for str_geo in str_data
-        if str_geo is not None
+        geo for geo in (
+            str2atoms(str_geo.split("\n"))
+            for str_geo in str_data
+            if str_geo is not None
+        )
+        if geo is not None
     ]
     # random IDs
     struct_dict = {f"{random.getrandbits(60):x}": s for s in struct_list}
@@ -52,7 +55,7 @@ def read_geometry_out(file_path: str) -> dict:
     return struct_dict
 
 
-def str2atoms(geometry_str: list) -> Atoms:
+def str2atoms(geometry_str: list) -> Atoms | None:
     """
     Constructs Atoms object from aims geometry format.
     
@@ -63,12 +66,12 @@ def str2atoms(geometry_str: list) -> Atoms:
         ASE Atoms object representing the crystal structure
     """
     species, cell, pos, spg = [], [], [], None
-    
+
     for line in geometry_str:
         sline = line.split()
         if not sline:
             continue
-            
+
         if "lattice_vector" in line:
             cell.append([float(x) for x in sline[1:4]])
         elif sline[0] == "atom":
@@ -76,6 +79,8 @@ def str2atoms(geometry_str: list) -> Atoms:
             species.append(sline[4])
         elif "SPGLIB_detected_spacegroup" in line:
             spg = int(sline[-1])
+            if spg == 0:
+                return None
 
     xtal = Atoms(symbols="".join(species), positions=pos, cell=cell, pbc=True)
     if spg is not None:

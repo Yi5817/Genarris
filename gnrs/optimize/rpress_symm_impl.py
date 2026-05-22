@@ -101,6 +101,11 @@ def find_symm(xtal: Atoms, natoms: int) -> tuple[np.ndarray, np.ndarray, int]:
         (xtal.get_cell(), xtal.get_scaled_positions(), xtal.get_atomic_numbers()),
         symprec=1e-3,
     )
+    if symm is None:
+        # spglib failed to determine the symmetry of this structure
+        raise ValueError(
+            "spglib get_symmetry_dataset returned None for this crystal "
+        )
     spg = symm.number
     rot, trans = symm.rotations, symm.translations
 
