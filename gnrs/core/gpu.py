@@ -80,9 +80,15 @@ class GPUDeviceManager:
             if self.local_rank < self.num_gpus * self.max_workers_per_gpu:
                 self.gpu_id = self.local_rank % self.num_gpus
 
-        # Share worker flags so all ranks agree on the global partition,
-        # even when nodes have different GPU counts.
-        worker_flags = comm.allgather(self.gpu_id is not None)
+        is_node_lead = self.local_rank == 0
+        gathered = comm.allgather(
+            (
+                self.gpu_id is not None,
+                self.num_gpus if is_node_lead else 0,
+                is_node_lead,
+            )
+        )
+        worker_flags = [flag for flag, _, _ in gathered]
         if not any(worker_flags):
             worker_flags = [True] * self.size
 
@@ -100,11 +106,19 @@ class GPUDeviceManager:
         else:
             self._device = "cpu"
 
-        logger.info(
-            f"GPU Device Manager: rank={self.rank} local_rank={self.local_rank} "
-            f"gpus={self.num_gpus} gpu_id={self.gpu_id} "
-            f"workers={self.num_workers} feeders={self.num_feeders}"
+
+        logger.debug(
+            f"GPU rank assignment: rank={self.rank} local_rank={self.local_rank} "
+            f"node_gpus={self.num_gpus} gpu_id={self.gpu_id} device={self._device}"
         )
+        if self.rank == 0:
+            total_gpus = sum(count for _, count, _ in gathered)
+            num_nodes = sum(1 for _, _, lead in gathered if lead)
+            logger.info(
+                f"GPU Device Manager: {total_gpus} GPU(s) across "
+                f"{num_nodes} node(s), {self.num_workers} worker rank(s) "
+                f"{self._worker_ranks}, {self.num_feeders} feeder rank(s)"
+            )
 
     @property
     def device(self) -> str:
