@@ -189,11 +189,7 @@ class GeometryOptimizerABC(abc.ABC):
         """
         GPU worker: interleave local computation with feeder requests
         """
-        my_feeders = set()
-        for feeder_rank in self._gpu_mgr.feeder_ranks:
-            feeder_index = feeder_rank - self._gpu_mgr.num_workers
-            if feeder_index % self._gpu_mgr.num_workers == self.rank:
-                my_feeders.add(feeder_rank)
+        my_feeders = set(self._gpu_mgr.assigned_feeders())
 
         local_queue: deque[Atoms] = deque(
             xtal for xtal in local_structs.values()

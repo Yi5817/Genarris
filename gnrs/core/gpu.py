@@ -35,7 +35,8 @@ class GPUDeviceManager:
     Manages GPU device allocation across MPI ranks.
 
     Partitions ranks into GPU workers and CPU feeders. Workers are assigned
-    to GPUs. Feeders offload computation to workers via MPI.
+    to GPUs on their own node. Feeders offload computation to workers via
+    MPI. If no rank has a GPU, every rank is a worker computing on CPU.
 
     Typical usage in HPC:
         - 1 GPU node with 1-4 GPUs, 32-128 CPU cores
@@ -55,48 +56,60 @@ class GPUDeviceManager:
             comm: MPI communicator.
             max_workers_per_gpu: Maximum number of worker ranks per GPU.
         """
+        if max_workers_per_gpu < 1:
+            raise ValueError(
+                f"max_workers_per_gpu must be >= 1, got {max_workers_per_gpu}"
+            )
+
         self.comm = comm
         self.rank = comm.Get_rank()
         self.size = comm.Get_size()
-
-        self.num_gpus = torch.cuda.device_count() if torch.cuda.is_available() else 0
         self.max_workers_per_gpu = max_workers_per_gpu
 
-        self._num_workers = min(
-            self.num_gpus * self.max_workers_per_gpu,
-            self.size,
-        )
-        if self.num_gpus == 0:
-            self._num_workers = self.size
+        node_comm = comm.Split_type(MPI.COMM_TYPE_SHARED)
+        self.local_rank = node_comm.Get_rank()
+        self.local_size = node_comm.Get_size()
+        node_comm.Free()
 
-        self._is_worker = self.rank < self._num_workers
-        self._device: Optional[str] = None
-        self._assign_device()
+        self.num_gpus = torch.cuda.device_count() if torch.cuda.is_available() else 0
+
+        # Assign GPUs by node-local rank: the first
+        # num_gpus * max_workers_per_gpu ranks on each node become workers.
+        self.gpu_id: Optional[int] = None
+        if self.num_gpus > 0:
+            if self.local_rank < self.num_gpus * self.max_workers_per_gpu:
+                self.gpu_id = self.local_rank % self.num_gpus
+
+        # Share worker flags so all ranks agree on the global partition,
+        # even when nodes have different GPU counts.
+        worker_flags = comm.allgather(self.gpu_id is not None)
+        if not any(worker_flags):
+            worker_flags = [True] * self.size
+
+        self._worker_ranks = [r for r, flag in enumerate(worker_flags) if flag]
+        self._feeder_ranks = [r for r, flag in enumerate(worker_flags) if not flag]
+        self._is_worker = worker_flags[self.rank]
+
+        if self.gpu_id is not None:
+            # Pin this rank to its GPU and expose the plain "cuda" device
+            # string: some calculators reject "cuda:N" and accept only
+            # "cuda" or "cpu". With the device pinned, "cuda" resolves to
+            # the assigned GPU.
+            torch.cuda.set_device(self.gpu_id)
+            self._device = "cuda"
+        else:
+            self._device = "cpu"
 
         logger.info(
-            f"GPU Device Manager: gpus={self.num_gpus} workers={self._num_workers} feeders={self.num_feeders}"
+            f"GPU Device Manager: rank={self.rank} local_rank={self.local_rank} "
+            f"gpus={self.num_gpus} gpu_id={self.gpu_id} "
+            f"workers={self.num_workers} feeders={self.num_feeders}"
         )
-
-    def _assign_device(self) -> None:
-        """
-        Assign a CUDA device to worker ranks, CPU to feeders.
-        """
-        if not self._is_worker:
-            self._device = "cpu"
-            return
-
-        if self.num_gpus == 0:
-            self._device = "cpu"
-            return
-
-        gpu_id = self.rank % self.num_gpus
-        self._device = f"cuda:{gpu_id}"
-        torch.cuda.set_device(gpu_id)
 
     @property
     def device(self) -> str:
         """
-        The torch device string for this rank.
+        The torch device string for this rank ("cuda" or "cpu").
         """
         return self._device
 
@@ -119,37 +132,53 @@ class GPUDeviceManager:
         """
         Total number of GPU worker ranks.
         """
-        return self._num_workers
+        return len(self._worker_ranks)
 
     @property
     def num_feeders(self) -> int:
         """
         Total number of CPU feeder ranks.
         """
-        return self.size - self._num_workers
+        return len(self._feeder_ranks)
 
     @property
     def worker_ranks(self) -> list[int]:
         """
         List of all worker rank IDs.
         """
-        return list(range(self._num_workers))
+        return list(self._worker_ranks)
 
     @property
     def feeder_ranks(self) -> list[int]:
         """
         List of all feeder rank IDs.
         """
-        return list(range(self._num_workers, self.size))
+        return list(self._feeder_ranks)
 
     def assigned_worker(self) -> int:
         """
         Return the worker rank this feeder is assigned to (round-robin).
-        
+
         Returns:
             Worker rank ID
         """
         if self._is_worker:
             return self.rank
-        feeder_index = self.rank - self._num_workers
-        return feeder_index % self._num_workers
+        feeder_index = self._feeder_ranks.index(self.rank)
+        return self._worker_ranks[feeder_index % len(self._worker_ranks)]
+
+    def assigned_feeders(self) -> list[int]:
+        """
+        Return the feeder ranks assigned to this worker (round-robin).
+
+        Returns:
+            Feeder rank IDs; empty if this rank is a feeder.
+        """
+        if not self._is_worker:
+            return []
+        worker_index = self._worker_ranks.index(self.rank)
+        return [
+            feeder_rank
+            for i, feeder_rank in enumerate(self._feeder_ranks)
+            if i % len(self._worker_ranks) == worker_index
+        ]
