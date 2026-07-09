@@ -16,7 +16,7 @@ from ase.calculators.dftb import Dftb
 from gnrs.core.energy import EnergyCalculatorABC
 
 
-class DFTBPEnergy(EnergyCalculatorABC):
+class DFTBEnergy(EnergyCalculatorABC):
     """
     Computes energy using DFTB+ code.
     https://wiki.fysik.dtu.dk/ase/ase/calculators/dftb.html
