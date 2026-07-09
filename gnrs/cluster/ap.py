@@ -103,7 +103,31 @@ class APCluster(ClusterABC):
         if self.is_master:
             all_features = np.vstack([feat for sublist in all_features if sublist is not None for feat in sublist], dtype=np.float32)
             n_samples, n_features = all_features.shape
-            if not os.path.exists(self.feature_file):
+
+            ids_array = np.array(
+                [
+                    _id
+                    for sublist in all_ids
+                    if sublist is not None
+                    for _id in sublist
+                ],
+                dtype="<U15",
+            )
+
+            # Reuse cached files only if they were built from the same
+            # structure pool: stale files from a previous run would key
+            # the cluster assignments by old structure IDs.
+            use_cache = self._cache_is_valid(ids_array, n_samples, n_features)
+            if not use_cache and any(
+                os.path.exists(f)
+                for f in (self.feature_file, self.simmat_file, self.ids_file)
+            ):
+                gout.emit(
+                    "Cached clustering files do not match the current "
+                    "structures, regenerating them"
+                )
+
+            if not use_cache:
                 gout.emit(f"Creating feature file: {self.feature_file}")
                 features = np.memmap(
                     self.feature_file,
@@ -123,7 +147,7 @@ class APCluster(ClusterABC):
                 )
             del all_features
 
-            if not os.path.exists(self.simmat_file):
+            if not use_cache:
                 gout.emit(f"Creating similarity matrix file: {self.simmat_file}")
                 chunk_size = min(1000, n_samples)
                 sim_mat_file = np.memmap(
@@ -149,10 +173,7 @@ class APCluster(ClusterABC):
                 )
             del features
 
-            ids_array = np.vstack([
-                _id for sublist in all_ids if sublist is not None for _id in sublist
-            ])
-            if not os.path.exists(self.ids_file):
+            if not use_cache:
                 gout.emit(f"Creating IDs file: {self.ids_file}")
                 self.ids = np.memmap(
                     self.ids_file, dtype="<U15", mode="w+", shape=ids_array.shape
@@ -363,6 +384,40 @@ class APCluster(ClusterABC):
         logger.info("Completed AP clustering")
         gout.emit("Completed AP clustering.\n")
         gout.emit("")
+
+    def _cache_is_valid(
+        self, ids_array: np.ndarray, n_samples: int, n_features: int
+    ) -> bool:
+        """
+        Check whether the cached feature/similarity/ID files match the
+        current structure pool.
+
+        Args:
+            ids_array: IDs of the current structures.
+            n_samples: Number of structures.
+            n_features: Feature vector length.
+
+        Returns:
+            True if all three cache files exist, have the expected sizes,
+            and the cached IDs equal the current structure IDs.
+        """
+        itemsize = np.dtype(np.float32).itemsize
+        expected_sizes = {
+            self.feature_file: n_samples * n_features * itemsize,
+            self.simmat_file: n_samples * n_samples * itemsize,
+            self.ids_file: ids_array.nbytes,
+        }
+        try:
+            for path, expected in expected_sizes.items():
+                if os.path.getsize(path) != expected:
+                    return False
+        except OSError:
+            return False
+
+        cached_ids = np.memmap(
+            self.ids_file, dtype="<U15", mode="r", shape=(n_samples,)
+        )
+        return bool(np.array_equal(cached_ids, ids_array))
 
     def _affinity_propagation(self, pref: float, pref_range: list) -> dict:
         """
