@@ -33,10 +33,10 @@ gnrs.energy.aimnet
    :members:
    :show-inheritance:
 
-gnrs.energy.dftbp
-~~~~~~~~~~~~~~~~~
+gnrs.energy.dftb
+~~~~~~~~~~~~~~~~
 
-.. automodule:: gnrs.energy.dftbp
+.. automodule:: gnrs.energy.dftb
    :members:
    :show-inheritance:
 
