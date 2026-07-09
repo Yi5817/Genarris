@@ -17,7 +17,7 @@ to control each step of the CSP pipeline. A typical workflow consists of:
 ## Step 1: Prepare Conformer
 
 Provide conformer geometry in any format supported by
-[`ase.io.read()`](https://ase-lib.org/ase/io/io.html#ase.io.read)
+[`ase.io.read()`](https://docs.ase-lib.org/ase/io/io.html#ase.io.read)
 (e.g., `.xyz`, `.mol`, `.in`).
 
 ## Step 2: Create Configuration File

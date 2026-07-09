@@ -133,7 +133,7 @@ Genarris uses a [configuration file](https://docs.python.org/3/library/configpar
    # path to the experimental structure file if known
    path = ""
    ```
-2. **Prepare your input molecule geometry file** (any format supported by [`ase.io.read()`](https://ase-lib.org/ase/io/io.html#ase.io.read))
+2. **Prepare your input molecule geometry file** (any format supported by [`ase.io.read()`](https://docs.ase-lib.org/ase/io/io.html#ase.io.read))
 3. **Run Genarris with MPI parallelization**:
 
    ```bash
