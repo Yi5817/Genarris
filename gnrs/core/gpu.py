@@ -116,8 +116,8 @@ class GPUDeviceManager:
             num_nodes = sum(1 for _, _, lead in gathered if lead)
             logger.info(
                 f"GPU Device Manager: {total_gpus} GPU(s) across "
-                f"{num_nodes} node(s), {self.num_workers} worker rank(s) "
-                f"{self._worker_ranks}, {self.num_feeders} feeder rank(s)"
+                f"{num_nodes} node(s), {self.num_workers} worker rank(s), "
+                f"{self.num_feeders} feeder rank(s)"
             )
 
     @property
