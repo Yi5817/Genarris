@@ -107,7 +107,7 @@ napoleon_type_aliases = None
 # -- Intersphinx ---------------------------------------------------------------
 intersphinx_mapping = {
     "python": ("https://docs.python.org/3", None),
-    "ase": ("https://wiki.fysik.dtu.dk/ase/", None),
+    "ase": ("https://docs.ase-lib.org/", None),
 }
 
 # -- Togglebutton --------------------------------------------------------------

@@ -169,7 +169,7 @@ use_slurm             = False
 
 `energy_settings_path` : `str`.
 : Path to a JSON file with FHI-aims settings
-  (passed to [`ase.calculators.aims.Aims`](https://ase-lib.org/ase/calculators/FHI-aims.html)).
+  (passed to [`ase.calculators.aims.Aims`](https://docs.ase-lib.org/ase/calculators/FHI-aims.html)).
 
 :::{dropdown} Example `aims_settings.json`
 :icon: file-code
@@ -245,7 +245,7 @@ use_slurm             = False
 
 `energy_settings_path` : `str`.
 : Path to a JSON file with VASP settings
-  (passed to [`ase.calculators.vasp.Vasp`](https://ase-lib.org/ase/calculators/vasp.html#id2)).
+  (passed to [`ase.calculators.vasp.Vasp`](https://docs.ase-lib.org/ase/calculators/vasp.html#id2)).
 
 `num_cores` : `int`.
 : CPU cores per DFT process. Required when `mpi_launcher` is not `none`.
@@ -284,7 +284,7 @@ energy_settings_path  = ./dftb_settings.json
 
 `energy_settings_path` : `str`.
 : Path to a JSON file with DFTB+ settings
-  (passed to [`ase.calculators.dftb.Dftb`](https://ase-lib.org/ase/calculators/dftb.html#dftb-calculator-class)).
+  (passed to [`ase.calculators.dftb.Dftb`](https://docs.ase-lib.org/ase/calculators/dftb.html#dftb-calculator-class)).
 
 :::{dropdown} Example `dftb_settings.json`
 :icon: file-code

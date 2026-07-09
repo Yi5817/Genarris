@@ -16,7 +16,7 @@ log_level       = info
 `molecule_path` : `list[str]`.
 : Paths to conformer geometry files.
 ```{note}
-  Any format supported by [`ase.io.read()`](https://wiki.fysik.dtu.dk/ase/ase/io/io.html) works.
+  Any format supported by [`ase.io.read()`](https://docs.ase-lib.org/ase/io/io.html) works.
 ```
 
 `Z` : `int`.

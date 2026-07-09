@@ -20,7 +20,7 @@ from gnrs.gnrsutil.mpi_cmd import build_dft_command
 class VASPEnergy(EnergyCalculatorABC):
     """
     Computes the energy using VASP DFT code with ASE
-    https://wiki.fysik.dtu.dk/ase/ase/calculators/vasp.html
+    https://docs.ase-lib.org/ase/calculators/vasp.html
     """
 
     def __init__(self, *args) -> None:

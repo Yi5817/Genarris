@@ -19,7 +19,7 @@ from gnrs.core.energy import EnergyCalculatorABC
 class DFTBEnergy(EnergyCalculatorABC):
     """
     Computes energy using DFTB+ code.
-    https://wiki.fysik.dtu.dk/ase/ase/calculators/dftb.html
+    https://docs.ase-lib.org/ase/calculators/dftb.html
     """
 
     def __init__(self, *args) -> None:

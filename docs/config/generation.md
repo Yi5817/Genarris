@@ -65,7 +65,7 @@ lattice_angle_std       = 8
 
 `natural_cutoff_mult` : `float` | default = `1.1`.
 : Multiplier for covalent radii used to identify molecular bonds. Based on
-  [`ase.neighborlist.natural_cutoffs`](https://wiki.fysik.dtu.dk/ase/ase/neighborlist.html#ase.neighborlist.natural_cutoffs).
+  [`ase.neighborlist.natural_cutoffs`](https://docs.ase-lib.org/ase/neighborlist.html#ase.neighborlist.natural_cutoffs).
   Usually no change needed.
 
 `stoichiometry` : `list[int]` | default = `[1]`.
