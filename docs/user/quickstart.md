@@ -83,7 +83,7 @@ mpirun -np <num_processes> gnrs -c ui.conf
 |:-----|:------------|:--------|
 | `-c`, `--config` | Path to the configuration file (required) | — |
 | `-d`, `--seed` | Random seed for reproducibility | `42` |
-| `--restart` | Restart from a previous run using the same config file | — |
+| `--restart` | Resume a previous run from the current directory, skipping completed tasks | — |
 
 For example, to run on 8 MPI processes with a specific seed:
 
@@ -110,8 +110,13 @@ working_directory/
 ├── tmp/
 │   ├── generation/
 │   └── symm_rigid_press/
+├── restart.json
 └── Genarris.log
 ```
+
+`restart.json` records the progress of the run. If a run is interrupted, rerun
+the same command with `--restart` to skip completed tasks and resume from the
+first unfinished one.
 
 Structures are stored as JSON ASE Atoms objects. Load them with:
 
