@@ -28,8 +28,14 @@ def main():
     parser = argparse.ArgumentParser(description="Genarris3.0")
     parser.add_argument("-c", "--config", required=True, type=str, help="Path to the configuration file")
     parser.add_argument("-d", "--seed", type=int, help="Random seed", default=42)
-    parser.add_argument("--restart", action="store_true", help="Restart Genarris with previous config file")
+    parser.add_argument(
+        "--restart", action="store_true",
+        help="Resume a previous run from the current directory, "
+        "skipping completed tasks",
+    )
     args = parser.parse_args()
+
+    from gnrs.core.restart import RestartError
 
     comm = MPI.COMM_WORLD
     logger = logging.getLogger("genarris")
@@ -45,6 +51,11 @@ def main():
         logger.warning("Genarris interrupted by user")
         aborted = True
         comm.Abort(130)
+    except RestartError as exc:
+        logger.error(f"Restart failed: {exc}")
+        gout.emit(f"\nERROR: {exc}")
+        aborted = True
+        comm.Abort(1)
     except Exception:
         logger.exception("Genarris exiting due to error")
         aborted = True

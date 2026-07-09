@@ -64,10 +64,11 @@ def copy_molecule(config: dict, gnrs_info: dict) -> None:
 
     gnrs_info["molecule_path"] = []
     for i, mpth in enumerate(mol_path):
-        mol = Molecule.read(mpth)
-        mol.standardize_orientation()
         mol_tmp_path = os.path.join(mol_tmp_dir, f"geometry_{i}.in")
-        mol.write(mol_tmp_path, parallel=False)
+        if is_master:
+            mol = Molecule.read(mpth)
+            mol.standardize_orientation()
+            mol.write(mol_tmp_path, parallel=False)
         gnrs_info["molecule_path"].append(mol_tmp_path)
 
     logger.debug("Wrote molecule to tmp/molecule")

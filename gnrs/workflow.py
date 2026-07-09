@@ -24,14 +24,23 @@ import gnrs.output as gout
 from gnrs.parallel import init_parallel
 from gnrs.parser import UserSettingsParser, UserSettingsSanityChecker
 from gnrs.parallel.test import test_bcast
-from gnrs.restart import restart_init, is_task_completed, load_restart, write_restart
+from gnrs.core.restart import (
+    RestartError,
+    restart_init,
+    is_task_completed,
+    load_restart,
+    write_restart,
+)
 from gnrs.gnrsutil.core import check_if_exp_found
 
 import argparse
 
 
 class Genarris:
-    """Defines the flow of control in Genarris for crystal structure generation and optimization."""
+    """
+    Defines the flow of control in Genarris for crystal structure
+    generation and optimization.
+    """
 
     def __init__(self, args: argparse.Namespace) -> None:
         """
@@ -50,9 +59,8 @@ class Genarris:
         self._gnrs_info_init()
         self._config_init(args)
         restart_init(self.comm, self.config, self.gnrs_info)
-        if not self.restart:
-            self._folders_init()
-        else:
+        self._folders_init()
+        if self.restart:
             self.attempt_restart()
 
         self.comm.barrier()
@@ -137,30 +145,66 @@ class Genarris:
         self.gnrs_info["energy_list"] = []
         self.gnrs_info["genarris_start_time"] = time.time()
         self.gnrs_info["size"] = self.size
+        self.gnrs_info["restart"] = self.restart
 
     def attempt_restart(self) -> None:
         """
-        Load restart data if restart flag is set
+        Load restart data if restart flag is set.
+
+        Raises:
+            RestartError: If no restart file exists in the current directory.
         """
-            
-        load_restart()
         gout.print_title("Restarting Genarris")
-        gout.print_configs(self.config)
+        if not load_restart():
+            raise RestartError(
+                "--restart was requested, but no restart file was found at "
+                f"{os.path.join(self.gnrs_info['work_dir'], 'restart.json')}. "
+                "Run from the directory of a previous Genarris run, or start "
+                "a fresh run without --restart. Runs made with older Genarris "
+                "versions keep this file at tmp/restart.json; move it to the "
+                "run directory to resume them."
+            )
+        self._print_restart_summary()
         gout.double_separator()
+
+    def _print_restart_summary(self) -> None:
+        """
+        Report which tasks are already completed and where the run resumes.
+        """
+        tasks = self.config.get("workflow", {}).get("tasks", [])
+        try:
+            specs = resolve_tasks(tasks)
+        except ValueError:
+            return  # _run_tasks reports the invalid task list
+
+        completed, pending = [], []
+        for spec in specs:
+            if is_task_completed(spec.instance_id):
+                completed.append(spec.instance_id)
+            else:
+                pending.append(spec.instance_id)
+        gout.emit(
+            f"Restart file loaded: {len(completed)} of {len(specs)} tasks "
+            "already completed."
+        )
+        if completed:
+            gout.emit(f"Completed tasks (will be skipped): {', '.join(completed)}")
+        if pending:
+            gout.emit(f"Resuming from task: {pending[0]}")
+        else:
+            gout.emit("All tasks were already completed. Nothing to do.")
 
     def _folders_init(self) -> None:
         """
         Initialize folder structure for execution.
-        
-        Creates tmp and structures directories and copies molecule data
-        when not in restart mode.
+
+        Creates tmp and structures directories and copies molecule data.
+        Runs in restart mode too, so a cleaned tmp/ dir is recreated.
         """
         folders.init_folders(self.is_master)
-        
-        if not self.restart:
-            self.logger.info("Setting up folders: structures and tmp")
-            folders.setup_main_folders(self.gnrs_info)
-            folders.copy_molecule(self.config, self.gnrs_info)
+        self.logger.info("Setting up folders: structures and tmp")
+        folders.setup_main_folders(self.gnrs_info)
+        folders.copy_molecule(self.config, self.gnrs_info)
 
     def _run_tasks(self, tasks: list) -> None:
         """

@@ -161,6 +161,9 @@ class TaskABC(abc.ABC):
         """
         folders.mkdir(self.struct_dir)
         folders.mkdir(self.calc_dir)
+        if self.is_master and not self.gnrs_info.get("restart"):
+            # A fresh run must not pick up checkpoints from a previous run
+            DistributedStructs.checkpoint_clear(self.calc_dir)
         self.comm.barrier()  # Wait for folder creation
 
     @abc.abstractmethod

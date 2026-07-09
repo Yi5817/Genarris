@@ -179,6 +179,19 @@ class DistributedStructs:
         with open(save_path, "w") as chk:
             json.dump(structs_str, chk)
 
+    @staticmethod
+    def checkpoint_clear(path: str) -> None:
+        """
+        Removes checkpoint files left under a task's calc directory.
+        Call on one rank only; does not communicate.
+
+        Args:
+            path: Directory containing rank_* checkpoint folders
+        """
+        for save_file in Path(path).glob("rank_*/*.save"):
+            if save_file.is_file():
+                save_file.unlink(missing_ok=True)
+
     def checkpoint_load(self, path: str) -> None:
         """
         Loads checkpoint. Unlike save, load is a collective
