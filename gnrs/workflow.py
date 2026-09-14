@@ -51,6 +51,7 @@ class Genarris:
         self.gnrs_info = {}
         self.seed = args.seed
         self.restart = args.restart
+        self.overwrite = args.overwrite
 
         self._mpi_init()
         self._log_init()
@@ -59,9 +60,11 @@ class Genarris:
         self._gnrs_info_init()
         self._config_init(args)
         restart_init(self.comm, self.config, self.gnrs_info)
-        self._folders_init()
         if self.restart:
             self.attempt_restart()
+        else:
+            self._check_previous_run()
+        self._folders_init()
 
         self.comm.barrier()
         self.logger.info("Genarris initialized successfully")
@@ -160,12 +163,43 @@ class Genarris:
                 "--restart was requested, but no restart file was found at "
                 f"{os.path.join(self.gnrs_info['work_dir'], 'restart.json')}. "
                 "Run from the directory of a previous Genarris run, or start "
-                "a fresh run without --restart. Runs made with older Genarris "
+                "a new run without --restart. Runs made with older Genarris "
                 "versions keep this file at tmp/restart.json; move it to the "
                 "run directory to resume them."
             )
         self._print_restart_summary()
         gout.double_separator()
+
+    def _check_previous_run(self) -> None:
+        """
+        Refuse to start over on top of a previous run unless --overwrite
+        was given; with it, discard the previous run's progress record.
+
+        Raises:
+            RestartError: If a previous run exists and --overwrite is not set.
+        """
+        restart_file = os.path.join(self.gnrs_info["work_dir"], "restart.json")
+        found = None
+        if self.is_master:
+            found = os.path.isfile(restart_file)
+        if not self.comm.bcast(found, root=0):
+            return
+
+        if not self.overwrite:
+            raise RestartError(
+                "This directory already contains a Genarris run "
+                f"({restart_file}). Rerun with --restart to resume it, or "
+                "with --overwrite to discard its progress and start over."
+            )
+        self.logger.warning("Discarding previous run record (--overwrite)")
+        gout.emit(
+            "NOTE: --overwrite given. Discarding the previous run's progress "
+            "record; results in structures/ will be overwritten as tasks "
+            "complete."
+        )
+        gout.emit("")
+        if self.is_master:
+            os.remove(restart_file)
 
     def _print_restart_summary(self) -> None:
         """

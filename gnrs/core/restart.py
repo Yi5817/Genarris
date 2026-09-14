@@ -20,6 +20,7 @@ import numpy as np
 from mpi4py import MPI
 
 import gnrs.output as gout
+from gnrs.core.registry import resolve_tasks
 
 logger = logging.getLogger("restart")
 
@@ -286,6 +287,7 @@ class Restart:
         ):
             saved_info.pop(key, None)
         self.gnrs_info.update(saved_info)
+        self._check_task_list(saved_config)
 
         # The current config file wins; tell the user what changed.
         current_config = json.loads(
@@ -302,6 +304,44 @@ class Restart:
             )
             for diff in diffs:
                 gout.emit(f"    {diff}")
+
+    def _check_task_list(self, saved_config: dict) -> None:
+        """
+        Refuse to resume if the completed tasks no longer line up with the
+        current task list. Completed tasks are matched by position, so
+        inserting, removing or reordering tasks before them would skip the
+        wrong task. Appending tasks at the end is fine.
+
+        Args:
+            saved_config: Config stored in the restart file.
+
+        Raises:
+            RestartError: If a completed task moved or changed.
+        """
+        saved_tasks = saved_config.get("workflow", {}).get("tasks", [])
+        current_tasks = self.config.get("workflow", {}).get("tasks", [])
+        if saved_tasks == current_tasks:
+            return
+        try:
+            saved_ids = [s.instance_id for s in resolve_tasks(saved_tasks)]
+            current_ids = [s.instance_id for s in resolve_tasks(current_tasks)]
+        except ValueError:
+            return  # an invalid task list is reported when the tasks run
+
+        for pos, task_id in enumerate(saved_ids):
+            if not self.check_task_completion(task_id):
+                continue
+            if pos < len(current_ids) and current_ids[pos] == task_id:
+                continue
+            raise RestartError(
+                "The task list changed since the previous run, so its "
+                "completed tasks no longer line up with it:\n"
+                f"    previous: {saved_tasks}\n"
+                f"    current:  {current_tasks}\n"
+                "Completed tasks are matched by their position in [workflow] "
+                "tasks. Restore the previous list to resume (adding tasks at "
+                "the end is fine), or start over with --overwrite."
+            )
 
     def check_task_completion(self, task_name: str) -> bool:
         """

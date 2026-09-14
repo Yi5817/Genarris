@@ -13,6 +13,8 @@ __group__ = "https://www.noamarom.com/"
 
 import argparse
 import logging
+import sys
+import traceback
 import warnings
 
 from mpi4py import MPI
@@ -28,10 +30,16 @@ def main():
     parser = argparse.ArgumentParser(description="Genarris3.0")
     parser.add_argument("-c", "--config", required=True, type=str, help="Path to the configuration file")
     parser.add_argument("-d", "--seed", type=int, help="Random seed", default=42)
-    parser.add_argument(
+    mode = parser.add_mutually_exclusive_group()
+    mode.add_argument(
         "--restart", action="store_true",
-        help="Resume a previous run from the current directory, "
-        "skipping completed tasks",
+        help="Resume the previous run in the current directory, "
+        "skipping completed tasks and structures",
+    )
+    mode.add_argument(
+        "--overwrite", action="store_true",
+        help="Start over in a directory that contains a previous run, "
+        "discarding its progress",
     )
     args = parser.parse_args()
 
@@ -56,8 +64,14 @@ def main():
         gout.emit(f"\nERROR: {exc}")
         aborted = True
         comm.Abort(1)
-    except Exception:
+    except Exception as exc:
         logger.exception("Genarris exiting due to error")
+        print(
+            f"\nERROR: Genarris rank {comm.Get_rank()} failed with "
+            f"{type(exc).__name__}: {exc}\n{traceback.format_exc()}",
+            file=sys.stderr,
+            flush=True,
+        )
         aborted = True
         comm.Abort(1)
     finally:
