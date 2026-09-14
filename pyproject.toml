@@ -45,6 +45,7 @@ dependencies = [
 [project.optional-dependencies]  # add optional dependencies, e.g. to be installed as pip install .[uma]
 uma = ["pandas<=2.3", "fairchem-core"]
 mace = ["pandas<=2.3", "mace-torch"]
+test = ["pytest"]
 
 [project.scripts]
 gnrs = "gnrs.cli:main"
@@ -52,6 +53,12 @@ gnrs = "gnrs.cli:main"
 [project.urls]
 repository = "https://github.com/Yi5817/Genarris.git"
 homepage = "https://www.noamarom.com/software/genarris"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = [
+    "integration: runs the full workflow under mpirun (slow; deselect with -m 'not integration')",
+]
 
 [tool.setuptools_scm]
 version_scheme = "no-guess-dev"
