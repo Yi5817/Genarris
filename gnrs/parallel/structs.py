@@ -13,12 +13,14 @@ __group__ = "https://www.noamarom.com/"
 import json
 import logging
 import os
-import numpy as np
+from itertools import chain
 from pathlib import Path
 
+import numpy as np
 from ase.atoms import Atoms
 from ase.io.jsonio import decode, encode
 
+import gnrs.output as gout
 import gnrs.parallel as gp
 
 logger = logging.getLogger("DistributedStructs")
@@ -41,6 +43,8 @@ class DistributedStructs:
         """
         self.structs = structs
         self.logger = logger
+
+        self._checkpointed: set[str] = set()
 
     def get_num_structs(self) -> int:
         """
@@ -165,19 +169,30 @@ class DistributedStructs:
         for struct in self.structs.values():
             struct.info["spg"] = get_spacegroup(struct, symprec=tol).no
 
-    def checkpoint_save(self, path: str) -> None:
+    def checkpoint_save(self, path: str, result_key: str) -> None:
         """
-        Checkpoints partially done calculation for restart.
-        This routine doesn't communicate to others so that
-        ranks can execute independently.
-        
+        Appends newly completed local structures to this rank's checkpoint
+        log. Does not communicate, so ranks can call it independently.
+
+        Every completed structure is written exactly once, as one line in the
+        same ``"name": <ase json>,`` form used inside structures.json. A job
+        killed mid-write can therefore damage only the last line.
+
         Args:
-            path: Directory path to save checkpoint
+            path: Directory for this rank's checkpoint log
+            result_key: ``Atoms.info`` key that marks a structure as done
         """
-        structs_str = {name: encode(xtal) for name, xtal in self.structs.items()}
-        save_path = os.path.join(path, f"{gp.rank}.save")
-        with open(save_path, "w") as chk:
-            json.dump(structs_str, chk)
+        done = [
+            (name, xtal)
+            for name, xtal in self.structs.items()
+            if result_key in xtal.info and name not in self._checkpointed
+        ]
+        if not done:
+            return
+        with open(os.path.join(path, f"{gp.rank}.ckpt"), "a") as chk:
+            for name, xtal in done:
+                chk.write(f'"{name}": {encode(xtal)},\n')
+        self._checkpointed.update(name for name, _ in done)
 
     @staticmethod
     def checkpoint_clear(path: str) -> None:
@@ -188,37 +203,116 @@ class DistributedStructs:
         Args:
             path: Directory containing rank_* checkpoint folders
         """
-        for save_file in Path(path).glob("rank_*/*.save"):
-            if save_file.is_file():
-                save_file.unlink(missing_ok=True)
+        for pattern in ("rank_*/*.ckpt", "rank_*/*.save", "rank_*/*.save.tmp"):
+            for save_file in Path(path).glob(pattern):
+                if save_file.is_file():
+                    save_file.unlink(missing_ok=True)
 
-    def checkpoint_load(self, path: str) -> None:
+    @staticmethod
+    def _read_checkpoint(checkpoint: Path) -> tuple[dict, int]:
         """
-        Loads checkpoint. Unlike save, load is a collective
-        and blocking operation.
-        
+        Read one checkpoint file.
+
         Args:
-            path: Directory path to load checkpoint from
+            checkpoint: ``.ckpt`` log (one structure per line) or a legacy
+                ``.save`` snapshot (one JSON dict) from older releases.
+
+        Returns:
+            Structures in the file and the number of damaged lines skipped.
         """
-        # Get all checkpoint files
+        if checkpoint.suffix == ".save":
+            with open(checkpoint, "r") as chk:
+                saved = json.load(chk)
+            return {name: decode(xtal) for name, xtal in saved.items()}, 0
+
+        structs, n_bad = {}, 0
+        with open(checkpoint, "r") as chk:
+            for line in chk:
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    name, xtal = line.split(":", 1)
+                    structs[name.strip().strip('"')] = decode(
+                        xtal.strip().rstrip(",")
+                    )
+                except (ValueError, KeyError, TypeError):
+                    n_bad += 1
+        return structs, n_bad
+
+    def checkpoint_load(self, path: str, result_key: str) -> int:
+        """
+        Merges checkpoints of an interrupted run into the current structures
+        and rebalances them across ranks. Unlike save, load is a collective
+        and blocking operation.
+
+        A checkpointed copy replaces the current copy of the same structure;
+        structures that were never checkpointed (e.g. held by a rank that was
+        killed before it finished its first calculation) are kept as they
+        are. Damaged lines and unreadable files are skipped with a warning;
+        the affected structures are simply recomputed.
+
+        Args:
+            path: Directory containing rank_* checkpoint folders
+            result_key: ``Atoms.info`` key that marks a structure as done
+
+        Returns:
+            Number of distinct structures restored from checkpoints.
+        """
+        # Legacy snapshots first (oldest to newest), then append-only logs,
+        # so that later entries always hold the most complete copy
         checkpoints = None
         if gp.is_master:
-            checkpoints = list(Path(path).rglob("*.save"))
-
-        # Bcast and partition among ranks
+            legacy = sorted(
+                Path(path).glob("rank_*/*.save"), key=lambda p: p.stat().st_mtime
+            )
+            checkpoints = legacy + sorted(Path(path).glob("rank_*/*.ckpt"))
         checkpoints = gp.comm.bcast(checkpoints, root=0)
-        checkpoints = checkpoints[gp.rank::gp.size]
 
-        saved_structs = {}
-        for checkpoint in checkpoints:
-            with open(checkpoint, "r") as chk:
-                saved_str = json.load(chk)
-                saved_structs.update({name: decode(xtal) for name, xtal in saved_str.items()})
+        # Each rank reads its share of the files
+        restored, problems = [], []
+        for idx in range(gp.rank, len(checkpoints), gp.size):
+            checkpoint = checkpoints[idx]
+            try:
+                structs, n_bad = self._read_checkpoint(checkpoint)
+            except (OSError, ValueError, KeyError, TypeError) as exc:
+                problems.append(f"{checkpoint} could not be read ({exc})")
+                continue
+            if n_bad:
+                problems.append(f"{checkpoint}: {n_bad} damaged line(s) skipped")
+            restored.extend((idx, name, xtal) for name, xtal in structs.items())
 
-        self.structs = saved_structs
-        self.redistribute()
+        restored = gp.comm.gather(restored, root=0)
+        problems = gp.comm.gather(problems, root=0)
+        current = gp.comm.gather(self.structs or {}, root=0)
 
-        self.logger.debug(f"Read {self.get_num_structs()} from checkpoint")
+        combined = None
+        n_restored = 0
+        if gp.is_master:
+            for problem in chain.from_iterable(problems):
+                self.logger.error(f"Checkpoint {problem}")
+                gout.emit(
+                    f"WARNING: Checkpoint {problem}. The affected structures "
+                    "will be recomputed."
+                )
+            combined = {}
+            for struct_dict in current:
+                combined.update(struct_dict)
+            checkpointed = {}
+            for _, name, xtal in sorted(
+                chain.from_iterable(restored), key=lambda item: item[0]
+            ):
+                checkpointed[name] = xtal
+            combined.update(checkpointed)
+            n_restored = len(checkpointed)
+            self.logger.debug(f"Read {n_restored} structures from checkpoints")
+
+        self._scatter(combined)
+        # Everything already completed is on disk; only new results get logged
+        self._checkpointed = {
+            name for name, xtal in self.structs.items() if result_key in xtal.info
+        }
+        return gp.comm.bcast(n_restored, root=0)
 
     def redistribute(self) -> None:
         """
@@ -227,15 +321,26 @@ class DistributedStructs:
         across cores
         """
         allstructs = gp.comm.gather(self.structs, root=0)
+        combined_structs = None
+
+        if gp.is_master:
+            combined_structs = {}
+            for struct_dict in allstructs:
+                combined_structs.update(struct_dict)
+
+        self._scatter(combined_structs)
+
+    def _scatter(self, combined_structs: dict | None) -> None:
+        """
+        Split a structure dictionary evenly and scatter it to all ranks.
+
+        Args:
+            combined_structs: All structures; only read on the master rank.
+        """
         scatter_list = None
 
         # Assemble the list to be scattered
         if gp.is_master:
-            # Combine all dictionaries
-            combined_structs = {}
-            for struct_dict in allstructs:
-                combined_structs.update(struct_dict)
-                
             # Split dict into list of dicts
             items = list(combined_structs.items())
             num_per_rank = len(combined_structs) // gp.size

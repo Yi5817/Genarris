@@ -166,6 +166,34 @@ class TaskABC(abc.ABC):
             DistributedStructs.checkpoint_clear(self.calc_dir)
         self.comm.barrier()  # Wait for folder creation
 
+    def _load_save_files(self, result_key: str) -> None:
+        """
+        Merge checkpoints of an interrupted run of this task into the pool.
+
+        Sets ``self.dsdict`` and updates ``self.structs``. Must be called by
+        all ranks. Reports how many structures were restored and how many
+        of them are already completed.
+
+        Args:
+            result_key: ``Atoms.info`` key that marks a structure as done.
+        """
+        self.dsdict = DistributedStructs(self.structs)
+        n_restored = self.dsdict.checkpoint_load(self.calc_dir, result_key)
+        self.structs = self.dsdict.structs
+        if n_restored == 0:
+            return
+
+        completed = self.dsdict.collect_property(result_key, "info")
+        if self.is_master:
+            n_total = len(completed)
+            n_completed = sum(x is not None for x in completed)
+            gout.emit(
+                f"Checkpoints from a previous run found: {n_completed} of "
+                f"{n_total} structure(s) already completed, "
+                f"{n_total - n_completed} remaining."
+            )
+            gout.emit("")
+
     @abc.abstractmethod
     def perform_task(self, task_set: dict) -> None:
         """

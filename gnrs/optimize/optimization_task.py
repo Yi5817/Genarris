@@ -203,7 +203,7 @@ class GeometryOptimizationTask(TaskABC):
         dir_name = f"rank_{self.rank}"
         os.makedirs(dir_name, exist_ok=True)
         self.rank_calc_dir = os.path.join(self.calc_dir, dir_name)
-        self._load_save_files()
+        self._load_save_files(self.opt_name)
 
         # Run optimization
         gout.emit("Optimizing structures...")
@@ -212,7 +212,9 @@ class GeometryOptimizationTask(TaskABC):
             gpu_mgr, dft_serial,
         )
 
-        save_cb = lambda: self.dsdict.checkpoint_save(self.rank_calc_dir)
+        save_cb = lambda: self.dsdict.checkpoint_save(
+            self.rank_calc_dir, self.opt_name
+        )
         opt.run_batch(self.structs, on_structure_done=save_cb)
         gout.emit("Completed optimizations.")
 
@@ -242,27 +244,3 @@ class GeometryOptimizationTask(TaskABC):
         if self.energy_method is not None:
             self.gnrs_info["energy_list"].append(self.energy_method)
         super().finalize(self.task_name)
-
-    def _load_save_files(self) -> None:
-        """
-        Load checkpoint files from previous calculations if they exist.
-        """
-        ds = DistributedStructs({})
-        ds.checkpoint_load(self.calc_dir)
-        n_struct = ds.get_num_structs()
-        
-        if n_struct > 0:
-            self.structs = ds.structs
-            gout.emit("Save files of previous calculation found.")
-            gout.emit(f"Loaded {n_struct} structure(s) from save files.")
-
-        self.dsdict = DistributedStructs(self.structs)
-        n_completed = None
-        completed = self.dsdict.collect_property(self.opt_name, "info")
-        
-        if self.is_master:
-            n_completed = sum(x is not None for x in completed)
-            
-        if n_struct > 0:
-            gout.emit(f"{n_completed} calculation(s) were completed previously.")
-            gout.emit("")

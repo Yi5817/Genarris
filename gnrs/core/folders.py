@@ -66,7 +66,7 @@ def copy_molecule(config: dict, gnrs_info: dict) -> None:
     for i, mpth in enumerate(mol_path):
         mol_tmp_path = os.path.join(mol_tmp_dir, f"geometry_{i}.in")
         if is_master:
-            mol = Molecule.read(mpth)
+            mol = Molecule.read(mpth, parallel=False)
             mol.standardize_orientation()
             mol.write(mol_tmp_path, parallel=False)
         gnrs_info["molecule_path"].append(mol_tmp_path)
