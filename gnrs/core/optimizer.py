@@ -110,14 +110,15 @@ class GeometryOptimizerABC(abc.ABC):
     def run_batch(
         self,
         structs: dict[str, Atoms],
-        on_structure_done: Optional[Callable[[], None]] = None,
+        on_structure_done: Optional[Callable[[dict[str, Atoms]], None]] = None,
     ) -> None:
         """
         Run optimization on a batch of structures.
 
         Args:
             structs: structure dictionary
-            on_structure_done: used for checkpoint saves
+            on_structure_done: used for checkpoint saves; called with the
+                structures completed on this rank
         """
         if self._dft_serial_mode:
             self._serial_dft_batch(structs, on_structure_done)
@@ -133,7 +134,7 @@ class GeometryOptimizerABC(abc.ABC):
                     failed.append(name)
                     continue
                 if on_structure_done is not None:
-                    on_structure_done()
+                    on_structure_done(structs)
             for name in failed:
                 del structs[name]
         elif self._gpu_mgr.is_worker:
@@ -146,7 +147,7 @@ class GeometryOptimizerABC(abc.ABC):
     def _serial_dft_batch(
         self,
         structs: dict[str, Atoms],
-        on_structure_done: Optional[Callable[[], None]],
+        on_structure_done: Optional[Callable[[dict[str, Atoms]], None]],
     ) -> None:
         """
         Serial DFT mode: only rank 0 runs optimizations.
@@ -161,6 +162,9 @@ class GeometryOptimizerABC(abc.ABC):
                 "dft_mode=serial: rank 0 optimizing %d structures",
                 len(flat),
             )
+            # Gathered items are copies, so results are checkpointed from
+            # them here; the owners only see them after the broadcast below
+            computed = dict(flat)
             results = {}
             for name, xtal in flat:
                 self.run(xtal)
@@ -170,7 +174,7 @@ class GeometryOptimizerABC(abc.ABC):
                     np.array(xtal.cell),
                 )
                 if on_structure_done is not None:
-                    on_structure_done()
+                    on_structure_done(computed)
 
         results = self.comm.bcast(results, root=0)
 
@@ -184,7 +188,7 @@ class GeometryOptimizerABC(abc.ABC):
     def _worker_loop(
         self,
         local_structs: dict[str, Atoms],
-        on_structure_done: Optional[Callable[[], None]],
+        on_structure_done: Optional[Callable[[dict[str, Atoms]], None]],
     ) -> None:
         """
         GPU worker: interleave local computation with feeder requests
@@ -203,7 +207,7 @@ class GeometryOptimizerABC(abc.ABC):
                 xtal = local_queue.popleft()
                 self.run(xtal)
                 if on_structure_done is not None:
-                    on_structure_done()
+                    on_structure_done(local_structs)
                 continue
 
             if my_feeders and not served:
@@ -267,7 +271,7 @@ class GeometryOptimizerABC(abc.ABC):
     def _feeder_loop(
         self,
         local_structs: dict[str, Atoms],
-        on_structure_done: Optional[Callable[[], None]],
+        on_structure_done: Optional[Callable[[dict[str, Atoms]], None]],
     ) -> None:
         """
         CPU feeder: delegate optimization to assigned GPU worker.
@@ -285,7 +289,7 @@ class GeometryOptimizerABC(abc.ABC):
             xtal.positions = positions
             xtal.cell = cell
             if on_structure_done is not None:
-                on_structure_done()
+                on_structure_done(local_structs)
 
         self.comm.send(None, dest=worker, tag=TAG_OPT_SHUTDOWN)
 

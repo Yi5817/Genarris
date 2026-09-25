@@ -58,6 +58,23 @@ def test_save_appends_each_completed_structure_once(tmp_path: Path) -> None:
     assert _logged_names(rank_dir / "0.ckpt") == ["s0", "s1"]
 
 
+def test_save_logs_copies_computed_for_other_ranks(tmp_path: Path) -> None:
+    # dft_mode=serial: rank 0 computes on gathered copies of every rank's
+    # structures, which must be checkpointed before the owners see results
+    rank_dir = tmp_path / "rank_0"
+    rank_dir.mkdir()
+    ds = DistributedStructs(_pool(1))
+    computed = {"s0": _atoms(-1.0), "other_rank": _atoms(-2.0)}
+
+    ds.checkpoint_save(str(rank_dir), KEY, computed)
+    assert _logged_names(rank_dir / "0.ckpt") == ["s0", "other_rank"]
+    assert KEY not in ds.structs["s0"].info, "the pool itself is untouched"
+
+    ds.structs["s0"].info[KEY] = -1.0
+    ds.checkpoint_save(str(rank_dir), KEY)
+    assert _logged_names(rank_dir / "0.ckpt") == ["s0", "other_rank"]
+
+
 def test_load_merges_with_pool_and_skips_damaged_line(tmp_path: Path) -> None:
     rank_dir = tmp_path / "rank_0"
     rank_dir.mkdir()

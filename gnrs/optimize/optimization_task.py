@@ -212,8 +212,8 @@ class GeometryOptimizationTask(TaskABC):
             gpu_mgr, dft_serial,
         )
 
-        save_cb = lambda: self.dsdict.checkpoint_save(
-            self.rank_calc_dir, self.opt_name
+        save_cb = lambda structs: self.dsdict.checkpoint_save(
+            self.rank_calc_dir, self.opt_name, structs
         )
         opt.run_batch(self.structs, on_structure_done=save_cb)
         gout.emit("Completed optimizations.")

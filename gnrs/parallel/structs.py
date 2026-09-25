@@ -169,10 +169,15 @@ class DistributedStructs:
         for struct in self.structs.values():
             struct.info["spg"] = get_spacegroup(struct, symprec=tol).no
 
-    def checkpoint_save(self, path: str, result_key: str) -> None:
+    def checkpoint_save(
+        self,
+        path: str,
+        result_key: str,
+        structs: dict[str, Atoms] | None = None,
+    ) -> None:
         """
-        Appends newly completed local structures to this rank's checkpoint
-        log. Does not communicate, so ranks can call it independently.
+        Appends newly completed structures to this rank's checkpoint log.
+        Does not communicate, so ranks can call it independently.
 
         Every completed structure is written exactly once, as one line in the
         same ``"name": <ase json>,`` form used inside structures.json. A job
@@ -181,10 +186,14 @@ class DistributedStructs:
         Args:
             path: Directory for this rank's checkpoint log
             result_key: ``Atoms.info`` key that marks a structure as done
+            structs: Structures to scan instead of this rank's own pool, e.g.
+                copies of other ranks' structures computed on this rank
         """
+        if structs is None:
+            structs = self.structs
         done = [
             (name, xtal)
-            for name, xtal in self.structs.items()
+            for name, xtal in structs.items()
             if result_key in xtal.info and name not in self._checkpointed
         ]
         if not done:

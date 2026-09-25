@@ -106,14 +106,15 @@ class EnergyCalculatorABC(abc.ABC):
     def run_batch(
         self,
         structs: dict[str, Atoms],
-        on_structure_done: Optional[Callable[[], None]] = None,
+        on_structure_done: Optional[Callable[[dict[str, Atoms]], None]] = None,
     ) -> None:
         """
         Run energy calculations on a batch of structures.
 
         Args:
             structs: structure dictionary
-            on_structure_done: used for checkpoint saves
+            on_structure_done: used for checkpoint saves; called with the
+                structures completed on this rank
         """
         if self._dft_serial_mode:
             self._serial_dft_batch(structs, on_structure_done)
@@ -121,7 +122,7 @@ class EnergyCalculatorABC(abc.ABC):
             for xtal in structs.values():
                 self.run(xtal)
                 if on_structure_done is not None:
-                    on_structure_done()
+                    on_structure_done(structs)
         elif self._gpu_mgr.is_worker:
             self._worker_loop(structs, on_structure_done)
         else:
@@ -132,7 +133,7 @@ class EnergyCalculatorABC(abc.ABC):
     def _serial_dft_batch(
         self,
         structs: dict[str, Atoms],
-        on_structure_done: Optional[Callable[[], None]],
+        on_structure_done: Optional[Callable[[dict[str, Atoms]], None]],
     ) -> None:
         """
         Serial DFT mode: only rank 0 runs the DFT calculator.
@@ -147,12 +148,15 @@ class EnergyCalculatorABC(abc.ABC):
                 "dft_mode=serial: rank 0 processing %d structures",
                 len(flat),
             )
+            # Gathered items are copies, so results are checkpointed from
+            # them here; the owners only see them after the broadcast below
+            computed = dict(flat)
             energy_map = {}
             for name, xtal in flat:
                 self.run(xtal)
                 energy_map[name] = xtal.info.get(self.energy_name, 0)
                 if on_structure_done is not None:
-                    on_structure_done()
+                    on_structure_done(computed)
 
         energy_map = self.comm.bcast(energy_map, root=0)
 
@@ -163,7 +167,7 @@ class EnergyCalculatorABC(abc.ABC):
     def _worker_loop(
         self,
         local_structs: dict[str, Atoms],
-        on_structure_done: Optional[Callable[[], None]],
+        on_structure_done: Optional[Callable[[dict[str, Atoms]], None]],
     ) -> None:
         """
         GPU worker: interleave local computation with feeder requests
@@ -182,7 +186,7 @@ class EnergyCalculatorABC(abc.ABC):
                 xtal = local_queue.popleft()
                 self.run(xtal)
                 if on_structure_done is not None:
-                    on_structure_done()
+                    on_structure_done(local_structs)
                 continue
 
             if my_feeders and not served:
@@ -237,7 +241,7 @@ class EnergyCalculatorABC(abc.ABC):
     def _feeder_loop(
         self,
         local_structs: dict[str, Atoms],
-        on_structure_done: Optional[Callable[[], None]],
+        on_structure_done: Optional[Callable[[dict[str, Atoms]], None]],
     ) -> None:
         """
         CPU feeder: delegate GPU computation to assigned worker
@@ -251,7 +255,7 @@ class EnergyCalculatorABC(abc.ABC):
             _, energy = self.comm.recv(source=worker, tag=TAG_WORK_RESULT)
             xtal.info[self.energy_name] = energy
             if on_structure_done is not None:
-                on_structure_done()
+                on_structure_done(local_structs)
 
         self.comm.send(None, dest=worker, tag=TAG_SHUTDOWN)
 
