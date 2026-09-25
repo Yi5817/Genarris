@@ -42,11 +42,24 @@ def _saved(tasks: list[str] = WORKFLOW, **sections: dict) -> dict:
     return {"workflow": {"tasks": tasks}, **sections}
 
 
-def _apply(manager: Restart, saved: dict) -> None:
+def _write(
+    tmp_path: Path,
+    saved: dict,
+    gnrs_info: dict | None = None,
+    version: int | None = RESTART_VERSION,
+) -> None:
+    data = {"config": saved, "gnrs_info": gnrs_info or {}}
+    if version is not None:
+        data["version"] = version
+    (tmp_path / "restart.json").write_text(json.dumps(data))
+
+
+def _apply(manager: Restart, saved: dict, gnrs_info: dict | None = None) -> None:
     """
-    Apply a restart file holding the saved config to the manager.
+    Load a restart file holding the saved config into the manager.
     """
-    manager._apply_restart({"config": saved, "gnrs_info": {}})
+    _write(Path(manager.gnrs_info["work_dir"]), saved, gnrs_info)
+    assert manager.load()
 
 
 def _checkpoint(tmp_path: Path, task: str) -> Path:
@@ -289,11 +302,18 @@ def test_load_rejects_newer_format(tmp_path: Path) -> None:
         _manager(tmp_path).load()
 
 
-def test_load_accepts_file_without_version(tmp_path: Path) -> None:
-    (tmp_path / "restart.json").write_text(
-        json.dumps({"config": _saved(), "gnrs_info": {}})
-    )
-    assert _manager(tmp_path).load() is True
+def test_load_rejects_file_of_older_release(tmp_path: Path) -> None:
+    _write(tmp_path, _saved(), version=None)
+    with pytest.raises(RestartError, match="older Genarris release.*--overwrite"):
+        _manager(tmp_path).load()
+
+
+def test_load_rejects_old_layout_run(tmp_path: Path) -> None:
+    # Older releases kept the restart file under tmp/
+    (tmp_path / "tmp").mkdir()
+    _write(tmp_path / "tmp", _saved(), version=None)
+    with pytest.raises(RestartError, match="tmp/restart.json was written by an older"):
+        _manager(tmp_path).load()
 
 
 def test_load_rejects_corrupt_file(tmp_path: Path) -> None:

@@ -181,8 +181,9 @@ mpirun -np <num_processes> gnrs -c ui.conf --overwrite
 ```
 
 :::{note}
-Runs made with older Genarris releases keep the restart file at
-`tmp/restart.json`. Move it to the run directory to resume them.
+Runs made with older Genarris releases (they keep their restart file at
+`tmp/restart.json`) cannot be resumed with this release. Rerun the workflow
+with this release, starting over with `--overwrite`.
 :::
 
 Structures are stored as JSON ASE Atoms objects. Load them with:

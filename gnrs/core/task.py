@@ -167,7 +167,7 @@ class TaskABC(abc.ABC):
             DistributedStructs.checkpoint_clear(self.calc_dir)
         self.comm.barrier()  # Wait for folder creation
 
-    def _load_checkpoints(self, result_key: str) -> None:
+    def _load_checkpoints(self) -> None:
         """
         Merge checkpoints of an interrupted run of this task into the pool.
 
@@ -175,13 +175,9 @@ class TaskABC(abc.ABC):
         structures are listed in ``self.dsdict.done`` so the task can skip
         them. Must be called by all ranks. Reports how many structures were
         restored.
-
-        Args:
-            result_key: ``Atoms.info`` key that marks a structure as done in
-                legacy checkpoints.
         """
         self.dsdict = DistributedStructs(self.structs)
-        n_restored = self.dsdict.checkpoint_load(self.calc_dir, result_key)
+        n_restored = self.dsdict.checkpoint_load(self.calc_dir)
         self.structs = self.dsdict.structs
         n_total = self.dsdict.get_num_structs()
         if n_restored == 0:

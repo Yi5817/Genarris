@@ -28,18 +28,17 @@ from gnrs.parallel.structs import DistributedStructs
 logger = logging.getLogger("restart")
 
 RESTART_FILE = "restart.json"
-
-# Format version stamped into restart files. Files without one were written
-# by releases before the stamp existed and use the same layout.
 RESTART_VERSION = 1
 
 # [master] settings that define the run itself. Every task's results depend
 # on them, so a restart may never change them.
 _RUN_SETTINGS = ("z", "molecule_path")
 
-# Settings of older releases that no longer exist. Their value has no bearing
-# on the results, so restart files that still carry them are not refused.
-_REMOVED_SETTINGS = {"maceoff": ("save_flag",)}
+_OLDER_RELEASE = (
+    "was written by an older Genarris release and cannot be resumed with "
+    "this one. Rerun the workflow with this release, starting over with "
+    "--overwrite."
+)
 
 T = TypeVar("T")
 
@@ -132,23 +131,6 @@ def _diff_configs(saved: dict, current: dict, prefix: str = "") -> list[str]:
         elif old_val != new_val:
             diffs.append(f"{prefix}{key}: {old_val!r} -> {new_val!r}")
     return diffs
-
-
-def _drop_removed_settings(config: dict) -> dict:
-    """
-    Copy a config without the settings listed in ``_REMOVED_SETTINGS``.
-
-    Args:
-        config: Saved or current config.
-
-    Returns:
-        A copy of the config with those settings removed.
-    """
-    config = copy.deepcopy(config)
-    for section, keys in _REMOVED_SETTINGS.items():
-        for key in keys:
-            config.get(section, {}).pop(key, None)
-    return config
 
 
 def _resolve(which: str, config: dict) -> list[TaskSpec]:
@@ -345,10 +327,16 @@ class Restart:
 
         Raises:
             RestartError: If the file is unreadable, malformed or written by
-                a newer Genarris.
+                another Genarris release.
         """
         path = self.restart_file
         if not os.path.isfile(path):
+            # Older releases kept the restart file under tmp/
+            tmp_dir = self.gnrs_info.get("tmp_dir")
+            if tmp_dir and os.path.isfile(restart_path(tmp_dir)):
+                raise RestartError(
+                    f"Restart file {restart_path(tmp_dir)} {_OLDER_RELEASE}"
+                )
             return None
 
         logger.info(f"Reading restart file {path}")
@@ -371,7 +359,9 @@ class Restart:
                 "Start over with --overwrite."
             )
 
-        version = data.get("version", 1)
+        version = data.get("version")
+        if version is None:
+            raise RestartError(f"Restart file {path} {_OLDER_RELEASE}")
         if not isinstance(version, int) or version > RESTART_VERSION:
             raise RestartError(
                 f"Restart file {path} was written by a newer Genarris "
@@ -428,11 +418,8 @@ class Restart:
             saved_info.pop(key, None)
         self.gnrs_info.update(saved_info)
 
-        saved_config = _drop_removed_settings(saved_config)
         # Normalize the live config the way the saved one was stored
-        current_config = _drop_removed_settings(
-            json.loads(json.dumps(self.config, default=_json_default))
-        )
+        current_config = json.loads(json.dumps(self.config, default=_json_default))
         saved_specs = _resolve("previous", saved_config)
         current_specs = _resolve("current", current_config)
 

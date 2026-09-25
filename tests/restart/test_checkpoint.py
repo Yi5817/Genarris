@@ -3,12 +3,10 @@ Unit tests for structure checkpoints. Run in a single process (no mpirun).
 """
 from __future__ import annotations
 
-import json
 from pathlib import Path
 
 import pytest
 from ase import Atoms
-from ase.io.jsonio import encode
 from mpi4py import MPI
 
 import gnrs.parallel as gp
@@ -77,7 +75,7 @@ def test_load_merges_with_pool_and_skips_damaged_line(tmp_path: Path) -> None:
         chk.write('"s2": {"numbers": [1], "posi')  # cut short by a job kill
 
     ds = DistributedStructs(_pool(4))
-    n_restored = ds.checkpoint_load(str(tmp_path), KEY)
+    n_restored = ds.checkpoint_load(str(tmp_path))
 
     assert n_restored == 2
     assert sorted(ds.structs) == ["s0", "s1", "s2", "s3"]
@@ -92,7 +90,7 @@ def test_load_merges_with_pool_and_skips_damaged_line(tmp_path: Path) -> None:
     ds.checkpoint_save(str(rank_dir), "s3", _atoms(-4.0))
     assert _logged_names(rank_dir / "0.ckpt") == ["s0", "s1", "s2", "s3"]
     ds = DistributedStructs(_pool(4))
-    assert ds.checkpoint_load(str(tmp_path), KEY) == 3
+    assert ds.checkpoint_load(str(tmp_path)) == 3
     assert ds.structs["s3"].info[KEY] == -4.0
 
 
@@ -105,17 +103,19 @@ def test_load_ignores_structures_outside_the_pool(tmp_path: Path) -> None:
     ds.checkpoint_save(str(rank_dir), "s0", _atoms(-1.0))
 
     ds = DistributedStructs(_pool(2))
-    assert ds.checkpoint_load(str(tmp_path), KEY) == 1
+    assert ds.checkpoint_load(str(tmp_path)) == 1
     assert sorted(ds.structs) == ["s0", "s1"]
     assert ds.structs["s0"].info[KEY] == -1.0
     assert ds.done == {"s0"}
 
 
-def test_load_reads_legacy_snapshot(tmp_path: Path) -> None:
-    # Older releases dumped a rank's whole pool, finished or not
-    rank_dir = tmp_path / "rank_0"
-    rank_dir.mkdir()
-    snapshot = {"s0": encode(_atoms(-1.0)), "s1": encode(_atoms())}
+def test_load_without_checkpoints_keeps_pool(tmp_path: Path) -> None:
+    ds = DistributedStructs(_pool(2))
+    assert ds.checkpoint_load(str(tmp_path)) == 0
+    assert sorted(ds.structs) == ["s0", "s1"]
+    assert ds.done == set()
+
+
 def test_load_spreads_remaining_work_evenly() -> None:
     # Rank 0 had finished 45 of its 50 structures, rank 1 only 5
     pool = _pool(100)
@@ -126,27 +126,11 @@ def test_load_spreads_remaining_work_evenly() -> None:
     assert set().union(*chunks) == set(pool)
 
 
-    (rank_dir / "0.save").write_text(json.dumps(snapshot))
-
-    ds = DistributedStructs(_pool(2))
-    assert ds.checkpoint_load(str(tmp_path), KEY) == 1
-    assert ds.structs["s0"].info[KEY] == -1.0
-    assert ds.done == {"s0"}
-
-
-def test_load_without_checkpoints_keeps_pool(tmp_path: Path) -> None:
-    ds = DistributedStructs(_pool(2))
-    assert ds.checkpoint_load(str(tmp_path), KEY) == 0
-    assert sorted(ds.structs) == ["s0", "s1"]
-    assert ds.done == set()
-
-
 def test_clear_removes_all_checkpoint_files(tmp_path: Path) -> None:
     for rank in range(2):
         rank_dir = tmp_path / f"rank_{rank}"
         rank_dir.mkdir()
         (rank_dir / f"{rank}.ckpt").write_text("")
-        (rank_dir / f"{rank}.save").write_text("{}")
-    assert DistributedStructs.checkpoint_clear(str(tmp_path)) == 4
+    assert DistributedStructs.checkpoint_clear(str(tmp_path)) == 2
     assert not list(tmp_path.glob("rank_*/*"))
     assert DistributedStructs.checkpoint_clear(str(tmp_path)) == 0

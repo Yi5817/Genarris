@@ -222,7 +222,7 @@ class GeometryOptimizationTask(TaskABC):
         dir_name = f"rank_{self.rank}"
         os.makedirs(dir_name, exist_ok=True)
         self.rank_calc_dir = os.path.join(self.calc_dir, dir_name)
-        self._load_checkpoints(self.opt_name)
+        self._load_checkpoints()
 
         # Run optimization
         gout.emit("Optimizing structures...")

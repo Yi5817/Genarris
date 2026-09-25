@@ -106,7 +106,7 @@ class EnergyCalculationTask(TaskABC):
         os.chdir(dir_name)
 
         self.rank_calc_dir = os.path.join(self.calc_dir, dir_name)
-        self._load_checkpoints(self.energy_name)
+        self._load_checkpoints()
 
         # Calculate energy
         calc = self.energy_calc(self.comm, task_settings, self.energy_name)
