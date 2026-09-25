@@ -89,19 +89,47 @@ def str2atoms(geometry_str: list) -> Atoms | None:
     return xtal
 
 
-def write_parallel(file_path: str, struct_dict: dict, 
+def encode_struct(name: str, xtal: Atoms) -> str:
+    """
+    Serialize one structure as a line of a structures.json file.
+
+    Args:
+        name: Structure ID
+        xtal: Structure
+
+    Returns:
+        ``"name": <ase json>,`` followed by a newline
+    """
+    return f'"{name}": {encode(xtal)},\n'
+
+
+def decode_struct(line: str) -> tuple[str, Atoms]:
+    """
+    Parse a line written by ``encode_struct``.
+
+    Args:
+        line: One structure line, with or without the trailing comma
+
+    Returns:
+        Structure ID and structure
+    """
+    name, xtal = line.split(":", 1)
+    return name.strip().strip('"'), decode(xtal.strip().rstrip(","))
+
+
+def write_parallel(file_path: str, struct_dict: dict,
                   gather: bool = True, mode: str = "w") -> None:
     """
     Convert structures to JSON strings, gather and store to file.
-    
+
     Args:
         file_path: Path to output file
         struct_dict: Dictionary of structures to write
         gather: Whether to gather data from all processes
         mode: File opening mode
     """
-    
-    str_list = [f'"{k}": {encode(v)},\n' for k, v in struct_dict.items()]
+
+    str_list = [encode_struct(k, v) for k, v in struct_dict.items()]
 
     if gather:
         str_list = gp.comm.gather(str_list, root=0)
@@ -153,10 +181,7 @@ def read_parallel(file_path: str, scatter: bool = True) -> dict:
     for str_struct in str_list:
         if str_struct is None:
             continue
-        s_id, s = str_struct.split(":", 1)
-        s_id = s_id.strip('"')
-        s = s[:-2]  # Remove comma and newline
-        struct_list.append([s_id, decode(s)])
+        struct_list.append(list(decode_struct(str_struct)))
 
     if not scatter:
         struct_list = gp.comm.gather(struct_list, root=0)

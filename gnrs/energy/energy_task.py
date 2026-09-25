@@ -106,20 +106,13 @@ class EnergyCalculationTask(TaskABC):
         os.chdir(dir_name)
 
         self.rank_calc_dir = os.path.join(self.calc_dir, dir_name)
-        self._load_save_files(self.energy_name)
+        self._load_checkpoints(self.energy_name)
 
         # Calculate energy
         calc = self.energy_calc(self.comm, task_settings, self.energy_name)
-        save_cb = lambda structs: self.dsdict.checkpoint_save(
-            self.rank_calc_dir, self.energy_name, structs
+        calc.run_batch(
+            self.structs, on_structure_done=self._checkpoint, done=self.dsdict.done
         )
-
-        if calc._dft_serial_mode or (calc.requires_gpu and calc._use_worker_feeder):
-            calc.run_batch(self.structs, on_structure_done=save_cb)
-        else:
-            for xtal in self.structs.values():
-                calc.run(xtal)
-                save_cb(self.structs)
 
     def collect_results(self) -> None:
         """

@@ -15,7 +15,7 @@ __group__ = "https://www.noamarom.com/"
 import abc
 import logging
 from collections import deque
-from typing import Any, Callable, Optional
+from typing import Any, Callable, Collection, Optional
 
 from mpi4py import MPI
 from ase import Atoms
@@ -97,8 +97,6 @@ class EnergyCalculatorABC(abc.ABC):
         Args:
             xtal: Crystal structure
         """
-        if self.energy_name in xtal.info:
-            return
         self.initialize()
         self.compute(xtal)
         self.finalize()
@@ -106,7 +104,8 @@ class EnergyCalculatorABC(abc.ABC):
     def run_batch(
         self,
         structs: dict[str, Atoms],
-        on_structure_done: Optional[Callable[[dict[str, Atoms]], None]] = None,
+        on_structure_done: Optional[Callable[[str, Atoms], None]] = None,
+        done: Collection[str] = (),
     ) -> None:
         """
         Run energy calculations on a batch of structures.
@@ -114,31 +113,37 @@ class EnergyCalculatorABC(abc.ABC):
         Args:
             structs: structure dictionary
             on_structure_done: used for checkpoint saves; called with the
-                structures completed on this rank
+                name and structure of every calculation completed on this
+                rank
+            done: names of structures already completed by this task (e.g.
+                restored from a checkpoint); they are skipped
         """
         if self._dft_serial_mode:
-            self._serial_dft_batch(structs, on_structure_done)
+            self._serial_dft_batch(structs, on_structure_done, done)
         elif not self._use_worker_feeder:
-            for xtal in structs.values():
+            for name, xtal in structs.items():
+                if name in done:
+                    continue
                 self.run(xtal)
                 if on_structure_done is not None:
-                    on_structure_done(structs)
+                    on_structure_done(name, xtal)
         elif self._gpu_mgr.is_worker:
-            self._worker_loop(structs, on_structure_done)
+            self._worker_loop(structs, on_structure_done, done)
         else:
-            self._feeder_loop(structs, on_structure_done)
+            self._feeder_loop(structs, on_structure_done, done)
 
         self.comm.Barrier()
 
     def _serial_dft_batch(
         self,
         structs: dict[str, Atoms],
-        on_structure_done: Optional[Callable[[dict[str, Atoms]], None]],
+        on_structure_done: Optional[Callable[[str, Atoms], None]],
+        done: Collection[str],
     ) -> None:
         """
         Serial DFT mode: only rank 0 runs the DFT calculator.
         """
-        local_items = list(structs.items())
+        local_items = [(n, x) for n, x in structs.items() if n not in done]
         all_items = self.comm.gather(local_items, root=0)
 
         energy_map: dict[str, float] | None = None
@@ -148,45 +153,43 @@ class EnergyCalculatorABC(abc.ABC):
                 "dft_mode=serial: rank 0 processing %d structures",
                 len(flat),
             )
-            # Gathered items are copies, so results are checkpointed from
-            # them here; the owners only see them after the broadcast below
-            computed = dict(flat)
             energy_map = {}
             for name, xtal in flat:
                 self.run(xtal)
                 energy_map[name] = xtal.info.get(self.energy_name, 0)
                 if on_structure_done is not None:
-                    on_structure_done(computed)
+                    on_structure_done(name, xtal)
 
         energy_map = self.comm.bcast(energy_map, root=0)
 
         for name, xtal in structs.items():
-            if self.energy_name not in xtal.info and name in energy_map:
+            if name in energy_map:
                 xtal.info[self.energy_name] = energy_map[name]
 
     def _worker_loop(
         self,
         local_structs: dict[str, Atoms],
-        on_structure_done: Optional[Callable[[dict[str, Atoms]], None]],
+        on_structure_done: Optional[Callable[[str, Atoms], None]],
+        done: Collection[str],
     ) -> None:
         """
         GPU worker: interleave local computation with feeder requests
         """
         my_feeders = set(self._gpu_mgr.assigned_feeders())
 
-        local_queue: deque[Atoms] = deque(
-            xtal for xtal in local_structs.values()
-            if self.energy_name not in xtal.info
+        local_queue: deque[tuple[str, Atoms]] = deque(
+            (name, xtal) for name, xtal in local_structs.items()
+            if name not in done
         )
 
         while local_queue or my_feeders:
             served = self._drain_feeder_requests(my_feeders)
 
             if local_queue:
-                xtal = local_queue.popleft()
+                name, xtal = local_queue.popleft()
                 self.run(xtal)
                 if on_structure_done is not None:
-                    on_structure_done(local_structs)
+                    on_structure_done(name, xtal)
                 continue
 
             if my_feeders and not served:
@@ -241,7 +244,8 @@ class EnergyCalculatorABC(abc.ABC):
     def _feeder_loop(
         self,
         local_structs: dict[str, Atoms],
-        on_structure_done: Optional[Callable[[dict[str, Atoms]], None]],
+        on_structure_done: Optional[Callable[[str, Atoms], None]],
+        done: Collection[str],
     ) -> None:
         """
         CPU feeder: delegate GPU computation to assigned worker
@@ -249,13 +253,13 @@ class EnergyCalculatorABC(abc.ABC):
         worker = self._gpu_mgr.assigned_worker()
 
         for name, xtal in local_structs.items():
-            if self.energy_name in xtal.info:
+            if name in done:
                 continue
             self.comm.send((name, xtal), dest=worker, tag=TAG_WORK_DATA)
             _, energy = self.comm.recv(source=worker, tag=TAG_WORK_RESULT)
             xtal.info[self.energy_name] = energy
             if on_structure_done is not None:
-                on_structure_done(local_structs)
+                on_structure_done(name, xtal)
 
         self.comm.send(None, dest=worker, tag=TAG_SHUTDOWN)
 

@@ -203,7 +203,7 @@ class GeometryOptimizationTask(TaskABC):
         dir_name = f"rank_{self.rank}"
         os.makedirs(dir_name, exist_ok=True)
         self.rank_calc_dir = os.path.join(self.calc_dir, dir_name)
-        self._load_save_files(self.opt_name)
+        self._load_checkpoints(self.opt_name)
 
         # Run optimization
         gout.emit("Optimizing structures...")
@@ -212,10 +212,9 @@ class GeometryOptimizationTask(TaskABC):
             gpu_mgr, dft_serial,
         )
 
-        save_cb = lambda structs: self.dsdict.checkpoint_save(
-            self.rank_calc_dir, self.opt_name, structs
+        opt.run_batch(
+            self.structs, on_structure_done=self._checkpoint, done=self.dsdict.done
         )
-        opt.run_batch(self.structs, on_structure_done=save_cb)
         gout.emit("Completed optimizations.")
 
     def collect_results(self):

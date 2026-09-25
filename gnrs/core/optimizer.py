@@ -15,7 +15,7 @@ __group__ = "https://www.noamarom.com/"
 import abc
 import logging
 from collections import deque
-from typing import Callable, Optional
+from typing import Callable, Collection, Optional
 
 import numpy as np
 from mpi4py import MPI
@@ -110,7 +110,8 @@ class GeometryOptimizerABC(abc.ABC):
     def run_batch(
         self,
         structs: dict[str, Atoms],
-        on_structure_done: Optional[Callable[[dict[str, Atoms]], None]] = None,
+        on_structure_done: Optional[Callable[[str, Atoms], None]] = None,
+        done: Collection[str] = (),
     ) -> None:
         """
         Run optimization on a batch of structures.
@@ -118,13 +119,18 @@ class GeometryOptimizerABC(abc.ABC):
         Args:
             structs: structure dictionary
             on_structure_done: used for checkpoint saves; called with the
-                structures completed on this rank
+                name and structure of every optimization completed on this
+                rank
+            done: names of structures already completed by this task (e.g.
+                restored from a checkpoint); they are skipped
         """
         if self._dft_serial_mode:
-            self._serial_dft_batch(structs, on_structure_done)
+            self._serial_dft_batch(structs, on_structure_done, done)
         elif not self._use_worker_feeder:
             failed = []
-            for name, xtal in list(structs.items()):
+            for name, xtal in structs.items():
+                if name in done:
+                    continue
                 try:
                     self.run(xtal)
                 except (ValueError, RuntimeError) as e:
@@ -134,25 +140,26 @@ class GeometryOptimizerABC(abc.ABC):
                     failed.append(name)
                     continue
                 if on_structure_done is not None:
-                    on_structure_done(structs)
+                    on_structure_done(name, xtal)
             for name in failed:
                 del structs[name]
         elif self._gpu_mgr.is_worker:
-            self._worker_loop(structs, on_structure_done)
+            self._worker_loop(structs, on_structure_done, done)
         else:
-            self._feeder_loop(structs, on_structure_done)
+            self._feeder_loop(structs, on_structure_done, done)
 
         self.comm.Barrier()
 
     def _serial_dft_batch(
         self,
         structs: dict[str, Atoms],
-        on_structure_done: Optional[Callable[[dict[str, Atoms]], None]],
+        on_structure_done: Optional[Callable[[str, Atoms], None]],
+        done: Collection[str],
     ) -> None:
         """
         Serial DFT mode: only rank 0 runs optimizations.
         """
-        local_items = list(structs.items())
+        local_items = [(n, x) for n, x in structs.items() if n not in done]
         all_items = self.comm.gather(local_items, root=0)
 
         results: dict[str, tuple[dict, np.ndarray, np.ndarray]] | None = None
@@ -162,9 +169,6 @@ class GeometryOptimizerABC(abc.ABC):
                 "dft_mode=serial: rank 0 optimizing %d structures",
                 len(flat),
             )
-            # Gathered items are copies, so results are checkpointed from
-            # them here; the owners only see them after the broadcast below
-            computed = dict(flat)
             results = {}
             for name, xtal in flat:
                 self.run(xtal)
@@ -174,7 +178,7 @@ class GeometryOptimizerABC(abc.ABC):
                     np.array(xtal.cell),
                 )
                 if on_structure_done is not None:
-                    on_structure_done(computed)
+                    on_structure_done(name, xtal)
 
         results = self.comm.bcast(results, root=0)
 
@@ -188,26 +192,27 @@ class GeometryOptimizerABC(abc.ABC):
     def _worker_loop(
         self,
         local_structs: dict[str, Atoms],
-        on_structure_done: Optional[Callable[[dict[str, Atoms]], None]],
+        on_structure_done: Optional[Callable[[str, Atoms], None]],
+        done: Collection[str],
     ) -> None:
         """
         GPU worker: interleave local computation with feeder requests
         """
         my_feeders = set(self._gpu_mgr.assigned_feeders())
 
-        local_queue: deque[Atoms] = deque(
-            xtal for xtal in local_structs.values()
-            if self.opt_name not in xtal.info
+        local_queue: deque[tuple[str, Atoms]] = deque(
+            (name, xtal) for name, xtal in local_structs.items()
+            if name not in done
         )
 
         while local_queue or my_feeders:
             served = self._drain_feeder_requests(my_feeders)
 
             if local_queue:
-                xtal = local_queue.popleft()
+                name, xtal = local_queue.popleft()
                 self.run(xtal)
                 if on_structure_done is not None:
-                    on_structure_done(local_structs)
+                    on_structure_done(name, xtal)
                 continue
 
             if my_feeders and not served:
@@ -271,7 +276,8 @@ class GeometryOptimizerABC(abc.ABC):
     def _feeder_loop(
         self,
         local_structs: dict[str, Atoms],
-        on_structure_done: Optional[Callable[[dict[str, Atoms]], None]],
+        on_structure_done: Optional[Callable[[str, Atoms], None]],
+        done: Collection[str],
     ) -> None:
         """
         CPU feeder: delegate optimization to assigned GPU worker.
@@ -279,7 +285,7 @@ class GeometryOptimizerABC(abc.ABC):
         worker = self._gpu_mgr.assigned_worker()
 
         for name, xtal in local_structs.items():
-            if self.opt_name in xtal.info:
+            if name in done:
                 continue
             self.comm.send((name, xtal), dest=worker, tag=TAG_OPT_DATA)
             _, info, positions, cell = self.comm.recv(
@@ -289,7 +295,7 @@ class GeometryOptimizerABC(abc.ABC):
             xtal.positions = positions
             xtal.cell = cell
             if on_structure_done is not None:
-                on_structure_done(local_structs)
+                on_structure_done(name, xtal)
 
         self.comm.send(None, dest=worker, tag=TAG_OPT_SHUTDOWN)
 
