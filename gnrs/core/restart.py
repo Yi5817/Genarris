@@ -110,7 +110,9 @@ def _remap_paths(obj: object, old_root: str, new_root: str) -> object:
     return obj
 
 
-def _diff_configs(saved: dict, current: dict, prefix: str = "") -> list[str]:
+def _diff_configs(
+    saved: dict, current: dict, prefix: str = "", shared_only: bool = False
+) -> list[str]:
     """
     List settings that differ between the saved and current config.
 
@@ -118,16 +120,22 @@ def _diff_configs(saved: dict, current: dict, prefix: str = "") -> list[str]:
         saved: Config stored in the restart file.
         current: Config parsed from the user's config file.
         prefix: Key prefix used for nested sections.
+        shared_only: Compare only settings both configs have, so a setting
+            that one of them lacks (e.g. a default added by a newer release)
+            is not a difference.
 
     Returns:
         Every differing setting as ``"section.key: old -> new"``.
     """
+    keys = set(saved) & set(current) if shared_only else set(saved) | set(current)
     diffs = []
-    for key in sorted(set(saved) | set(current), key=str):
+    for key in sorted(keys, key=str):
         old_val = saved.get(key, "<not set>")
         new_val = current.get(key, "<not set>")
         if isinstance(old_val, dict) and isinstance(new_val, dict):
-            diffs.extend(_diff_configs(old_val, new_val, f"{prefix}{key}."))
+            diffs.extend(
+                _diff_configs(old_val, new_val, f"{prefix}{key}.", shared_only)
+            )
         elif old_val != new_val:
             diffs.append(f"{prefix}{key}: {old_val!r} -> {new_val!r}")
     return diffs
@@ -154,10 +162,9 @@ def _resolve(which: str, config: dict) -> list[TaskSpec]:
         raise RestartError(f"The {which} task list is invalid: {exc}") from exc
 
 
-def _task_settings(config: dict, task_type: str, instance_id: str) -> dict:
+def _overrides(config: dict, task_type: str, instance_id: str) -> dict:
     """
-    Effective settings of one task: its type section updated with its
-    per-instance overrides, as ``TaskABC._merge_config`` does.
+    Per-instance overrides of one task; empty unless the task is repeated.
 
     Args:
         config: Saved or current config.
@@ -165,19 +172,25 @@ def _task_settings(config: dict, task_type: str, instance_id: str) -> dict:
         instance_id: Task instance id, e.g. ``dedup_2``.
 
     Returns:
-        The merged settings.
+        The ``[instance_id]`` section, or an empty dict.
     """
-    settings = dict(config.get(task_type, {}))
-    if instance_id != task_type:
-        settings.update(config.get(instance_id, {}))
-    return settings
+    return config.get(instance_id, {}) if instance_id != task_type else {}
 
 
 def _task_diffs(
-    saved_config: dict, current_config: dict, spec: TaskSpec, saved_id: str
+    saved_config: dict,
+    current_config: dict,
+    spec: TaskSpec,
+    saved_id: str,
+    shared_only: bool = False,
 ) -> list[str]:
     """
-    List the settings of one task that differ between two configs.
+    List the effective settings of one task that differ between two configs.
+
+    A task reads each of its sections with the per-instance overrides applied
+    on top, as ``TaskABC._merge_config`` does, so a change of a base setting
+    that the override masks is not a change. A changed override affects every
+    section alike and is reported once, under the instance id.
 
     Args:
         saved_config: Config stored in the restart file.
@@ -185,24 +198,31 @@ def _task_diffs(
         spec: The task, resolved from the current task list.
         saved_id: The task's instance id in the saved task list. Differs from
             ``spec.instance_id`` when repeated tasks were renumbered.
+        shared_only: See ``_diff_configs``.
 
     Returns:
         Every differing setting as ``"section.key: old -> new"``.
     """
-    diffs = _diff_configs(
-        _task_settings(saved_config, spec.task_type, saved_id),
-        _task_settings(current_config, spec.task_type, spec.instance_id),
-        f"{spec.instance_id}.",
-    )
+    saved_over = _overrides(saved_config, spec.task_type, saved_id)
+    current_over = _overrides(current_config, spec.task_type, spec.instance_id)
+    overridden = set(saved_over) | set(current_over)
+    diffs = []
     for section in spec.sections:
-        if section in (spec.task_type, spec.instance_id):
-            continue
-        diffs.extend(_diff_configs(
-            saved_config.get(section, {}),
-            current_config.get(section, {}),
-            f"{section}.",
-        ))
-    return diffs
+        if section == spec.instance_id and section != spec.task_type:
+            continue  # the override section itself
+        saved = {**saved_config.get(section, {}), **saved_over}
+        current = {**current_config.get(section, {}), **current_over}
+        for prefix, keys in (
+            (spec.instance_id, overridden),
+            (section, (set(saved) | set(current)) - overridden),
+        ):
+            diffs.extend(_diff_configs(
+                {key: saved[key] for key in keys if key in saved},
+                {key: current[key] for key in keys if key in current},
+                f"{prefix}.",
+                shared_only,
+            ))
+    return list(dict.fromkeys(diffs))
 
 
 class Restart:
@@ -490,8 +510,11 @@ class Restart:
         sections they read, e.g. ``[bfgs]`` and ``[maceoff]`` for
         ``bfgs_maceoff``) and the ``[master]`` settings that define the run
         are frozen: the results were produced with the saved values, so a
-        change is refused rather than silently ignored. Any other change is
-        reported and the current config wins.
+        changed value is refused rather than silently ignored. A setting
+        that only one of the two runs has (e.g. a default added or removed
+        by a newer release) cannot have changed the results and does not
+        block. Every other difference is reported and the current config
+        wins.
 
         Args:
             saved_config: Config stored in the restart file.
@@ -509,7 +532,9 @@ class Restart:
             "master.",
         )
         for saved_id, spec in completed:
-            blocked.extend(_task_diffs(saved_config, current_config, spec, saved_id))
+            blocked.extend(_task_diffs(
+                saved_config, current_config, spec, saved_id, shared_only=True
+            ))
         if blocked:
             raise RestartError(
                 "Settings the previous run depends on changed:\n    "

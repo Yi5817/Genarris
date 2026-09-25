@@ -154,10 +154,11 @@ def test_changing_settings_of_completed_task_is_refused(tmp_path: Path) -> None:
         _apply(manager, _saved(generation={"sr": 0.95}))
 
 
-def test_removing_section_of_completed_task_is_refused(tmp_path: Path) -> None:
+def test_removing_section_of_completed_task_is_reported_only(tmp_path: Path) -> None:
+    # Nothing the completed task read changed its value, so this is a
+    # reported difference, not a refused one
     manager = _manager(tmp_path, completed=["generation"])
-    with pytest.raises(RestartError, match="previous run depends on changed"):
-        _apply(manager, _saved(generation={"sr": 0.95}))
+    _apply(manager, _saved(generation={"sr": 0.95}))
 
 
 def test_instance_overrides_of_completed_task_are_frozen(tmp_path: Path) -> None:
@@ -191,6 +192,42 @@ def test_method_sections_of_completed_task_are_frozen(tmp_path: Path) -> None:
         _apply(manager, saved)
 
 
+def test_base_setting_masked_by_override_may_change(tmp_path: Path) -> None:
+    # The completed bfgs_maceoff_1 never used [bfgs].maxiter, so it may
+    # change for the pending bfgs_maceoff_2
+    tasks = ["generation", "bfgs_maceoff", "bfgs_maceoff"]
+    manager = _manager(
+        tmp_path, tasks, completed=["generation", "bfgs_maceoff_1"],
+        config={"bfgs": {"maxiter": 300}, "bfgs_maceoff_1": {"maxiter": 100}},
+    )
+    saved = _saved(tasks, bfgs={"maxiter": 200}, bfgs_maceoff_1={"maxiter": 100})
+    _apply(manager, saved)
+
+
+def test_changed_override_of_method_section_is_reported_once(tmp_path: Path) -> None:
+    tasks = ["generation", "bfgs_maceoff", "bfgs_maceoff"]
+    manager = _manager(
+        tmp_path, tasks, completed=["generation", "bfgs_maceoff_1"],
+        config={"bfgs": {"maxiter": 200}, "bfgs_maceoff_1": {"maxiter": 150}},
+    )
+    saved = _saved(tasks, bfgs={"maxiter": 200}, bfgs_maceoff_1={"maxiter": 100})
+    with pytest.raises(RestartError, match="maxiter: 100 -> 150") as info:
+        _apply(manager, saved)
+    assert str(info.value).count("maxiter") == 1
+    assert "bfgs_maceoff_1.maxiter" in str(info.value)
+
+
+def test_removed_override_falls_back_to_base_setting(tmp_path: Path) -> None:
+    tasks = ["generation", "dedup", "dedup"]
+    manager = _manager(
+        tmp_path, tasks, completed=["generation", "dedup_1"],
+        config={"dedup": {"tol": 0.2}},
+    )
+    _apply(manager, _saved(tasks, dedup={"tol": 0.1}, dedup_1={"tol": 0.2}))
+    with pytest.raises(RestartError, match="dedup_1.tol: 0.1 -> 0.2"):
+        _apply(manager, _saved(tasks, dedup={"tol": 0.2}, dedup_1={"tol": 0.1}))
+
+
 def test_run_settings_are_frozen_even_without_completed_tasks(tmp_path: Path) -> None:
     manager = _manager(tmp_path, config={"master": {"z": 4, "log_level": "debug"}})
     with pytest.raises(RestartError, match="master.z: 2 -> 4") as info:
@@ -198,12 +235,28 @@ def test_run_settings_are_frozen_even_without_completed_tasks(tmp_path: Path) ->
     assert "log_level" not in str(info.value)
 
 
-def test_removed_settings_of_older_releases_are_ignored(tmp_path: Path) -> None:
-    tasks = ["generation", "bfgs_maceoff"]
+def test_settings_only_one_run_has_do_not_freeze_completed_task(
+    tmp_path: Path,
+) -> None:
+    # e.g. a default added or removed by a newer release, or a setting the
+    # user added after the task completed; the results cannot depend on it
     manager = _manager(
-        tmp_path, tasks, completed=tasks, config={"maceoff": {"model_size": "large"}}
+        tmp_path, completed=["generation"],
+        config={"generation": {"sr": 0.95, "new_opt": 1}},
     )
-    _apply(manager, _saved(tasks, maceoff={"model_size": "large", "save_flag": True}))
+    _apply(manager, _saved(generation={"sr": 0.95, "old_opt": 2}))
+
+
+def test_setting_added_to_pending_task_discards_its_checkpoints(
+    tmp_path: Path,
+) -> None:
+    ckpt = _checkpoint(tmp_path, "symm_rigid_press")
+    manager = _manager(
+        tmp_path, completed=["generation"],
+        config={"symm_rigid_press": {"sr": 0.85, "maxiter": 10}},
+    )
+    _apply(manager, _saved(symm_rigid_press={"sr": 0.85}))
+    assert not ckpt.exists()
 
 
 def test_settings_changed_by_running_tasks_are_not_saved(tmp_path: Path) -> None:

@@ -147,15 +147,18 @@ Things that are safe to change between the original run and the restart:
   *completed* task are frozen, because its results were produced with the old
   values: its own section (for example `[generation]` once generation
   finished) and the method sections it reads (`[bfgs]` and `[maceoff]` for
-  `bfgs_maceoff`, `[ap]` and `[center]` for `ap_center`). Changing them is
-  refused; restore the previous values, or start over with `--overwrite`.
+  `bfgs_maceoff`, `[ap]` and `[center]` for `ap_center`). Changing their
+  values is refused; restore the previous values, or start over with
+  `--overwrite`. A setting that only one of the two runs has, for example a
+  default added by a newer Genarris release, is listed but does not block.
   `molecule_path` and `z` in `[master]` define the run and can never change
   on a restart. Other `[master]` settings, such as `log_level`, are free.
 - **Tasks after the last completed one** in `[workflow] tasks` may be
   changed, removed or added. Inserting, removing or reordering tasks *before*
   a completed one is refused, because completed tasks are matched by their
   position in the list. Repeated tasks of one type are renumbered (`dedup_1`,
-  `dedup_2`) automatically, also when one of them is added or removed.
+  `dedup_2`) automatically, also when one of them is added or removed; the
+  checkpoints of an interrupted task follow it to its new name.
 - **The original molecule files.** Genarris works from the copies it made
   under `tmp/molecule/` and recreates them only if they are missing.
 
