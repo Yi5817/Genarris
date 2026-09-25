@@ -69,7 +69,10 @@ maxiter = 100
 def run_gnrs(
     workdir: Path, env: dict[str, str], *flags: str, nproc: int = 2
 ) -> subprocess.CompletedProcess:
-    cmd = [MPIRUN, "-np", str(nproc), sys.executable, "-m", "gnrs.cli"]
+    # CI runners may have fewer slots than the restart test's three ranks.
+    cmd = [
+        MPIRUN, "--oversubscribe", "-np", str(nproc), sys.executable, "-m", "gnrs.cli"
+    ]
     return subprocess.run(
         cmd + ["-c", "ui.conf"] + list(flags),
         cwd=workdir,
