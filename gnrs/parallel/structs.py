@@ -189,9 +189,16 @@ class DistributedStructs:
         ]
         if not done:
             return
-        with open(os.path.join(path, f"{gp.rank}.ckpt"), "a") as chk:
+        with open(os.path.join(path, f"{gp.rank}.ckpt"), "ab+") as chk:
+            # A line cut short by a job kill has no newline; start on a fresh
+            # line so that only the damaged entry is lost, not the next one
+            chk.seek(0, os.SEEK_END)
+            if chk.tell() > 0:
+                chk.seek(-1, os.SEEK_END)
+                if chk.read(1) != b"\n":
+                    chk.write(b"\n")
             for name, xtal in done:
-                chk.write(f'"{name}": {encode(xtal)},\n')
+                chk.write(f'"{name}": {encode(xtal)},\n'.encode())
         self._checkpointed.update(name for name, _ in done)
 
     @staticmethod

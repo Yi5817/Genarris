@@ -78,6 +78,14 @@ def test_load_merges_with_pool_and_skips_damaged_line(tmp_path: Path) -> None:
     ds.checkpoint_save(str(rank_dir), KEY)
     assert _logged_names(rank_dir / "0.ckpt") == ["s0", "s1", "s2"]
 
+    # New results go on a fresh line after the damaged one
+    ds.structs["s3"].info[KEY] = -4.0
+    ds.checkpoint_save(str(rank_dir), KEY)
+    assert _logged_names(rank_dir / "0.ckpt") == ["s0", "s1", "s2", "s3"]
+    ds = DistributedStructs(_pool(4))
+    assert ds.checkpoint_load(str(tmp_path), KEY) == 3
+    assert ds.structs["s3"].info[KEY] == -4.0
+
 
 def test_load_ignores_structures_outside_the_pool(tmp_path: Path) -> None:
     rank_dir = tmp_path / "rank_0"
