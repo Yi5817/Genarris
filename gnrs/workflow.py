@@ -22,7 +22,6 @@ from gnrs.core.logging import GenarrisLogger
 from gnrs.core.registry import resolve_tasks
 import gnrs.output as gout
 from gnrs.parallel import init_parallel
-from gnrs.parallel.structs import DistributedStructs
 from gnrs.parser import UserSettingsParser, UserSettingsSanityChecker
 from gnrs.parallel.test import test_bcast
 from gnrs.core.restart import Restart, RestartError, restart_path
@@ -202,24 +201,16 @@ class Genarris:
         if self.is_master:
             for restart_file in found:
                 os.remove(restart_file)
-            # Tasks this run never reaches would otherwise keep their old
-            # checkpoints, which a later --restart would merge into the pool
-            tmp_dir = self.gnrs_info["tmp_dir"]
-            if os.path.isdir(tmp_dir):
-                for entry in os.scandir(tmp_dir):
-                    if entry.is_dir():
-                        DistributedStructs.checkpoint_clear(entry.path)
+        # Tasks this run never reaches would otherwise keep their old
+        # checkpoints, which a later --restart would merge into the pool
+        self.restart_manager.discard_checkpoints()
 
     def _print_restart_summary(self) -> None:
         """
         Report which tasks are already completed and where the run resumes.
         """
-        tasks = self.config.get("workflow", {}).get("tasks", [])
-        try:
-            specs = resolve_tasks(tasks)
-        except ValueError:
-            return  # _run_tasks reports the invalid task list
-
+        # The task list was validated when the restart file was loaded
+        specs = resolve_tasks(self.config.get("workflow", {}).get("tasks", []))
         completed, pending = [], []
         for spec in specs:
             if self.restart_manager.is_task_completed(spec.instance_id):

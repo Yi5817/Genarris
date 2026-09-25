@@ -42,11 +42,16 @@ class TaskSpec(NamedTuple):
         instance_id: Unique ID for folders and restart tracking.
         cls: Task class.
         extra_args: Extra args for the task constructor.
+        sections: Config sections the task reads its settings from: its own
+            type and the method sections named by ``extra_args`` (e.g.
+            ``bfgs`` and ``maceoff`` for ``bfgs_maceoff``), plus per-instance
+            overrides under ``instance_id``.
     """
     task_type: str
     instance_id: str
     cls: type
     extra_args: tuple
+    sections: tuple[str, ...]
 
 
 def resolve_tasks(task_list: list[str]) -> list[TaskSpec]:
@@ -76,7 +81,8 @@ def resolve_tasks(task_list: list[str]) -> list[TaskSpec]:
         else:
             instance_id = task_type
 
-        specs.append(TaskSpec(task_type, instance_id, cls, extra_args))
+        sections = tuple(dict.fromkeys((task_type, *extra_args, instance_id)))
+        specs.append(TaskSpec(task_type, instance_id, cls, extra_args, sections))
 
     return specs
 

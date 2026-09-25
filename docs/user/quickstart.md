@@ -142,17 +142,22 @@ Things that are safe to change between the original run and the restart:
   paths are remapped automatically.
 - **Settings of tasks that have not completed yet.** The current config file
   takes precedence; every setting that differs from the original run is listed
-  at startup. Settings in the section of a *completed* task (for example
-  `[generation]` once generation finished) are frozen, because its results
-  were produced with the old values; changing them is refused. Restore the
-  previous values, or start over with `--overwrite`. Sections shared by all
-  tasks, such as `[master]`, are only reported, so check the list.
-- **Tasks appended to the end** of `[workflow] tasks`. Inserting, removing or
-  reordering tasks *before* a completed one is refused, because completed
-  tasks are matched by their position in the list. Appending a second task of
-  a type that is already in the list is refused too, because duplicate tasks
-  are renumbered (`dedup_1`, `dedup_2`) and the completed one would no longer
-  be found; start over with `--overwrite` in that case.
+  at startup. If the settings of the task that was interrupted changed, its
+  checkpoints are discarded and it starts from scratch. Settings of a
+  *completed* task are frozen, because its results were produced with the old
+  values: its own section (for example `[generation]` once generation
+  finished) and the method sections it reads (`[bfgs]` and `[maceoff]` for
+  `bfgs_maceoff`, `[ap]` and `[center]` for `ap_center`). Changing them is
+  refused; restore the previous values, or start over with `--overwrite`.
+  `molecule_path` and `z` in `[master]` define the run and can never change
+  on a restart. Other `[master]` settings, such as `log_level`, are free.
+- **Tasks after the last completed one** in `[workflow] tasks` may be
+  changed, removed or added. Inserting, removing or reordering tasks *before*
+  a completed one is refused, because completed tasks are matched by their
+  position in the list. Repeated tasks of one type are renumbered (`dedup_1`,
+  `dedup_2`) automatically, also when one of them is added or removed.
+- **The original molecule files.** Genarris works from the copies it made
+  under `tmp/molecule/` and recreates them only if they are missing.
 
 If a restart cannot proceed, Genarris stops with a message explaining why
 (for example, no `restart.json` in the current directory, the structure file

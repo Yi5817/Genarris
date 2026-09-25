@@ -11,16 +11,19 @@ __author__ = ["Yi Yang", "Rithwik Tom"]
 __email__ = "yiy5@andrew.cmu.edu"
 __group__ = "https://www.noamarom.com/"
 
+import copy
 import json
 import logging
 import os
 from contextlib import suppress
+from typing import Callable, Collection, TypeVar
 
 import numpy as np
 from mpi4py import MPI
 
 import gnrs.output as gout
 from gnrs.core.registry import TaskSpec, resolve_tasks
+from gnrs.parallel.structs import DistributedStructs
 
 logger = logging.getLogger("restart")
 
@@ -29,6 +32,16 @@ RESTART_FILE = "restart.json"
 # Format version stamped into restart files. Files without one were written
 # by releases before the stamp existed and use the same layout.
 RESTART_VERSION = 1
+
+# [master] settings that define the run itself. Every task's results depend
+# on them, so a restart may never change them.
+_RUN_SETTINGS = ("z", "molecule_path")
+
+# Settings of older releases that no longer exist. Their value has no bearing
+# on the results, so restart files that still carry them are not refused.
+_REMOVED_SETTINGS = {"maceoff": ("save_flag",)}
+
+T = TypeVar("T")
 
 
 class RestartError(Exception):
@@ -121,6 +134,95 @@ def _diff_configs(saved: dict, current: dict, prefix: str = "") -> list[str]:
     return diffs
 
 
+def _drop_removed_settings(config: dict) -> dict:
+    """
+    Copy a config without the settings listed in ``_REMOVED_SETTINGS``.
+
+    Args:
+        config: Saved or current config.
+
+    Returns:
+        A copy of the config with those settings removed.
+    """
+    config = copy.deepcopy(config)
+    for section, keys in _REMOVED_SETTINGS.items():
+        for key in keys:
+            config.get(section, {}).pop(key, None)
+    return config
+
+
+def _resolve(which: str, config: dict) -> list[TaskSpec]:
+    """
+    Resolve the task list of a config.
+
+    Args:
+        which: ``"previous"`` or ``"current"``, for the error message.
+        config: Saved or current config.
+
+    Returns:
+        The resolved task specs.
+
+    Raises:
+        RestartError: If the list holds an unknown task. Checked here, before
+            anything is changed on disk, rather than when the tasks run.
+    """
+    try:
+        return resolve_tasks(config.get("workflow", {}).get("tasks", []))
+    except ValueError as exc:
+        raise RestartError(f"The {which} task list is invalid: {exc}") from exc
+
+
+def _task_settings(config: dict, task_type: str, instance_id: str) -> dict:
+    """
+    Effective settings of one task: its type section updated with its
+    per-instance overrides, as ``TaskABC._merge_config`` does.
+
+    Args:
+        config: Saved or current config.
+        task_type: Task type, e.g. ``dedup``.
+        instance_id: Task instance id, e.g. ``dedup_2``.
+
+    Returns:
+        The merged settings.
+    """
+    settings = dict(config.get(task_type, {}))
+    if instance_id != task_type:
+        settings.update(config.get(instance_id, {}))
+    return settings
+
+
+def _task_diffs(
+    saved_config: dict, current_config: dict, spec: TaskSpec, saved_id: str
+) -> list[str]:
+    """
+    List the settings of one task that differ between two configs.
+
+    Args:
+        saved_config: Config stored in the restart file.
+        current_config: Config parsed from the user's config file.
+        spec: The task, resolved from the current task list.
+        saved_id: The task's instance id in the saved task list. Differs from
+            ``spec.instance_id`` when repeated tasks were renumbered.
+
+    Returns:
+        Every differing setting as ``"section.key: old -> new"``.
+    """
+    diffs = _diff_configs(
+        _task_settings(saved_config, spec.task_type, saved_id),
+        _task_settings(current_config, spec.task_type, spec.instance_id),
+        f"{spec.instance_id}.",
+    )
+    for section in spec.sections:
+        if section in (spec.task_type, spec.instance_id):
+            continue
+        diffs.extend(_diff_configs(
+            saved_config.get(section, {}),
+            current_config.get(section, {}),
+            f"{section}.",
+        ))
+    return diffs
+
+
 class Restart:
     """
     Keeps the progress record of a run: which tasks completed, where their
@@ -135,11 +237,13 @@ class Restart:
         """
         Args:
             comm: MPI communicator.
-            config: Live config dictionary; updated in place on load.
+            config: Parsed config dictionary. A copy is kept, so settings that
+                tasks add to or pop from the live config while running are
+                neither written to the restart file nor reported as changes.
             gnrs_info: Live Genarris info dictionary; updated in place on load.
         """
         self.comm = comm
-        self.config = config
+        self.config = copy.deepcopy(config)
         self.gnrs_info = gnrs_info
         self.is_master = comm.Get_rank() == 0
         # The restart file lives in the work directory, next to the run's
@@ -185,9 +289,11 @@ class Restart:
         """
         Load program state from the restart file. Collective.
 
-        Settings of completed tasks must match the saved ones; for every
-        other setting the current config file takes precedence and the
-        change is reported.
+        Settings of completed tasks and the [master] settings that define
+        the run must match the saved ones; for every other setting the
+        current config file takes precedence and the change is reported.
+        Checkpoints of a pending task are discarded if the task or one
+        before it changed.
 
         Returns:
             True if a restart file was found and loaded, False otherwise.
@@ -204,7 +310,7 @@ class Restart:
         self._collective(self._check_last_struct)
         return True
 
-    def _collective(self, master_func):
+    def _collective(self, master_func: Callable[[], T]) -> T:
         """
         Run a step on the master rank and share its result or its error.
 
@@ -252,8 +358,7 @@ class Restart:
         except (OSError, ValueError) as exc:
             raise RestartError(
                 f"Could not read restart file {path}: {exc}. "
-                "The file may be corrupted. Delete it and rerun without "
-                "--restart to start over."
+                "The file may be corrupted. Start over with --overwrite."
             ) from exc
 
         if not (
@@ -263,7 +368,7 @@ class Restart:
         ):
             raise RestartError(
                 f"Restart file {path} has an unexpected format. "
-                "Delete it and rerun without --restart to start over."
+                "Start over with --overwrite."
             )
 
         version = data.get("version", 1)
@@ -287,7 +392,7 @@ class Restart:
         if last_struct and not os.path.isfile(last_struct):
             raise RestartError(
                 f"The structure file needed to resume ({last_struct}) no "
-                "longer exists. Start a fresh run without --restart."
+                "longer exists. Start over with --overwrite."
             )
 
     def _apply_restart(self, payload: dict) -> None:
@@ -315,7 +420,7 @@ class Restart:
             saved_info = _remap_paths(saved_info, old_work_dir, new_work_dir)
 
         # Keep values that describe the current run, not the previous one
-        # (molecule files are re-copied from the current config every run)
+        # (the molecule files under tmp/ are recreated if they are missing)
         for key in (
             "size", "genarris_start_time", "config_path", "restart",
             "molecule_path",
@@ -323,91 +428,109 @@ class Restart:
             saved_info.pop(key, None)
         self.gnrs_info.update(saved_info)
 
-        completed = self._check_task_list(saved_config)
-        self._check_config(saved_config, completed)
+        saved_config = _drop_removed_settings(saved_config)
+        # Normalize the live config the way the saved one was stored
+        current_config = _drop_removed_settings(
+            json.loads(json.dumps(self.config, default=_json_default))
+        )
+        saved_specs = _resolve("previous", saved_config)
+        current_specs = _resolve("current", current_config)
 
-    def _check_task_list(self, saved_config: dict) -> list[TaskSpec]:
+        completed = self._check_task_list(saved_specs, current_specs)
+        self._check_config(saved_config, current_config, completed)
+        self._discard_stale_checkpoints(
+            saved_config, current_config, saved_specs, current_specs
+        )
+
+    def _check_task_list(
+        self, saved_specs: list[TaskSpec], current_specs: list[TaskSpec]
+    ) -> list[tuple[str, TaskSpec]]:
         """
         Refuse to resume if the completed tasks no longer line up with the
-        current task list. Completed tasks are matched by position, so
-        inserting, removing or reordering tasks before them would skip the
-        wrong task. Appending tasks at the end is fine, unless the appended
-        task's type already appears in the list: duplicates are renumbered
-        (``dedup`` becomes ``dedup_1``, ``dedup_2``), so the completed task
-        would no longer be found under its saved id.
+        current task list. Completed tasks are matched by position and type,
+        so inserting, removing or reordering tasks before them would skip
+        the wrong task; tasks after the last completed one may change
+        freely. Repeated task types are renumbered (``dedup`` becomes
+        ``dedup_1``, ``dedup_2``) when one of them is added or removed, so a
+        completed task's record is moved to its new id.
 
         Args:
-            saved_config: Config stored in the restart file.
+            saved_specs: Task list of the previous run.
+            current_specs: Task list of the current config.
 
         Returns:
-            The completed tasks, in workflow order.
+            The completed tasks in workflow order, each as its id in the
+            previous task list and its spec in the current one.
 
         Raises:
             RestartError: If a completed task moved or changed.
         """
-        saved_tasks = saved_config.get("workflow", {}).get("tasks", [])
-        current_tasks = self.config.get("workflow", {}).get("tasks", [])
-        try:
-            saved_specs = resolve_tasks(saved_tasks)
-            current_ids = [s.instance_id for s in resolve_tasks(current_tasks)]
-        except ValueError:
-            return []  # an invalid task list is reported when the tasks run
-
-        completed = []
-        for pos, spec in enumerate(saved_specs):
-            if not self.is_task_completed(spec.instance_id):
+        completed, renamed = [], {}
+        for pos, saved in enumerate(saved_specs):
+            if not self.is_task_completed(saved.instance_id):
                 continue
-            if pos < len(current_ids) and current_ids[pos] == spec.instance_id:
-                completed.append(spec)
-                continue
-            raise RestartError(
-                f"The task list changed since the previous run, so the "
-                f"completed task '{spec.instance_id}' (position {pos + 1}) "
-                "no longer lines up with it:\n"
-                f"    previous: {saved_tasks}\n"
-                f"    current:  {current_tasks}\n"
-                "Completed tasks are matched by their position in [workflow] "
-                "tasks. Restore the previous list to resume (adding tasks of "
-                "a new type at the end is fine; adding a second task of a "
-                "type already in the list is not), or start over with "
-                "--overwrite."
-            )
+            current = current_specs[pos] if pos < len(current_specs) else None
+            if current is None or current.task_type != saved.task_type:
+                raise RestartError(
+                    f"The task list changed since the previous run, so the "
+                    f"completed task '{saved.instance_id}' (position "
+                    f"{pos + 1}) no longer lines up with it:\n"
+                    f"    previous: {[s.instance_id for s in saved_specs]}\n"
+                    f"    current:  {[s.instance_id for s in current_specs]}\n"
+                    "Completed tasks are matched by their position in "
+                    "[workflow] tasks, so only tasks after the last completed "
+                    "one may be changed, removed or added. Restore the "
+                    "previous list to resume, or start over with --overwrite."
+                )
+            if current.instance_id != saved.instance_id:
+                renamed[saved.instance_id] = current.instance_id
+            completed.append((saved.instance_id, current))
+        for saved_id, current_id in renamed.items():
+            logger.info(f"Completed task {saved_id} is now {current_id}")
+            self.gnrs_info[current_id] = self.gnrs_info.pop(saved_id)
         return completed
 
-    def _check_config(self, saved_config: dict, completed: list[TaskSpec]) -> None:
+    def _check_config(
+        self,
+        saved_config: dict,
+        current_config: dict,
+        completed: list[tuple[str, TaskSpec]],
+    ) -> None:
         """
         Compare the saved config with the current one.
 
-        Sections of completed tasks are frozen: their results were produced
-        with the saved settings, so a change is refused rather than silently
-        ignored. Any other change is reported and the current config wins.
+        The settings of completed tasks (their own sections and the method
+        sections they read, e.g. ``[bfgs]`` and ``[maceoff]`` for
+        ``bfgs_maceoff``) and the ``[master]`` settings that define the run
+        are frozen: the results were produced with the saved values, so a
+        change is refused rather than silently ignored. Any other change is
+        reported and the current config wins.
 
         Args:
             saved_config: Config stored in the restart file.
+            current_config: Config parsed from the user's config file.
             completed: Tasks already completed, from ``_check_task_list``.
 
         Raises:
-            RestartError: If a setting of a completed task changed.
+            RestartError: If a frozen setting changed.
         """
-        # Normalize the live config the way the saved one was stored
-        current_config = json.loads(
-            json.dumps(self.config, default=_json_default)
+        saved_master = saved_config.get("master", {})
+        current_master = current_config.get("master", {})
+        blocked = _diff_configs(
+            {key: saved_master.get(key) for key in _RUN_SETTINGS},
+            {key: current_master.get(key) for key in _RUN_SETTINGS},
+            "master.",
         )
-        frozen = {s.task_type for s in completed} | {s.instance_id for s in completed}
-        blocked = []
-        for section in sorted(frozen):
-            blocked.extend(_diff_configs(
-                saved_config.get(section, {}),
-                current_config.get(section, {}),
-                f"{section}.",
-            ))
+        for saved_id, spec in completed:
+            blocked.extend(_task_diffs(saved_config, current_config, spec, saved_id))
         if blocked:
             raise RestartError(
-                "Settings of already completed tasks changed since the "
-                "previous run:\n    "
+                "Settings the previous run depends on changed:\n    "
                 + "\n    ".join(blocked)
-                + "\nTheir results were produced with the previous settings. "
-                "Restore them to resume, or start over with --overwrite."
+                + "\nThe [master] molecule and z define the run, and the "
+                "results of completed tasks were produced with the previous "
+                "settings. Restore them to resume, or start over with "
+                "--overwrite."
             )
         diffs = _diff_configs(saved_config, current_config)
         if diffs:
@@ -420,6 +543,73 @@ class Restart:
             )
             for diff in diffs:
                 gout.emit(f"    {diff}")
+
+    def _discard_stale_checkpoints(
+        self,
+        saved_config: dict,
+        current_config: dict,
+        saved_specs: list[TaskSpec],
+        current_specs: list[TaskSpec],
+    ) -> None:
+        """
+        Remove the checkpoints of pending tasks that cannot reuse them.
+
+        A pending task's checkpoints hold results of the previous run, which
+        are only valid if the task has the same id at the same position and
+        neither its settings nor any task before it changed. Structures are
+        matched by name and names are reproducible across runs, so stale
+        checkpoints would otherwise be merged silently into the new pool.
+
+        Args:
+            saved_config: Config stored in the restart file.
+            current_config: Config parsed from the user's config file.
+            saved_specs: Task list of the previous run.
+            current_specs: Task list of the current config.
+        """
+        keep, intact = [], True
+        for pos, spec in enumerate(current_specs):
+            if self.is_task_completed(spec.instance_id):
+                keep.append(spec.instance_id)
+                continue
+            intact = (
+                intact
+                and pos < len(saved_specs)
+                and saved_specs[pos].instance_id == spec.instance_id
+                and not _task_diffs(
+                    saved_config, current_config, spec, spec.instance_id
+                )
+            )
+            if intact:
+                keep.append(spec.instance_id)
+
+        for task in self.discard_checkpoints(keep):
+            gout.emit(
+                f"NOTE: The checkpoints of task '{task}' from the previous "
+                "run are discarded, because the task or one before it "
+                "changed; it starts from scratch."
+            )
+
+    def discard_checkpoints(self, keep: Collection[str] = ()) -> list[str]:
+        """
+        Remove the checkpoints of every task under tmp/. Collective.
+
+        Args:
+            keep: Instance ids of the tasks whose checkpoints are kept.
+
+        Returns:
+            Instance ids of the tasks whose checkpoints were removed.
+        """
+        discarded = []
+        tmp_dir = self.gnrs_info.get("tmp_dir")
+        if self.is_master and tmp_dir and os.path.isdir(tmp_dir):
+            for entry in os.scandir(tmp_dir):
+                if entry.is_dir() and entry.name not in keep:
+                    if DistributedStructs.checkpoint_clear(entry.path):
+                        discarded.append(entry.name)
+        discarded = self.comm.bcast(discarded, root=0)
+        for task in discarded:
+            logger.warning(f"Discarded checkpoints of task {task}")
+        return discarded
 
     def is_task_completed(self, task_name: str) -> bool:
         """
