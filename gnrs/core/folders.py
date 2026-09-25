@@ -55,6 +55,9 @@ def setup_main_folders(gnrs_info: dict) -> None:
 def copy_molecule(config: dict, gnrs_info: dict) -> None:
     """
     Copy molecule to tmp directory and standardize orientation.
+
+    A restart keeps the copies the previous run made, so it does not depend
+    on the user's molecule files any more; missing copies are recreated.
     """
     tmp_dir = gnrs_info["tmp_dir"]
     mol_path = config["master"]["molecule_path"]
@@ -65,7 +68,8 @@ def copy_molecule(config: dict, gnrs_info: dict) -> None:
     gnrs_info["molecule_path"] = []
     for i, mpth in enumerate(mol_path):
         mol_tmp_path = os.path.join(mol_tmp_dir, f"geometry_{i}.in")
-        if is_master:
+        keep = gnrs_info.get("restart") and os.path.isfile(mol_tmp_path)
+        if is_master and not keep:
             mol = Molecule.read(mpth, parallel=False)
             mol.standardize_orientation()
             mol.write(mol_tmp_path, parallel=False)

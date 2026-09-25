@@ -69,9 +69,9 @@ maxiter = 100
 def run_gnrs(
     workdir: Path, env: dict[str, str], *flags: str, nproc: int = 2
 ) -> subprocess.CompletedProcess:
-    cmd = [MPIRUN, "-np", str(nproc), sys.executable, "-m", "gnrs.cli", "-c", "ui.conf"]
+    cmd = [MPIRUN, "-np", str(nproc), sys.executable, "-m", "gnrs.cli"]
     return subprocess.run(
-        cmd + list(flags),
+        cmd + ["-c", "ui.conf"] + list(flags),
         cwd=workdir,
         env=env,
         capture_output=True,
@@ -100,8 +100,9 @@ def make_interrupted(workdir: Path) -> None:
     """
     restart_file = workdir / "restart.json"
     restart = json.loads(restart_file.read_text())
-    restart["gnrs_info"].pop("symm_rigid_press")
-    restart["gnrs_info"]["last_struct_path"] = restart["gnrs_info"]["generation"]["results"]
+    info = restart["gnrs_info"]
+    info.pop("symm_rigid_press")
+    info["last_struct_path"] = info["generation"]["results"]
     restart_file.write_text(json.dumps(restart))
     (workdir / "structures" / "symm_rigid_press" / "structures.json").unlink()
 
@@ -138,6 +139,8 @@ def test_resume_interrupted_task_on_other_process_count(
     logs[0].write_text(text[: len(text) // 2])
     for log in logs[1:]:
         log.unlink()
+    # The restart must not depend on the user's molecule file any more
+    (run_copy / "benzene.xyz").unlink()
 
     proc = run_gnrs(run_copy, mpi_free_env, "--restart", nproc=1)
 
@@ -147,9 +150,15 @@ def test_resume_interrupted_task_on_other_process_count(
     assert "Resuming from task: symm_rigid_press" in out
     assert "damaged line(s) skipped" in out
     assert "Checkpoints from a previous run found" in out
-    n_in = n_structures(run_copy / "structures" / "generation" / "structures.json")
-    n_out = n_structures(run_copy / "structures" / "symm_rigid_press" / "structures.json")
+    structures = run_copy / "structures"
+    n_in = n_structures(structures / "generation" / "structures.json")
+    n_out = n_structures(structures / "symm_rigid_press" / "structures.json")
     assert n_out == n_in, "no structure may be lost on restart"
+    # Restored structures are not recomputed, so they are not logged again;
+    # only the damaged entry is (the cut line does not end like a whole one)
+    lines = logs[0].read_text().splitlines()
+    names = [line.split(":", 1)[0] for line in lines if line.endswith("},")]
+    assert len(names) == len(set(names)) == n_in
 
 
 def test_restart_of_finished_run_does_nothing(
@@ -201,7 +210,22 @@ def test_restart_with_changed_pending_settings_warns(
     conf.write_text(conf.read_text().replace("sr = 0.85", "sr = 0.80"))
     proc = run_gnrs(run_copy, mpi_free_env, "--restart")
     assert proc.returncode == 0, proc.stdout + proc.stderr
-    assert "symm_rigid_press.sr: 0.85 -> 0.8" in flat(proc.stdout)
+    out = flat(proc.stdout)
+    assert "symm_rigid_press.sr: 0.85 -> 0.8" in out
+    # Its checkpoints were made with the old settings and must not be reused
+    assert "checkpoints of task 'symm_rigid_press'" in out
+    assert "Checkpoints from a previous run found" not in out
+
+
+def test_restart_with_changed_molecule_or_z_is_refused(
+    run_copy: Path, mpi_free_env: dict[str, str]
+) -> None:
+    make_interrupted(run_copy)
+    conf = run_copy / "ui.conf"
+    conf.write_text(conf.read_text().replace("z = 2", "z = 4"))
+    proc = run_gnrs(run_copy, mpi_free_env, "--restart")
+    assert proc.returncode != 0
+    assert "master.z: 2 -> 4" in flat(proc.stdout)
 
 
 def test_fresh_run_over_previous_run_is_refused(
