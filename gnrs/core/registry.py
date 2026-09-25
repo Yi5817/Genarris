@@ -33,6 +33,12 @@ _SELECTORS = {"center", "window"}
 _DESCRIPTORS = {"acsf"}
 
 
+class UnknownTaskError(ValueError):
+    """
+    Raised for a task name in ``[workflow] tasks`` that no task type handles.
+    """
+
+
 class TaskSpec(NamedTuple):
     """
     Specification for a single task.
@@ -139,7 +145,7 @@ def resolve_task(task_name: str):
                 cls = _import_class(*_TASK_TYPES["cluster"])
                 return cls, (cm, selection)
 
-    raise ValueError(
+    raise UnknownTaskError(
         f"Unknown task: {task_name}. "
         f"Could not resolve to any registered task type."
     )

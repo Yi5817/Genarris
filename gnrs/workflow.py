@@ -53,15 +53,14 @@ class Genarris:
         self._parallel_init(seed=self.seed)
         self._gnrs_info_init()
         self._config_init(args)
-        self.task_specs = resolve_tasks(self.config.get("workflow", {}).get("tasks", []))
+        tasks = self.config.get("workflow", {}).get("tasks", [])
+        self.task_specs = resolve_tasks(tasks)
         self.restart_manager = Restart(self.comm, self.config, self.gnrs_info)
         if self.restart:
             self.attempt_restart()
         else:
             self._check_previous_run()
         self._folders_init()
-        # Recorded from the start, so a run interrupted before its first task
-        # completed can be resumed from that task's checkpoints
         self.restart_manager.write()
 
         self.comm.barrier()

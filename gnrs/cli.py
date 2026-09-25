@@ -43,6 +43,7 @@ def main():
     )
     args = parser.parse_args()
 
+    from gnrs.core.registry import UnknownTaskError
     from gnrs.core.restart import RestartError
 
     comm = MPI.COMM_WORLD
@@ -60,8 +61,8 @@ def main():
         logger.warning("Genarris interrupted by user")
         aborted = True
         comm.Abort(130)
-    except RestartError as exc:
-        logger.error(f"Restart failed: {exc}")
+    except (RestartError, UnknownTaskError) as exc:
+        logger.error(f"Cannot run: {exc}")
         gout.emit("")
         for line in f"ERROR: {exc}".splitlines():
             gout.emit(line)
