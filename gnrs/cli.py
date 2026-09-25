@@ -48,6 +48,7 @@ def main():
     comm = MPI.COMM_WORLD
     logger = logging.getLogger("genarris")
     aborted = False
+    exit_code = 0
     try:
         # Initialize and run Genarris
         from gnrs.workflow import Genarris
@@ -61,9 +62,10 @@ def main():
         comm.Abort(130)
     except RestartError as exc:
         logger.error(f"Restart failed: {exc}")
-        gout.emit(f"\nERROR: {exc}")
-        aborted = True
-        comm.Abort(1)
+        gout.emit("")
+        for line in f"ERROR: {exc}".splitlines():
+            gout.emit(line)
+        exit_code = 1
     except Exception as exc:
         logger.exception("Genarris exiting due to error")
         print(
@@ -78,6 +80,8 @@ def main():
         if not aborted:
             comm.Barrier()
             MPI.Finalize()
+    if exit_code:
+        sys.exit(exit_code)
 
 
 if __name__ == "__main__":
