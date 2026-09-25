@@ -17,6 +17,7 @@ import logging
 
 from mpi4py import MPI
 import gnrs.output as gout
+from gnrs.core.registry import resolve_tasks
 from gnrs.core.task import TaskABC
 from gnrs.parallel.io import read_parallel
 from gnrs.parallel.structs import DistributedStructs
@@ -82,10 +83,9 @@ class GeometryOptimizationTask(TaskABC):
 
         # If struct_path specified, use it instead of default
         spath = self.config[self.opt_name].get("struct_path")
-        if spath is not None:
+        if spath is not None and self._reads_struct_path():
             logger.info(f"Reading from user given file {spath}")
             self.structs = read_parallel(spath)
-            self.config[self.opt_name].pop("struct_path")
 
         # Log the optimizer being used
         if self.energy_method is not None:
@@ -94,6 +94,25 @@ class GeometryOptimizationTask(TaskABC):
             gout.emit("Using builtin optimizer.")
 
         self._load_modules()
+
+    def _reads_struct_path(self) -> bool:
+        """
+        Whether this task takes its input from ``[<optimizer>] struct_path``.
+
+        Only the first task in the workflow that uses this optimizer does;
+        later ones continue from the previous task's output. Decided from the
+        task list rather than by consuming the setting, so it holds on a
+        restart that skips the first task.
+
+        Returns:
+            True if this task reads ``struct_path``.
+        """
+        specs = resolve_tasks(self.config.get("workflow", {}).get("tasks", []))
+        first = next(
+            (s.instance_id for s in specs if self.opt_name in s.sections),
+            self._active_instance_id,
+        )
+        return first == self._active_instance_id
 
     def _load_modules(self) -> None:
         """

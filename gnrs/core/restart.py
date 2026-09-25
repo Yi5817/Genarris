@@ -238,8 +238,8 @@ class Restart:
         Args:
             comm: MPI communicator.
             config: Parsed config dictionary. A copy is kept, so settings that
-                tasks add to or pop from the live config while running are
-                neither written to the restart file nor reported as changes.
+                tasks add to the live config while running are neither
+                written to the restart file nor reported as changes.
             gnrs_info: Live Genarris info dictionary; updated in place on load.
         """
         self.comm = comm
