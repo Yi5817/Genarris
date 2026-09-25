@@ -83,7 +83,8 @@ mpirun -np <num_processes> gnrs -c ui.conf
 |:-----|:------------|:--------|
 | `-c`, `--config` | Path to the configuration file (required) | — |
 | `-d`, `--seed` | Random seed for reproducibility | `42` |
-| `--restart` | Restart from a previous run using the same config file | — |
+| `--restart` | Resume the previous run in the current directory, skipping completed tasks and structures | — |
+| `--overwrite` | Start over in a directory that contains a previous run, discarding its progress | — |
 
 For example, to run on 8 MPI processes with a specific seed:
 
@@ -110,8 +111,89 @@ working_directory/
 ├── tmp/
 │   ├── generation/
 │   └── symm_rigid_press/
+├── restart.json
 └── Genarris.log
 ```
+
+## Restarting an Interrupted Run
+
+Genarris records its progress so that a run killed by a walltime limit or a
+node failure can be resumed instead of started over. From the same directory,
+rerun the same command with `--restart`:
+
+```bash
+mpirun -np <num_processes> gnrs -c ui.conf --restart
+```
+
+On startup Genarris lists which tasks are already completed and which task it
+resumes from. Progress is kept at two levels:
+
+- **Completed tasks** are recorded in `restart.json`, written when the run
+  starts and updated after each task finishes. They are skipped on restart
+  and their results in `structures/` are reused.
+- **Completed structures** of the task that was running are logged in
+  `tmp/<task>/rank_*/*.ckpt` as they finish. On restart only the remaining
+  structures are computed. These checkpoints are the only thing a task
+  skips: a repeated task (for example an energy evaluation after a
+  relaxation) computes every structure again, even if a value from an
+  earlier task is already present.
+
+Things that are safe to change between the original run and the restart:
+
+- **Number of MPI processes.** Checkpointed structures are rebalanced across
+  the new process count.
+- **Run directory location.** If the directory was moved or renamed, saved
+  paths are remapped automatically.
+- **Settings of tasks that have not completed yet.** The current config file
+  takes precedence; every setting that differs from the original run is listed
+  at startup. If the settings of the task that was interrupted changed, its
+  checkpoints are discarded and it starts from scratch. Settings of a
+  *completed* task are frozen, because its results were produced with the old
+  values: its own section (for example `[generation]` once generation
+  finished) and the method sections it reads (`[bfgs]` and `[maceoff]` for
+  `bfgs_maceoff`, `[ap]` and `[center]` for `ap_center`). Changing their
+  values is refused; restore the previous values, or start over with
+  `--overwrite`. A setting that only one of the two runs has, for example a
+  default added by a newer Genarris release, is listed but does not block.
+  `molecule_path` and `z` in `[master]` define the run and can never change
+  on a restart. Other `[master]` settings, such as `log_level`, are free.
+- **Tasks after the last completed one** in `[workflow] tasks` may be
+  changed, removed or added. Inserting, removing or reordering tasks *before*
+  a completed one is refused, because completed tasks are matched by their
+  position in the list. Repeated tasks of one type are renumbered (`dedup_1`,
+  `dedup_2`) automatically, also when one of them is added or removed; the
+  checkpoints of an interrupted task follow it to its new name.
+- **The original molecule files.** Genarris works from the copies it made
+  under `tmp/molecule/` and recreates them only if they are missing.
+
+If a restart cannot proceed, Genarris stops with a message explaining why
+(for example, no `restart.json` in the current directory, the structure file
+of the last completed task was deleted, or the task list changed). A checkpoint
+line cut short when the job was killed is skipped with a warning and that
+structure is recomputed.
+
+A restarted run is not bit-for-bit identical to an uninterrupted one with the
+same seed: the random number stream is seeded once at startup, so tasks that
+run after skipped ones draw different random numbers than they would have in
+the original run.
+
+### Starting over
+
+Running *without* `--restart` in a directory that already contains
+`restart.json` is refused, so a finished run cannot be overwritten by accident.
+Every run writes this file when it starts, so this also applies after a run
+that failed in its first task. Pass `--overwrite` to discard the previous
+progress and start fresh:
+
+```bash
+mpirun -np <num_processes> gnrs -c ui.conf --overwrite
+```
+
+:::{note}
+Runs made with older Genarris releases (they keep their restart file at
+`tmp/restart.json`) cannot be resumed with this release. Rerun the workflow
+with this release, starting over with `--overwrite`.
+:::
 
 Structures are stored as JSON ASE Atoms objects. Load them with:
 

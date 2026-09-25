@@ -1,0 +1,35 @@
+name: Tests
+
+on: [push, pull_request]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          submodules: recursive
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install MPI and LAPACK
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libopenmpi-dev openmpi-bin liblapack-dev libblas-dev
+
+      - name: Install package
+        run: |
+          pip install mpi4py --no-binary mpi4py
+          pip install -e .[test]
+
+      - name: Installation and unit tests
+        run: pytest -m "not integration"
+
+      - name: Workflow tests under mpirun
+        run: pytest -m integration
+        env:
+          OMPI_ALLOW_RUN_AS_ROOT: 1
+          OMPI_ALLOW_RUN_AS_ROOT_CONFIRM: 1

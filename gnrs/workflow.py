@@ -24,14 +24,17 @@ import gnrs.output as gout
 from gnrs.parallel import init_parallel
 from gnrs.parser import UserSettingsParser, UserSettingsSanityChecker
 from gnrs.parallel.test import test_bcast
-from gnrs.restart import restart_init, is_task_completed, load_restart, write_restart
+from gnrs.core.restart import Restart, RestartError
 from gnrs.gnrsutil.core import check_if_exp_found
 
 import argparse
 
 
 class Genarris:
-    """Defines the flow of control in Genarris for crystal structure generation and optimization."""
+    """
+    Defines the flow of control in Genarris for crystal structure
+    generation and optimization.
+    """
 
     def __init__(self, args: argparse.Namespace) -> None:
         """
@@ -42,6 +45,7 @@ class Genarris:
         self.gnrs_info = {}
         self.seed = args.seed
         self.restart = args.restart
+        self.overwrite = args.overwrite
 
         self._mpi_init()
         self._log_init()
@@ -49,11 +53,15 @@ class Genarris:
         self._parallel_init(seed=self.seed)
         self._gnrs_info_init()
         self._config_init(args)
-        restart_init(self.comm, self.config, self.gnrs_info)
-        if not self.restart:
-            self._folders_init()
-        else:
+        tasks = self.config.get("workflow", {}).get("tasks", [])
+        self.task_specs = resolve_tasks(tasks)
+        self.restart_manager = Restart(self.comm, self.config, self.gnrs_info)
+        if self.restart:
             self.attempt_restart()
+        else:
+            self._check_previous_run()
+        self._folders_init()
+        self.restart_manager.write()
 
         self.comm.barrier()
         self.logger.info("Genarris initialized successfully")
@@ -63,8 +71,7 @@ class Genarris:
         Execute Genarris with the configured tasks.
         """
         self.logger.info("Starting Genarris Tasks")
-        tasks = self.config.get("workflow", {}).get("tasks", [])
-        self._run_tasks(tasks)
+        self._run_tasks(self.task_specs)
 
     def _log_init(self) -> None:
         """
@@ -137,57 +144,113 @@ class Genarris:
         self.gnrs_info["energy_list"] = []
         self.gnrs_info["genarris_start_time"] = time.time()
         self.gnrs_info["size"] = self.size
+        self.gnrs_info["restart"] = self.restart
 
     def attempt_restart(self) -> None:
         """
-        Load restart data if restart flag is set
+        Load restart data if restart flag is set.
+
+        Raises:
+            RestartError: If no restart file exists in the current directory.
         """
-            
-        load_restart()
         gout.print_title("Restarting Genarris")
-        gout.print_configs(self.config)
+        if not self.restart_manager.load():
+            raise RestartError(
+                "--restart was requested, but no restart file was found at "
+                f"{self.restart_manager.restart_file}. "
+                "Run from the directory of a previous Genarris run, or start "
+                "a new run without --restart."
+            )
+        self._print_restart_summary()
         gout.double_separator()
+
+    def _check_previous_run(self) -> None:
+        """
+        Refuse to start over on top of a previous run unless --overwrite
+        was given; with it, discard the previous run's progress record. A
+        fresh run never keeps checkpoints of an earlier one.
+
+        Raises:
+            RestartError: If a previous run exists and --overwrite is not set.
+        """
+        found = self.restart_manager.find_records()
+        if found and not self.overwrite:
+            if found[0] == self.restart_manager.restart_file:
+                hint = (
+                    "Rerun with --restart to resume it, or with --overwrite "
+                    "to discard its progress and start over."
+                )
+            else:
+                hint = (
+                    "It was made with an older Genarris release and cannot "
+                    "be resumed; start over with --overwrite."
+                )
+            raise RestartError(
+                f"This directory already contains a Genarris run ({found[0]}). "
+                + hint
+            )
+        if found:
+            self.logger.warning("Discarding previous run record (--overwrite)")
+            gout.emit(
+                "NOTE: --overwrite given. Discarding the previous run's progress "
+                "record; results in structures/ will be overwritten as tasks "
+                "complete."
+            )
+            gout.emit("")
+            if self.is_master:
+                for restart_file in found:
+                    os.remove(restart_file)
+        self.restart_manager.discard_checkpoints()
+
+    def _print_restart_summary(self) -> None:
+        """
+        Report which tasks are already completed and where the run resumes.
+        """
+        ids = [spec.instance_id for spec in self.task_specs]
+        completed = [i for i in ids if self.restart_manager.is_task_completed(i)]
+        pending = [i for i in ids if i not in completed]
+        gout.emit(
+            f"Restart file loaded: {len(completed)} of {len(ids)} tasks "
+            "already completed."
+        )
+        if completed:
+            gout.emit(f"Completed tasks (will be skipped): {', '.join(completed)}")
+        if pending:
+            gout.emit(f"Resuming from task: {pending[0]}")
+        else:
+            gout.emit("All tasks were already completed. Nothing to do.")
 
     def _folders_init(self) -> None:
         """
         Initialize folder structure for execution.
-        
-        Creates tmp and structures directories and copies molecule data
-        when not in restart mode.
+
+        Creates tmp and structures directories and copies molecule data.
+        Runs in restart mode too, so a cleaned tmp/ dir is recreated.
         """
         folders.init_folders(self.is_master)
-        
-        if not self.restart:
-            self.logger.info("Setting up folders: structures and tmp")
-            folders.setup_main_folders(self.gnrs_info)
-            folders.copy_molecule(self.config, self.gnrs_info)
+        self.logger.info("Setting up folders: structures and tmp")
+        folders.setup_main_folders(self.gnrs_info)
+        folders.copy_molecule(self.config, self.gnrs_info)
 
-    def _run_tasks(self, tasks: list) -> None:
+    def _run_tasks(self, task_specs: list) -> None:
         """
         Run specific tasks in config file
-        
-        Args:
-            tasks: List of task names to execute
-        """
-        try:
-            task_specs = resolve_tasks(tasks)
-        except ValueError as exc:
-            self.logger.error(str(exc))
-            gout.emit(f"Error: {exc}")
-            return
 
+        Args:
+            task_specs: Resolved specs of the tasks to execute
+        """
         self.logger.info(f"Running configured tasks: {[s.instance_id for s in task_specs]}")
         gout.emit(f"Executing {len(task_specs)} configured tasks")
         
         for spec in task_specs:
-            if not is_task_completed(spec.instance_id):
+            if not self.restart_manager.is_task_completed(spec.instance_id):
                 gout.emit(f"Running task: {spec.instance_id}")
                 spec.cls(
                     self.comm, self.config, self.gnrs_info,
                     *spec.extra_args,
                     instance_id=spec.instance_id,
                 ).run()
-                write_restart()
+                self.restart_manager.write()
                 test_bcast()
                 check_if_exp_found(self.config, self.gnrs_info)
             else:

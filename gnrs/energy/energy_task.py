@@ -106,21 +106,13 @@ class EnergyCalculationTask(TaskABC):
         os.chdir(dir_name)
 
         self.rank_calc_dir = os.path.join(self.calc_dir, dir_name)
-        self._load_save_files()
+        self._load_checkpoints()
 
         # Calculate energy
         calc = self.energy_calc(self.comm, task_settings, self.energy_name)
-        save_cb = None
-        if task_settings.get("save_flag"):
-            save_cb = lambda: self.dsdict.checkpoint_save(self.rank_calc_dir)
-
-        if calc._dft_serial_mode or (calc.requires_gpu and calc._use_worker_feeder):
-            calc.run_batch(self.structs, on_structure_done=save_cb)
-        else:
-            for xtal in self.structs.values():
-                calc.run(xtal)
-                if save_cb is not None:
-                    save_cb()
+        calc.run_batch(
+            self.structs, on_structure_done=self._checkpoint, done=self.dsdict.done
+        )
 
     def collect_results(self) -> None:
         """
@@ -143,24 +135,3 @@ class EnergyCalculationTask(TaskABC):
         """
         logger.info("Completed energy calculation")
         super().finalize(self.energy_name)
-
-    def _load_save_files(self) -> None:
-        """
-        Load the save files for the energy calculation task.
-        """
-        ds = DistributedStructs({})
-        ds.checkpoint_load(self.calc_dir)
-        n_struct = ds.get_num_structs()
-        if n_struct > 0:
-            self.structs = ds.structs
-            gout.emit("Save files of previous calculation found.")
-            gout.emit(f"Loaded {n_struct} structure(s) from save files.")
-
-        self.dsdict = DistributedStructs(self.structs)
-        n_completed = None
-        completed = self.dsdict.collect_property(self.energy_name, "info")
-        if self.is_master:
-            n_completed = sum(x is not None for x in completed)
-        if n_struct > 0:
-            gout.emit(f"{n_completed} calculation(s) were completed previously.")
-            gout.emit("")

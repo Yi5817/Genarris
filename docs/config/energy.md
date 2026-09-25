@@ -12,14 +12,10 @@ potential. Requires GPU.
 ```ini
 [maceoff]
 model_size  = large
-save_flag   = True
 ```
 
 `model_size` : `str` | default = `large`.
 : Model size (`small`, `medium`, `large`).
-
-`save_flag` : `bool` | default = `True`.
-: Checkpoint after each structure.
 
 ---
 

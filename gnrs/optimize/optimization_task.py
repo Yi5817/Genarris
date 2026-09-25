@@ -17,6 +17,7 @@ import logging
 
 from mpi4py import MPI
 import gnrs.output as gout
+from gnrs.core.registry import resolve_tasks
 from gnrs.core.task import TaskABC
 from gnrs.parallel.io import read_parallel
 from gnrs.parallel.structs import DistributedStructs
@@ -82,10 +83,9 @@ class GeometryOptimizationTask(TaskABC):
 
         # If struct_path specified, use it instead of default
         spath = self.config[self.opt_name].get("struct_path")
-        if spath is not None:
+        if spath is not None and self._reads_struct_path():
             logger.info(f"Reading from user given file {spath}")
             self.structs = read_parallel(spath)
-            self.config[self.opt_name].pop("struct_path")
 
         # Log the optimizer being used
         if self.energy_method is not None:
@@ -94,6 +94,25 @@ class GeometryOptimizationTask(TaskABC):
             gout.emit("Using builtin optimizer.")
 
         self._load_modules()
+
+    def _reads_struct_path(self) -> bool:
+        """
+        Whether this task takes its input from ``[<optimizer>] struct_path``.
+
+        Only the first task in the workflow that uses this optimizer does;
+        later ones continue from the previous task's output. Decided from the
+        task list rather than by consuming the setting, so it holds on a
+        restart that skips the first task.
+
+        Returns:
+            True if this task reads ``struct_path``.
+        """
+        specs = resolve_tasks(self.config.get("workflow", {}).get("tasks", []))
+        first = next(
+            (s.instance_id for s in specs if self.opt_name in s.sections),
+            self._active_instance_id,
+        )
+        return first == self._active_instance_id
 
     def _load_modules(self) -> None:
         """
@@ -133,12 +152,10 @@ class GeometryOptimizationTask(TaskABC):
         Returns:
             dict: Task settings dictionary
         """
-        task_set = {}
-        if self.opt_name in self.config:
-            task_set.update(self.config[self.opt_name])
-        overrides = self.config.get(self._active_instance_id, {}) if self._active_instance_id != self.task_name else {}
-        if overrides:
-            task_set.update(overrides)
+        iid = self._active_instance_id
+        overrides = self.config.get(iid, {}) if iid != self.task_name else {}
+        task_set = {**self.config.get(self.opt_name, {}), **overrides}
+        task_set.pop("struct_path", None)
 
         if self.opt_name in ["rigid_press", "symm_rigid_press"]:
             task_set["z"] = self.config["master"]["z"]
@@ -153,7 +170,7 @@ class GeometryOptimizationTask(TaskABC):
         # Pack settings for energy method separately in self.energy_set
         if self.energy_method is not None:
             energy_method = task_set.pop("energy_method")
-            self.energy_set = self.config[energy_method]
+            self.energy_set = dict(self.config[energy_method])
             
         return task_set
 
@@ -203,7 +220,7 @@ class GeometryOptimizationTask(TaskABC):
         dir_name = f"rank_{self.rank}"
         os.makedirs(dir_name, exist_ok=True)
         self.rank_calc_dir = os.path.join(self.calc_dir, dir_name)
-        self._load_save_files()
+        self._load_checkpoints()
 
         # Run optimization
         gout.emit("Optimizing structures...")
@@ -212,8 +229,9 @@ class GeometryOptimizationTask(TaskABC):
             gpu_mgr, dft_serial,
         )
 
-        save_cb = lambda: self.dsdict.checkpoint_save(self.rank_calc_dir)
-        opt.run_batch(self.structs, on_structure_done=save_cb)
+        opt.run_batch(
+            self.structs, on_structure_done=self._checkpoint, done=self.dsdict.done
+        )
         gout.emit("Completed optimizations.")
 
     def collect_results(self):
@@ -242,27 +260,3 @@ class GeometryOptimizationTask(TaskABC):
         if self.energy_method is not None:
             self.gnrs_info["energy_list"].append(self.energy_method)
         super().finalize(self.task_name)
-
-    def _load_save_files(self) -> None:
-        """
-        Load checkpoint files from previous calculations if they exist.
-        """
-        ds = DistributedStructs({})
-        ds.checkpoint_load(self.calc_dir)
-        n_struct = ds.get_num_structs()
-        
-        if n_struct > 0:
-            self.structs = ds.structs
-            gout.emit("Save files of previous calculation found.")
-            gout.emit(f"Loaded {n_struct} structure(s) from save files.")
-
-        self.dsdict = DistributedStructs(self.structs)
-        n_completed = None
-        completed = self.dsdict.collect_property(self.opt_name, "info")
-        
-        if self.is_master:
-            n_completed = sum(x is not None for x in completed)
-            
-        if n_struct > 0:
-            gout.emit(f"{n_completed} calculation(s) were completed previously.")
-            gout.emit("")

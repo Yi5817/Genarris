@@ -13,6 +13,8 @@ __group__ = "https://www.noamarom.com/"
 
 import argparse
 import logging
+import sys
+import traceback
 import warnings
 
 from mpi4py import MPI
@@ -28,12 +30,26 @@ def main():
     parser = argparse.ArgumentParser(description="Genarris3.0")
     parser.add_argument("-c", "--config", required=True, type=str, help="Path to the configuration file")
     parser.add_argument("-d", "--seed", type=int, help="Random seed", default=42)
-    parser.add_argument("--restart", action="store_true", help="Restart Genarris with previous config file")
+    mode = parser.add_mutually_exclusive_group()
+    mode.add_argument(
+        "--restart", action="store_true",
+        help="Resume the previous run in the current directory, "
+        "skipping completed tasks and structures",
+    )
+    mode.add_argument(
+        "--overwrite", action="store_true",
+        help="Start over in a directory that contains a previous run, "
+        "discarding its progress",
+    )
     args = parser.parse_args()
+
+    from gnrs.core.registry import UnknownTaskError
+    from gnrs.core.restart import RestartError
 
     comm = MPI.COMM_WORLD
     logger = logging.getLogger("genarris")
     aborted = False
+    exit_code = 0
     try:
         # Initialize and run Genarris
         from gnrs.workflow import Genarris
@@ -45,14 +61,29 @@ def main():
         logger.warning("Genarris interrupted by user")
         aborted = True
         comm.Abort(130)
-    except Exception:
+    except (RestartError, UnknownTaskError) as exc:
+        logger.error(f"Cannot run: {exc}")
+        gout.emit("")
+        for line in f"ERROR: {exc}".splitlines():
+            gout.emit(line)
+        exit_code = 1
+    except Exception as exc:
         logger.exception("Genarris exiting due to error")
+        # Every rank reports its own failure; gout.emit prints on rank 0 only
+        print(
+            f"\nERROR: Genarris rank {comm.Get_rank()} failed with "
+            f"{type(exc).__name__}: {exc}\n{traceback.format_exc()}",
+            file=sys.stderr,
+            flush=True,
+        )
         aborted = True
         comm.Abort(1)
     finally:
         if not aborted:
             comm.Barrier()
             MPI.Finalize()
+    if exit_code:
+        sys.exit(exit_code)
 
 
 if __name__ == "__main__":

@@ -14,6 +14,7 @@ import os
 import abc
 import time
 
+from ase import Atoms
 from mpi4py import MPI
 
 import gnrs.output as gout
@@ -162,6 +163,40 @@ class TaskABC(abc.ABC):
         folders.mkdir(self.struct_dir)
         folders.mkdir(self.calc_dir)
         self.comm.barrier()  # Wait for folder creation
+
+    def _load_checkpoints(self) -> None:
+        """
+        Merge checkpoints of an interrupted run of this task into the pool.
+
+        Sets ``self.dsdict`` and updates ``self.structs``; the restored
+        structures are listed in ``self.dsdict.done`` so the task can skip
+        them. Must be called by all ranks. Reports how many structures were
+        restored.
+        """
+        self.dsdict = DistributedStructs(self.structs)
+        n_restored = self.dsdict.checkpoint_load(self.calc_dir)
+        self.structs = self.dsdict.structs
+        if n_restored == 0:
+            return
+
+        n_total = self.dsdict.get_num_structs()
+        gout.emit(
+            f"Checkpoints from a previous run found: {n_restored} of "
+            f"{n_total} structure(s) already completed, "
+            f"{n_total - n_restored} remaining."
+        )
+        gout.emit("")
+
+    def _checkpoint(self, name: str, xtal: Atoms) -> None:
+        """
+        Log one completed structure to this rank's checkpoint file. Passed
+        to the batch runners as ``on_structure_done``.
+
+        Args:
+            name: Structure ID.
+            xtal: The completed structure.
+        """
+        self.dsdict.checkpoint_save(self.rank_calc_dir, name, xtal)
 
     @abc.abstractmethod
     def perform_task(self, task_set: dict) -> None:
