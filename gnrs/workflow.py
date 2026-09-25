@@ -53,12 +53,16 @@ class Genarris:
         self._parallel_init(seed=self.seed)
         self._gnrs_info_init()
         self._config_init(args)
+        self.task_specs = resolve_tasks(self.config.get("workflow", {}).get("tasks", []))
         self.restart_manager = Restart(self.comm, self.config, self.gnrs_info)
         if self.restart:
             self.attempt_restart()
         else:
             self._check_previous_run()
         self._folders_init()
+        # Recorded from the start, so a run interrupted before its first task
+        # completed can be resumed from that task's checkpoints
+        self.restart_manager.write()
 
         self.comm.barrier()
         self.logger.info("Genarris initialized successfully")
@@ -68,8 +72,7 @@ class Genarris:
         Execute Genarris with the configured tasks.
         """
         self.logger.info("Starting Genarris Tasks")
-        tasks = self.config.get("workflow", {}).get("tasks", [])
-        self._run_tasks(tasks)
+        self._run_tasks(self.task_specs)
 
     def _log_init(self) -> None:
         """
@@ -157,9 +160,7 @@ class Genarris:
                 "--restart was requested, but no restart file was found at "
                 f"{self.restart_manager.restart_file}. "
                 "Run from the directory of a previous Genarris run, or start "
-                "a new run without --restart. Runs made with older Genarris "
-                "versions keep this file at tmp/restart.json; move it to the "
-                "run directory to resume them."
+                "a new run without --restart."
             )
         self._print_restart_summary()
         gout.double_separator()
@@ -209,8 +210,7 @@ class Genarris:
         """
         Report which tasks are already completed and where the run resumes.
         """
-        # The task list was validated when the restart file was loaded
-        specs = resolve_tasks(self.config.get("workflow", {}).get("tasks", []))
+        specs = self.task_specs
         completed, pending = [], []
         for spec in specs:
             if self.restart_manager.is_task_completed(spec.instance_id):
@@ -240,20 +240,13 @@ class Genarris:
         folders.setup_main_folders(self.gnrs_info)
         folders.copy_molecule(self.config, self.gnrs_info)
 
-    def _run_tasks(self, tasks: list) -> None:
+    def _run_tasks(self, task_specs: list) -> None:
         """
         Run specific tasks in config file
-        
-        Args:
-            tasks: List of task names to execute
-        """
-        try:
-            task_specs = resolve_tasks(tasks)
-        except ValueError as exc:
-            self.logger.error(str(exc))
-            gout.emit(f"Error: {exc}")
-            return
 
+        Args:
+            task_specs: Resolved specs of the tasks to execute
+        """
         self.logger.info(f"Running configured tasks: {[s.instance_id for s in task_specs]}")
         gout.emit(f"Executing {len(task_specs)} configured tasks")
         

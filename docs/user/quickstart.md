@@ -128,8 +128,9 @@ mpirun -np <num_processes> gnrs -c ui.conf --restart
 On startup Genarris lists which tasks are already completed and which task it
 resumes from. Progress is kept at two levels:
 
-- **Completed tasks** are recorded in `restart.json` after each task finishes.
-  They are skipped on restart and their results in `structures/` are reused.
+- **Completed tasks** are recorded in `restart.json`, written when the run
+  starts and updated after each task finishes. They are skipped on restart
+  and their results in `structures/` are reused.
 - **Completed structures** of the task that was running are logged in
   `tmp/<task>/rank_*/*.ckpt` as they finish. On restart only the remaining
   structures are computed.

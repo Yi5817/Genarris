@@ -231,8 +231,10 @@ class Restart:
     results are, and the config they ran with.
 
     The record is a JSON file in the run directory, written on the master
-    rank after every completed task. Loading it is collective: every rank
-    ends up with the same state, or every rank raises the same error.
+    rank when the run starts and after every completed task, so it always
+    holds the settings the pending tasks' checkpoints are made with. Loading
+    it is collective: every rank ends up with the same state, or every rank
+    raises the same error.
     """
 
     def __init__(self, comm: MPI.Comm, config: dict, gnrs_info: dict) -> None:

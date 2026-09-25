@@ -299,6 +299,26 @@ def test_checkpoints_of_unchanged_pending_task_are_kept(tmp_path: Path) -> None:
     assert ckpt.is_file()
 
 
+def test_checkpoints_of_first_task_are_kept(tmp_path: Path) -> None:
+    # The record is written when a run starts, so a run killed during its
+    # first task can be resumed from that task's checkpoints
+    ckpt = _checkpoint(tmp_path, "generation")
+    _manager(tmp_path).write()
+    assert _manager(tmp_path).load()
+    assert ckpt.is_file()
+
+
+def test_refused_restart_leaves_checkpoints_alone(tmp_path: Path) -> None:
+    ckpt = _checkpoint(tmp_path, "symm_rigid_press")
+    manager = _manager(
+        tmp_path, completed=["generation"], config={"symm_rigid_press": {"sr": 0.8}}
+    )
+    saved = _saved(symm_rigid_press={"sr": 0.85})
+    with pytest.raises(RestartError, match="no longer exists"):
+        _apply(manager, saved, gnrs_info={"last_struct_path": str(tmp_path / "gone")})
+    assert ckpt.is_file()
+
+
 def test_checkpoints_of_completed_tasks_are_left_alone(tmp_path: Path) -> None:
     ckpt = _checkpoint(tmp_path, "generation")
     manager = _manager(tmp_path, completed=["generation"])
