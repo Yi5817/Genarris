@@ -29,6 +29,18 @@ def test_appending_tasks_is_fine() -> None:
     manager._check_task_list(saved)
 
 
+def test_appending_duplicate_task_type_is_refused() -> None:
+    # Duplicates are renumbered, so the completed symm_rigid_press would be
+    # looked up as symm_rigid_press_1 and rerun
+    saved = {"workflow": {"tasks": ["generation", "symm_rigid_press"]}}
+    manager = _manager(
+        ["generation", "symm_rigid_press", "symm_rigid_press"],
+        ["generation", "symm_rigid_press"],
+    )
+    with pytest.raises(RestartError, match="task list changed"):
+        manager._check_task_list(saved)
+
+
 def test_changing_pending_tasks_is_fine() -> None:
     saved = {"workflow": {"tasks": ["generation", "rigid_press"]}}
     _manager(["generation", "symm_rigid_press"], ["generation"])._check_task_list(saved)

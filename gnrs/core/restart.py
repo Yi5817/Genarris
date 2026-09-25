@@ -310,7 +310,10 @@ class Restart:
         Refuse to resume if the completed tasks no longer line up with the
         current task list. Completed tasks are matched by position, so
         inserting, removing or reordering tasks before them would skip the
-        wrong task. Appending tasks at the end is fine.
+        wrong task. Appending tasks at the end is fine, unless the appended
+        task's type already appears in the list: duplicates are renumbered
+        (``dedup`` becomes ``dedup_1``, ``dedup_2``), so the completed task
+        would no longer be found under its saved id.
 
         Args:
             saved_config: Config stored in the restart file.
@@ -339,8 +342,10 @@ class Restart:
                 f"    previous: {saved_tasks}\n"
                 f"    current:  {current_tasks}\n"
                 "Completed tasks are matched by their position in [workflow] "
-                "tasks. Restore the previous list to resume (adding tasks at "
-                "the end is fine), or start over with --overwrite."
+                "tasks. Restore the previous list to resume (adding tasks of "
+                "a new type at the end is fine; adding a second task of a "
+                "type already in the list is not), or start over with "
+                "--overwrite."
             )
 
     def check_task_completion(self, task_name: str) -> bool:

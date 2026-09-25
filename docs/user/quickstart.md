@@ -144,7 +144,10 @@ Things that are safe to change between the original run and the restart:
   that differs from the original run is listed at startup.
 - **Tasks appended to the end** of `[workflow] tasks`. Inserting, removing or
   reordering tasks *before* a completed one is refused, because completed
-  tasks are matched by their position in the list.
+  tasks are matched by their position in the list. Appending a second task of
+  a type that is already in the list is refused too, because duplicate tasks
+  are renumbered (`dedup_1`, `dedup_2`) and the completed one would no longer
+  be found; start over with `--overwrite` in that case.
 
 If a restart cannot proceed, Genarris stops with a message explaining why
 (for example, no `restart.json` in the current directory, the structure file
