@@ -152,12 +152,10 @@ class GeometryOptimizationTask(TaskABC):
         Returns:
             dict: Task settings dictionary
         """
-        task_set = {}
-        if self.opt_name in self.config:
-            task_set.update(self.config[self.opt_name])
-        overrides = self.config.get(self._active_instance_id, {}) if self._active_instance_id != self.task_name else {}
-        if overrides:
-            task_set.update(overrides)
+        iid = self._active_instance_id
+        overrides = self.config.get(iid, {}) if iid != self.task_name else {}
+        task_set = {**self.config.get(self.opt_name, {}), **overrides}
+        task_set.pop("struct_path", None)
 
         if self.opt_name in ["rigid_press", "symm_rigid_press"]:
             task_set["z"] = self.config["master"]["z"]
@@ -172,7 +170,7 @@ class GeometryOptimizationTask(TaskABC):
         # Pack settings for energy method separately in self.energy_set
         if self.energy_method is not None:
             energy_method = task_set.pop("energy_method")
-            self.energy_set = self.config[energy_method]
+            self.energy_set = {**self.config[energy_method], **overrides}
             
         return task_set
 
