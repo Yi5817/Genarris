@@ -314,14 +314,33 @@ class DistributedStructs:
 
         restored = gp.comm.gather(restored, root=0)
         problems = gp.comm.gather(problems, root=0)
+            chunks = self._balanced_chunks(combined, done, gp.size)
         current = gp.comm.gather(self.structs or {}, root=0)
 
-        combined, done = None, None
+        chunks, done = None, None
         if gp.is_master:
             for problem in chain.from_iterable(problems):
                 self.logger.error(f"Checkpoint {problem}")
                 gout.emit(
                     f"WARNING: Checkpoint {problem}. The affected structures "
+    @staticmethod
+    def _balanced_chunks(structs: dict, done: set[str], size: int) -> list[dict]:
+        """
+        Split structures into one chunk per rank so that every rank gets an
+        equal share of the remaining work, not just of the structures.
+
+        Args:
+            structs: All structures.
+            done: Names of the structures that are already completed.
+            size: Number of ranks.
+
+        Returns:
+            One structure dictionary per rank.
+        """
+        remaining = [(n, x) for n, x in structs.items() if n not in done]
+        finished = [(n, x) for n, x in structs.items() if n in done]
+        return [dict(remaining[r::size] + finished[r::size]) for r in range(size)]
+
                     "will be recomputed."
                 )
             combined = {}
@@ -336,7 +355,7 @@ class DistributedStructs:
                     done.add(name)
             self.logger.debug(f"Read {len(done)} structures from checkpoints")
 
-        self._scatter(combined)
+        self.structs = gp.comm.scatter(chunks, root=0)
         # Restored structures are done and already on disk; only new results
         # get logged
         done = gp.comm.bcast(done, root=0)

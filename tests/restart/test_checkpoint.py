@@ -116,6 +116,16 @@ def test_load_reads_legacy_snapshot(tmp_path: Path) -> None:
     rank_dir = tmp_path / "rank_0"
     rank_dir.mkdir()
     snapshot = {"s0": encode(_atoms(-1.0)), "s1": encode(_atoms())}
+def test_load_spreads_remaining_work_evenly() -> None:
+    # Rank 0 had finished 45 of its 50 structures, rank 1 only 5
+    pool = _pool(100)
+    done = {f"s{i}" for i in range(45)} | {f"s{i}" for i in range(50, 55)}
+    chunks = DistributedStructs._balanced_chunks(pool, done, 2)
+    assert [len(chunk) for chunk in chunks] == [50, 50]
+    assert [len(set(chunk) - done) for chunk in chunks] == [25, 25]
+    assert set().union(*chunks) == set(pool)
+
+
     (rank_dir / "0.save").write_text(json.dumps(snapshot))
 
     ds = DistributedStructs(_pool(2))
