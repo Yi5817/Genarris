@@ -90,11 +90,27 @@ def test_appending_duplicate_task_type_renumbers_completed_task(
 ) -> None:
     # Duplicates are renumbered, so the completed symm_rigid_press is now
     # symm_rigid_press_1 and must keep its record under that id
+    ckpt = _checkpoint(tmp_path, "symm_rigid_press")
     manager = _manager(tmp_path, WORKFLOW + ["symm_rigid_press"], completed=WORKFLOW)
     _apply(manager, _saved())
     assert manager.is_task_completed("symm_rigid_press_1")
     assert not manager.is_task_completed("symm_rigid_press_2")
     assert "symm_rigid_press" not in manager.gnrs_info
+    # Its scratch directory follows it
+    assert not ckpt.exists()
+    assert (tmp_path / "tmp" / "symm_rigid_press_1" / "rank_0" / "0.ckpt").is_file()
+
+
+def test_appending_duplicate_of_pending_task_keeps_its_checkpoints(
+    tmp_path: Path,
+) -> None:
+    # The interrupted maceoff becomes maceoff_1 and resumes from its checkpoints
+    ckpt = _checkpoint(tmp_path, "maceoff")
+    tasks = ["generation", "maceoff", "bfgs_maceoff", "maceoff"]
+    manager = _manager(tmp_path, tasks, completed=["generation"])
+    _apply(manager, _saved(["generation", "maceoff"]))
+    assert not ckpt.exists()
+    assert (tmp_path / "tmp" / "maceoff_1" / "rank_0" / "0.ckpt").is_file()
 
 
 def test_removing_pending_duplicate_task_is_fine(tmp_path: Path) -> None:
@@ -345,6 +361,16 @@ def test_write_then_load_round_trip(tmp_path: Path) -> None:
 
 def test_load_without_file_returns_false(tmp_path: Path) -> None:
     assert _manager(tmp_path).load() is False
+
+
+def test_moved_run_directory_remaps_saved_config_paths(tmp_path: Path) -> None:
+    old_dir = "/old/run"
+    manager = _manager(
+        tmp_path, completed=["generation"],
+        config={"generation": {"path": str(tmp_path / "in.json")}},
+    )
+    saved = _saved(generation={"path": f"{old_dir}/in.json"})
+    _apply(manager, saved, gnrs_info={"work_dir": old_dir})
 
 
 def test_load_rejects_newer_format(tmp_path: Path) -> None:

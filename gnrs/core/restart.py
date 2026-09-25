@@ -294,8 +294,9 @@ class Restart:
         Settings of completed tasks and the [master] settings that define
         the run must match the saved ones; for every other setting the
         current config file takes precedence and the change is reported.
-        Checkpoints of a pending task are discarded if the task or one
-        before it changed.
+        Everything is validated before anything on disk is touched; only
+        then are the checkpoints of pending tasks that cannot reuse them
+        discarded.
 
         Returns:
             True if a restart file was found and loaded, False otherwise.
@@ -308,8 +309,9 @@ class Restart:
             logger.info("No restart file found")
             return False
 
-        self._apply_restart(payload)
+        kept = self._apply_restart(payload)
         self._collective(self._check_last_struct)
+        self._keep_checkpoints(kept)
         return True
 
     def _collective(self, master_func: Callable[[], T]) -> T:
@@ -405,12 +407,18 @@ class Restart:
                 "longer exists. Start over with --overwrite."
             )
 
-    def _apply_restart(self, payload: dict) -> None:
+    def _apply_restart(self, payload: dict) -> list[tuple[str, TaskSpec]]:
         """
-        Apply loaded restart data to the live config and gnrs_info.
+        Validate loaded restart data against the current config and apply
+        it to the live gnrs_info. Touches nothing on disk.
 
         Args:
             payload: Validated restart data. Identical on all ranks.
+
+        Returns:
+            The tasks whose checkpoints are kept (completed tasks and the
+            pending tasks that can resume from them), each as its id in the
+            previous task list and its spec in the current one.
         """
         saved_config = payload["config"]
         saved_info = payload["gnrs_info"]
@@ -428,6 +436,7 @@ class Restart:
                 f"remapped to {new_work_dir}."
             )
             saved_info = _remap_paths(saved_info, old_work_dir, new_work_dir)
+            saved_config = _remap_paths(saved_config, old_work_dir, new_work_dir)
 
         # Keep values that describe the current run, not the previous one
         # (the molecule files under tmp/ are recreated if they are missing)
@@ -445,7 +454,7 @@ class Restart:
 
         completed = self._check_task_list(saved_specs, current_specs)
         self._check_config(saved_config, current_config, completed)
-        self._discard_stale_checkpoints(
+        return completed + self._resumable(
             saved_config, current_config, saved_specs, current_specs
         )
 
@@ -556,45 +565,67 @@ class Restart:
             for diff in diffs:
                 gout.emit(f"    {diff}")
 
-    def _discard_stale_checkpoints(
+    def _resumable(
         self,
         saved_config: dict,
         current_config: dict,
         saved_specs: list[TaskSpec],
         current_specs: list[TaskSpec],
-    ) -> None:
+    ) -> list[tuple[str, TaskSpec]]:
         """
-        Remove the checkpoints of pending tasks that cannot reuse them.
+        Find the pending tasks that can resume from their checkpoints.
 
-        A pending task's checkpoints hold results of the previous run, which
-        are only valid if the task has the same id at the same position and
-        neither its settings nor any task before it changed. Structures are
-        matched by name and names are reproducible across runs, so stale
-        checkpoints would otherwise be merged silently into the new pool.
+        Checkpoints hold results of the previous run, which are only valid
+        if the task has the same type at the same position and neither its
+        settings nor any task before it changed. Structures are matched by
+        name and names are reproducible across runs, so stale checkpoints
+        would otherwise be merged silently into the new pool.
 
         Args:
             saved_config: Config stored in the restart file.
             current_config: Config parsed from the user's config file.
             saved_specs: Task list of the previous run.
             current_specs: Task list of the current config.
+
+        Returns:
+            Each resumable task as its id in the previous task list and its
+            spec in the current one.
         """
-        keep, intact = [], True
+        resumable = []
         for pos, spec in enumerate(current_specs):
             if self.is_task_completed(spec.instance_id):
-                keep.append(spec.instance_id)
                 continue
-            intact = (
-                intact
-                and pos < len(saved_specs)
-                and saved_specs[pos].instance_id == spec.instance_id
-                and not _task_diffs(
-                    saved_config, current_config, spec, spec.instance_id
-                )
-            )
-            if intact:
-                keep.append(spec.instance_id)
+            saved = saved_specs[pos] if pos < len(saved_specs) else None
+            if (
+                saved is None
+                or saved.task_type != spec.task_type
+                or _task_diffs(saved_config, current_config, spec, saved.instance_id)
+            ):
+                break
+            resumable.append((saved.instance_id, spec))
+        return resumable
 
-        for task in self.discard_checkpoints(keep):
+    def _keep_checkpoints(self, kept: list[tuple[str, TaskSpec]]) -> None:
+        """
+        Remove the checkpoints of every task not in ``kept``. Collective.
+
+        A kept task that was renumbered takes its scratch directory under
+        tmp/ along, so its checkpoints are found under the new id.
+
+        Args:
+            kept: Tasks whose checkpoints are kept, each as its id in the
+                previous task list and its spec in the current one.
+        """
+        tmp_dir = self.gnrs_info.get("tmp_dir")
+        if self.is_master and tmp_dir:
+            for saved_id, spec in kept:
+                old = os.path.join(tmp_dir, saved_id)
+                new = os.path.join(tmp_dir, spec.instance_id)
+                if old != new and os.path.isdir(old) and not os.path.exists(new):
+                    logger.info(f"Moving scratch directory {old} to {new}")
+                    os.rename(old, new)
+
+        for task in self.discard_checkpoints([spec.instance_id for _, spec in kept]):
             gout.emit(
                 f"NOTE: The checkpoints of task '{task}' from the previous "
                 "run are discarded, because the task or one before it "
