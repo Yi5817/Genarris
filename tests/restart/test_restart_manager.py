@@ -113,6 +113,17 @@ def test_appending_duplicate_of_pending_task_keeps_its_checkpoints(
     assert (tmp_path / "tmp" / "maceoff_1" / "rank_0" / "0.ckpt").is_file()
 
 
+def test_renumbered_task_replaces_a_stale_scratch_directory(tmp_path: Path) -> None:
+    _checkpoint(tmp_path, "maceoff")
+    stale = tmp_path / "tmp" / "maceoff_1" / "rank_0"
+    stale.mkdir(parents=True)
+    (stale / "old.out").write_text("")
+    tasks = ["generation", "maceoff", "bfgs_maceoff", "maceoff"]
+    _apply(_manager(tmp_path, tasks, completed=["generation"]), _saved(tasks[:2]))
+    assert (tmp_path / "tmp" / "maceoff_1" / "rank_0" / "0.ckpt").is_file()
+    assert not (stale / "old.out").exists()
+
+
 def test_removing_pending_duplicate_task_is_fine(tmp_path: Path) -> None:
     manager = _manager(
         tmp_path, ["generation", "dedup"], completed=["generation", "dedup_1"]

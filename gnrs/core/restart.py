@@ -15,6 +15,7 @@ import copy
 import json
 import logging
 import os
+import shutil
 from contextlib import suppress
 from typing import Callable, Collection, TypeVar
 
@@ -612,7 +613,8 @@ class Restart:
         Remove the checkpoints of every task not in ``kept``. Collective.
 
         A kept task that was renumbered takes its scratch directory under
-        tmp/ along, so its checkpoints are found under the new id.
+        tmp/ along, so its checkpoints are found under the new id; a stale
+        directory of that name from an earlier run is replaced.
 
         Args:
             kept: Tasks whose checkpoints are kept, each as its id in the
@@ -623,8 +625,10 @@ class Restart:
             for saved_id, spec in kept:
                 old = os.path.join(tmp_dir, saved_id)
                 new = os.path.join(tmp_dir, spec.instance_id)
-                if old != new and os.path.isdir(old) and not os.path.exists(new):
+                if old != new and os.path.isdir(old):
                     logger.info(f"Moving scratch directory {old} to {new}")
+                    if os.path.isdir(new):
+                        shutil.rmtree(new)
                     os.rename(old, new)
 
         for task in self.discard_checkpoints([spec.instance_id for _, spec in kept]):
