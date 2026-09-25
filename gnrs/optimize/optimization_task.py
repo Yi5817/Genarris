@@ -170,7 +170,7 @@ class GeometryOptimizationTask(TaskABC):
         # Pack settings for energy method separately in self.energy_set
         if self.energy_method is not None:
             energy_method = task_set.pop("energy_method")
-            self.energy_set = {**self.config[energy_method], **overrides}
+            self.energy_set = dict(self.config[energy_method])
             
         return task_set
 
