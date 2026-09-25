@@ -178,7 +178,9 @@ the original run.
 
 Running *without* `--restart` in a directory that already contains
 `restart.json` is refused, so a finished run cannot be overwritten by accident.
-Pass `--overwrite` to discard the previous progress and start fresh:
+Every run writes this file when it starts, so this also applies after a run
+that failed in its first task. Pass `--overwrite` to discard the previous
+progress and start fresh:
 
 ```bash
 mpirun -np <num_processes> gnrs -c ui.conf --overwrite
