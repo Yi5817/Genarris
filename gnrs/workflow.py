@@ -24,7 +24,7 @@ import gnrs.output as gout
 from gnrs.parallel import init_parallel
 from gnrs.parser import UserSettingsParser, UserSettingsSanityChecker
 from gnrs.parallel.test import test_bcast
-from gnrs.core.restart import Restart, RestartError, restart_path
+from gnrs.core.restart import Restart, RestartError
 from gnrs.gnrsutil.core import check_if_exp_found
 
 import argparse
@@ -167,57 +167,41 @@ class Genarris:
     def _check_previous_run(self) -> None:
         """
         Refuse to start over on top of a previous run unless --overwrite
-        was given; with it, discard the previous run's progress record and
-        the checkpoints of every task.
+        was given; with it, discard the previous run's progress record. A
+        fresh run never keeps checkpoints of an earlier one.
 
         Raises:
             RestartError: If a previous run exists and --overwrite is not set.
         """
-        # Older releases kept the restart file under tmp/
-        candidates = [
-            self.restart_manager.restart_file,
-            restart_path(self.gnrs_info["tmp_dir"]),
-        ]
-        found = None
-        if self.is_master:
-            found = [path for path in candidates if os.path.isfile(path)]
-        found = self.comm.bcast(found, root=0)
-        if not found:
-            return
-
-        if not self.overwrite:
+        found = self.restart_manager.find_records()
+        if found and not self.overwrite:
             raise RestartError(
                 "This directory already contains a Genarris run "
                 f"({found[0]}). Rerun with --restart to resume it, or "
                 "with --overwrite to discard its progress and start over."
             )
-        self.logger.warning("Discarding previous run record (--overwrite)")
-        gout.emit(
-            "NOTE: --overwrite given. Discarding the previous run's progress "
-            "record; results in structures/ will be overwritten as tasks "
-            "complete."
-        )
-        gout.emit("")
-        if self.is_master:
-            for restart_file in found:
-                os.remove(restart_file)
-        # Tasks this run never reaches would otherwise keep their old
-        # checkpoints, which a later --restart would merge into the pool
+        if found:
+            self.logger.warning("Discarding previous run record (--overwrite)")
+            gout.emit(
+                "NOTE: --overwrite given. Discarding the previous run's progress "
+                "record; results in structures/ will be overwritten as tasks "
+                "complete."
+            )
+            gout.emit("")
+            if self.is_master:
+                for restart_file in found:
+                    os.remove(restart_file)
         self.restart_manager.discard_checkpoints()
 
     def _print_restart_summary(self) -> None:
         """
         Report which tasks are already completed and where the run resumes.
         """
-        specs = self.task_specs
-        completed, pending = [], []
-        for spec in specs:
-            if self.restart_manager.is_task_completed(spec.instance_id):
-                completed.append(spec.instance_id)
-            else:
-                pending.append(spec.instance_id)
+        ids = [spec.instance_id for spec in self.task_specs]
+        completed = [i for i in ids if self.restart_manager.is_task_completed(i)]
+        pending = [i for i in ids if i not in completed]
         gout.emit(
-            f"Restart file loaded: {len(completed)} of {len(specs)} tasks "
+            f"Restart file loaded: {len(completed)} of {len(ids)} tasks "
             "already completed."
         )
         if completed:

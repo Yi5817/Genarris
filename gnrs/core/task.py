@@ -162,9 +162,6 @@ class TaskABC(abc.ABC):
         """
         folders.mkdir(self.struct_dir)
         folders.mkdir(self.calc_dir)
-        if self.is_master and not self.gnrs_info.get("restart"):
-            # A fresh run must not pick up checkpoints from a previous run
-            DistributedStructs.checkpoint_clear(self.calc_dir)
         self.comm.barrier()  # Wait for folder creation
 
     def _load_checkpoints(self) -> None:
@@ -179,10 +176,10 @@ class TaskABC(abc.ABC):
         self.dsdict = DistributedStructs(self.structs)
         n_restored = self.dsdict.checkpoint_load(self.calc_dir)
         self.structs = self.dsdict.structs
-        n_total = self.dsdict.get_num_structs()
         if n_restored == 0:
             return
 
+        n_total = self.dsdict.get_num_structs()
         gout.emit(
             f"Checkpoints from a previous run found: {n_restored} of "
             f"{n_total} structure(s) already completed, "
