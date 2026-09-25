@@ -22,6 +22,7 @@ from gnrs.core.logging import GenarrisLogger
 from gnrs.core.registry import resolve_tasks
 import gnrs.output as gout
 from gnrs.parallel import init_parallel
+from gnrs.parallel.structs import DistributedStructs
 from gnrs.parser import UserSettingsParser, UserSettingsSanityChecker
 from gnrs.parallel.test import test_bcast
 from gnrs.core.restart import (
@@ -173,7 +174,8 @@ class Genarris:
     def _check_previous_run(self) -> None:
         """
         Refuse to start over on top of a previous run unless --overwrite
-        was given; with it, discard the previous run's progress record.
+        was given; with it, discard the previous run's progress record and
+        the checkpoints of every task.
 
         Raises:
             RestartError: If a previous run exists and --overwrite is not set.
@@ -200,6 +202,13 @@ class Genarris:
         gout.emit("")
         if self.is_master:
             os.remove(restart_file)
+            # Tasks this run never reaches would otherwise keep their old
+            # checkpoints, which a later --restart would merge into the pool
+            tmp_dir = self.gnrs_info["tmp_dir"]
+            if os.path.isdir(tmp_dir):
+                for entry in os.scandir(tmp_dir):
+                    if entry.is_dir():
+                        DistributedStructs.checkpoint_clear(entry.path)
 
     def _print_restart_summary(self) -> None:
         """

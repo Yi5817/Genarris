@@ -79,6 +79,19 @@ def test_load_merges_with_pool_and_skips_damaged_line(tmp_path: Path) -> None:
     assert _logged_names(rank_dir / "0.ckpt") == ["s0", "s1", "s2"]
 
 
+def test_load_ignores_structures_outside_the_pool(tmp_path: Path) -> None:
+    rank_dir = tmp_path / "rank_0"
+    rank_dir.mkdir()
+    # Log left behind by an unrelated earlier run in the same directory
+    DistributedStructs({"old": _atoms(-9.0)}).checkpoint_save(str(rank_dir), KEY)
+    DistributedStructs({"s0": _atoms(-1.0)}).checkpoint_save(str(rank_dir), KEY)
+
+    ds = DistributedStructs(_pool(2))
+    assert ds.checkpoint_load(str(tmp_path), KEY) == 1
+    assert sorted(ds.structs) == ["s0", "s1"]
+    assert ds.structs["s0"].info[KEY] == -1.0
+
+
 def test_load_reads_legacy_snapshot(tmp_path: Path) -> None:
     rank_dir = tmp_path / "rank_0"
     rank_dir.mkdir()

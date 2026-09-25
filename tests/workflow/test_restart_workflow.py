@@ -194,7 +194,12 @@ def test_fresh_run_over_previous_run_is_refused(
 def test_overwrite_starts_over(
     run_copy: Path, mpi_free_env: dict[str, str]
 ) -> None:
+    # A checkpoint of a task the new run never reaches must not survive
+    stale = run_copy / "tmp" / "never_run" / "rank_0"
+    stale.mkdir(parents=True)
+    (stale / "0.ckpt").write_text("")
     proc = run_gnrs(run_copy, mpi_free_env, "--overwrite")
     assert proc.returncode == 0, proc.stdout + proc.stderr
     assert "Discarding the previous run's progress record" in flat(proc.stdout)
     assert "All tasks completed successfully" in proc.stdout
+    assert not (stale / "0.ckpt").exists()

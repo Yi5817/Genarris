@@ -249,8 +249,9 @@ class DistributedStructs:
         A checkpointed copy replaces the current copy of the same structure;
         structures that were never checkpointed (e.g. held by a rank that was
         killed before it finished its first calculation) are kept as they
-        are. Damaged lines and unreadable files are skipped with a warning;
-        the affected structures are simply recomputed.
+        are. Checkpointed structures that are not in the current pool are
+        ignored. Damaged lines and unreadable files are skipped with a
+        warning; the affected structures are simply recomputed.
 
         Args:
             path: Directory containing rank_* checkpoint folders
@@ -302,7 +303,8 @@ class DistributedStructs:
             for _, name, xtal in sorted(
                 chain.from_iterable(restored), key=lambda item: item[0]
             ):
-                checkpointed[name] = xtal
+                if name in combined:
+                    checkpointed[name] = xtal
             combined.update(checkpointed)
             n_restored = len(checkpointed)
             self.logger.debug(f"Read {n_restored} structures from checkpoints")
