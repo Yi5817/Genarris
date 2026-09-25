@@ -140,8 +140,13 @@ Things that are safe to change between the original run and the restart:
   the new process count.
 - **Run directory location.** If the directory was moved or renamed, saved
   paths are remapped automatically.
-- **Config settings.** The current config file takes precedence; every setting
-  that differs from the original run is listed at startup.
+- **Settings of tasks that have not completed yet.** The current config file
+  takes precedence; every setting that differs from the original run is listed
+  at startup. Settings in the section of a *completed* task (for example
+  `[generation]` once generation finished) are frozen, because its results
+  were produced with the old values; changing them is refused. Restore the
+  previous values, or start over with `--overwrite`. Sections shared by all
+  tasks, such as `[master]`, are only reported, so check the list.
 - **Tasks appended to the end** of `[workflow] tasks`. Inserting, removing or
   reordering tasks *before* a completed one is refused, because completed
   tasks are matched by their position in the list. Appending a second task of
@@ -154,6 +159,11 @@ If a restart cannot proceed, Genarris stops with a message explaining why
 of the last completed task was deleted, or the task list changed). A checkpoint
 line cut short when the job was killed is skipped with a warning and that
 structure is recomputed.
+
+A restarted run is not bit-for-bit identical to an uninterrupted one with the
+same seed: the random number stream is seeded once at startup, so tasks that
+run after skipped ones draw different random numbers than they would have in
+the original run.
 
 ### Starting over
 
