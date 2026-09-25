@@ -303,9 +303,7 @@ class DistributedStructs:
                     f"WARNING: Checkpoint {problem}. The affected structures "
                     "will be recomputed."
                 )
-            combined = {}
-            for struct_dict in current:
-                combined.update(struct_dict)
+            combined = {n: x for structs in current for n, x in structs.items()}
             # Later files win, so a structure logged twice keeps its newest copy
             restored = sorted(chain.from_iterable(restored), key=lambda r: r[0])
             done = set()
@@ -348,26 +346,15 @@ class DistributedStructs:
         across cores
         """
         allstructs = gp.comm.gather(self.structs, root=0)
-        combined_structs = None
-
-        if gp.is_master:
-            combined_structs = {}
-            for struct_dict in allstructs:
-                combined_structs.update(struct_dict)
-
-        self._scatter(combined_structs)
-
-    def _scatter(self, combined_structs: dict | None) -> None:
-        """
-        Split a structure dictionary evenly and scatter it to all ranks.
-
-        Args:
-            combined_structs: All structures; only read on the master rank.
-        """
         scatter_list = None
 
         # Assemble the list to be scattered
         if gp.is_master:
+            # Combine all dictionaries
+            combined_structs = {}
+            for struct_dict in allstructs:
+                combined_structs.update(struct_dict)
+                
             # Split dict into list of dicts
             items = list(combined_structs.items())
             num_per_rank = len(combined_structs) // gp.size
