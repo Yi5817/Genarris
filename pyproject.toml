@@ -56,6 +56,7 @@ homepage = "https://www.noamarom.com/software/genarris"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+addopts = "-m 'not integration'"
 markers = [
     "integration: runs the full workflow under mpirun (slow; deselect with -m 'not integration')",
 ]
