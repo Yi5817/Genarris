@@ -191,6 +191,18 @@ def test_fresh_run_over_previous_run_is_refused(
     assert (run_copy / "restart.json").is_file(), "nothing may be touched"
 
 
+def test_fresh_run_over_old_layout_run_is_refused(
+    run_copy: Path, mpi_free_env: dict[str, str]
+) -> None:
+    # Older releases kept the restart file under tmp/
+    old_file = run_copy / "tmp" / "restart.json"
+    (run_copy / "restart.json").rename(old_file)
+    proc = run_gnrs(run_copy, mpi_free_env)
+    assert proc.returncode != 0
+    assert "--overwrite" in proc.stdout
+    assert old_file.is_file(), "nothing may be touched"
+
+
 def test_overwrite_starts_over(
     run_copy: Path, mpi_free_env: dict[str, str]
 ) -> None:

@@ -180,17 +180,22 @@ class Genarris:
         Raises:
             RestartError: If a previous run exists and --overwrite is not set.
         """
-        restart_file = os.path.join(self.gnrs_info["work_dir"], "restart.json")
+        # Older releases kept the restart file under tmp/
+        candidates = [
+            os.path.join(self.gnrs_info["work_dir"], "restart.json"),
+            os.path.join(self.gnrs_info["tmp_dir"], "restart.json"),
+        ]
         found = None
         if self.is_master:
-            found = os.path.isfile(restart_file)
-        if not self.comm.bcast(found, root=0):
+            found = [path for path in candidates if os.path.isfile(path)]
+        found = self.comm.bcast(found, root=0)
+        if not found:
             return
 
         if not self.overwrite:
             raise RestartError(
                 "This directory already contains a Genarris run "
-                f"({restart_file}). Rerun with --restart to resume it, or "
+                f"({found[0]}). Rerun with --restart to resume it, or "
                 "with --overwrite to discard its progress and start over."
             )
         self.logger.warning("Discarding previous run record (--overwrite)")
@@ -201,7 +206,8 @@ class Genarris:
         )
         gout.emit("")
         if self.is_master:
-            os.remove(restart_file)
+            for restart_file in found:
+                os.remove(restart_file)
             # Tasks this run never reaches would otherwise keep their old
             # checkpoints, which a later --restart would merge into the pool
             tmp_dir = self.gnrs_info["tmp_dir"]
