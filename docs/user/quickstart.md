@@ -133,7 +133,10 @@ resumes from. Progress is kept at two levels:
   and their results in `structures/` are reused.
 - **Completed structures** of the task that was running are logged in
   `tmp/<task>/rank_*/*.ckpt` as they finish. On restart only the remaining
-  structures are computed.
+  structures are computed. These checkpoints are the only thing a task
+  skips: a repeated task (for example an energy evaluation after a
+  relaxation) computes every structure again, even if a value from an
+  earlier task is already present.
 
 Things that are safe to change between the original run and the restart:
 
