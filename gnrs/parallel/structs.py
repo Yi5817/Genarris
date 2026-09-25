@@ -285,6 +285,14 @@ class DistributedStructs:
             )
             checkpoints = legacy + sorted(Path(path).glob("rank_*/*.ckpt"))
         checkpoints = gp.comm.bcast(checkpoints, root=0)
+        if not checkpoints:
+            # Nothing to merge: keep every rank's structures where they are
+            self._checkpointed = {
+                name
+                for name, xtal in self.structs.items()
+                if result_key in xtal.info
+            }
+            return 0
 
         # Each rank reads its share of the files
         restored, problems = [], []
