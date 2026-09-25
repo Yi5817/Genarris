@@ -130,7 +130,7 @@ def _diff_configs(
     """
     keys = set(saved) & set(current) if shared_only else set(saved) | set(current)
     diffs = []
-    for key in sorted(keys, key=str):
+    for key in sorted(keys):
         old_val = saved.get(key, "<not set>")
         new_val = current.get(key, "<not set>")
         if isinstance(old_val, dict) and isinstance(new_val, dict):
@@ -163,21 +163,6 @@ def _resolve(which: str, config: dict) -> list[TaskSpec]:
         raise RestartError(f"The {which} task list is invalid: {exc}") from exc
 
 
-def _overrides(config: dict, task_type: str, instance_id: str) -> dict:
-    """
-    Per-instance overrides of one task; empty unless the task is repeated.
-
-    Args:
-        config: Saved or current config.
-        task_type: Task type, e.g. ``dedup``.
-        instance_id: Task instance id, e.g. ``dedup_2``.
-
-    Returns:
-        The ``[instance_id]`` section, or an empty dict.
-    """
-    return config.get(instance_id, {}) if instance_id != task_type else {}
-
-
 def _task_diffs(
     saved_config: dict,
     current_config: dict,
@@ -204,13 +189,14 @@ def _task_diffs(
     Returns:
         Every differing setting as ``"section.key: old -> new"``.
     """
-    saved_over = _overrides(saved_config, spec.task_type, saved_id)
-    current_over = _overrides(current_config, spec.task_type, spec.instance_id)
+    base, current_id = spec.task_type, spec.instance_id
+    saved_over = saved_config.get(saved_id, {}) if saved_id != base else {}
+    current_over = current_config.get(current_id, {}) if current_id != base else {}
     overridden = set(saved_over) | set(current_over)
     diffs = []
     for section in spec.sections:
-        if section == spec.instance_id and section != spec.task_type:
-            continue  # the override section itself
+        if section == current_id != base:
+            continue
         saved = {**saved_config.get(section, {}), **saved_over}
         current = {**current_config.get(section, {}), **current_over}
         for prefix, keys in (
@@ -307,7 +293,7 @@ class Restart:
         Raises:
             RestartError: If the restart file exists but cannot be used.
         """
-        payload = self._collective(self._read_restart_file)
+        payload = self._collective(self._read_record)
         if payload is None:
             logger.info("No restart file found")
             return False
@@ -343,7 +329,27 @@ class Restart:
             raise RestartError(error)
         return result
 
-    def _read_restart_file(self) -> dict | None:
+    def _find_records(self) -> list[str]:
+        """
+        Restart files present in the run directory. Master rank only.
+
+        Returns:
+            The current file first, then the ``tmp/restart.json`` of older
+            releases; only the ones that exist.
+        """
+        paths = [self.restart_file, restart_path(self.gnrs_info["tmp_dir"])]
+        return [path for path in paths if os.path.isfile(path)]
+
+    def find_records(self) -> list[str]:
+        """
+        Restart files present in the run directory. Collective.
+
+        Returns:
+            See ``_find_records``.
+        """
+        return self._collective(self._find_records)
+
+    def _read_record(self) -> dict | None:
         """
         Read and validate the restart file. Master rank only.
 
@@ -354,15 +360,12 @@ class Restart:
             RestartError: If the file is unreadable, malformed or written by
                 another Genarris release.
         """
-        path = self.restart_file
-        if not os.path.isfile(path):
-            # Older releases kept the restart file under tmp/
-            tmp_dir = self.gnrs_info.get("tmp_dir")
-            if tmp_dir and os.path.isfile(restart_path(tmp_dir)):
-                raise RestartError(
-                    f"Restart file {restart_path(tmp_dir)} {_OLDER_RELEASE}"
-                )
+        found = self._find_records()
+        if not found:
             return None
+        path = found[0]
+        if path != self.restart_file:
+            raise RestartError(f"Restart file {path} {_OLDER_RELEASE}")
 
         logger.info(f"Reading restart file {path}")
         try:
@@ -428,8 +431,8 @@ class Restart:
 
         # Rewrite stored paths if the run directory was moved or renamed
         old_work_dir = saved_info.get("work_dir")
-        new_work_dir = self.gnrs_info.get("work_dir")
-        if old_work_dir and new_work_dir and old_work_dir != new_work_dir:
+        new_work_dir = self.gnrs_info["work_dir"]
+        if old_work_dir and old_work_dir != new_work_dir:
             logger.info(
                 f"Run directory moved from {old_work_dir} to {new_work_dir}; "
                 "remapping saved paths"
@@ -484,7 +487,7 @@ class Restart:
         Raises:
             RestartError: If a completed task moved or changed.
         """
-        completed, renamed = [], {}
+        completed = []
         for pos, saved in enumerate(saved_specs):
             if not self.is_task_completed(saved.instance_id):
                 continue
@@ -501,12 +504,11 @@ class Restart:
                     "one may be changed, removed or added. Restore the "
                     "previous list to resume, or start over with --overwrite."
                 )
-            if current.instance_id != saved.instance_id:
-                renamed[saved.instance_id] = current.instance_id
             completed.append((saved.instance_id, current))
-        for saved_id, current_id in renamed.items():
-            logger.info(f"Completed task {saved_id} is now {current_id}")
-            self.gnrs_info[current_id] = self.gnrs_info.pop(saved_id)
+        for saved_id, current in completed:
+            if current.instance_id != saved_id:
+                logger.info(f"Completed task {saved_id} is now {current.instance_id}")
+                self.gnrs_info[current.instance_id] = self.gnrs_info.pop(saved_id)
         return completed
 
     def _check_config(
@@ -595,14 +597,11 @@ class Restart:
             spec in the current one.
         """
         resumable = []
-        for pos, spec in enumerate(current_specs):
+        for spec, saved in zip(current_specs, saved_specs):
             if self.is_task_completed(spec.instance_id):
                 continue
-            saved = saved_specs[pos] if pos < len(saved_specs) else None
-            if (
-                saved is None
-                or saved.task_type != spec.task_type
-                or _task_diffs(saved_config, current_config, spec, saved.instance_id)
+            if saved.task_type != spec.task_type or _task_diffs(
+                saved_config, current_config, spec, saved.instance_id
             ):
                 break
             resumable.append((saved.instance_id, spec))
