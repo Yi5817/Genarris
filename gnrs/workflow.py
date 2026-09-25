@@ -25,13 +25,7 @@ from gnrs.parallel import init_parallel
 from gnrs.parallel.structs import DistributedStructs
 from gnrs.parser import UserSettingsParser, UserSettingsSanityChecker
 from gnrs.parallel.test import test_bcast
-from gnrs.core.restart import (
-    RestartError,
-    restart_init,
-    is_task_completed,
-    load_restart,
-    write_restart,
-)
+from gnrs.core.restart import Restart, RestartError, restart_path
 from gnrs.gnrsutil.core import check_if_exp_found
 
 import argparse
@@ -60,7 +54,7 @@ class Genarris:
         self._parallel_init(seed=self.seed)
         self._gnrs_info_init()
         self._config_init(args)
-        restart_init(self.comm, self.config, self.gnrs_info)
+        self.restart_manager = Restart(self.comm, self.config, self.gnrs_info)
         if self.restart:
             self.attempt_restart()
         else:
@@ -159,10 +153,10 @@ class Genarris:
             RestartError: If no restart file exists in the current directory.
         """
         gout.print_title("Restarting Genarris")
-        if not load_restart():
+        if not self.restart_manager.load():
             raise RestartError(
                 "--restart was requested, but no restart file was found at "
-                f"{os.path.join(self.gnrs_info['work_dir'], 'restart.json')}. "
+                f"{self.restart_manager.restart_file}. "
                 "Run from the directory of a previous Genarris run, or start "
                 "a new run without --restart. Runs made with older Genarris "
                 "versions keep this file at tmp/restart.json; move it to the "
@@ -182,8 +176,8 @@ class Genarris:
         """
         # Older releases kept the restart file under tmp/
         candidates = [
-            os.path.join(self.gnrs_info["work_dir"], "restart.json"),
-            os.path.join(self.gnrs_info["tmp_dir"], "restart.json"),
+            self.restart_manager.restart_file,
+            restart_path(self.gnrs_info["tmp_dir"]),
         ]
         found = None
         if self.is_master:
@@ -228,7 +222,7 @@ class Genarris:
 
         completed, pending = [], []
         for spec in specs:
-            if is_task_completed(spec.instance_id):
+            if self.restart_manager.is_task_completed(spec.instance_id):
                 completed.append(spec.instance_id)
             else:
                 pending.append(spec.instance_id)
@@ -273,14 +267,14 @@ class Genarris:
         gout.emit(f"Executing {len(task_specs)} configured tasks")
         
         for spec in task_specs:
-            if not is_task_completed(spec.instance_id):
+            if not self.restart_manager.is_task_completed(spec.instance_id):
                 gout.emit(f"Running task: {spec.instance_id}")
                 spec.cls(
                     self.comm, self.config, self.gnrs_info,
                     *spec.extra_args,
                     instance_id=spec.instance_id,
                 ).run()
-                write_restart()
+                self.restart_manager.write()
                 test_bcast()
                 check_if_exp_found(self.config, self.gnrs_info)
             else:

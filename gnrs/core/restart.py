@@ -11,20 +11,23 @@ __author__ = ["Yi Yang", "Rithwik Tom"]
 __email__ = "yiy5@andrew.cmu.edu"
 __group__ = "https://www.noamarom.com/"
 
-import os
 import json
 import logging
+import os
 from contextlib import suppress
 
 import numpy as np
 from mpi4py import MPI
 
 import gnrs.output as gout
-from gnrs.core.registry import resolve_tasks
+from gnrs.core.registry import TaskSpec, resolve_tasks
 
 logger = logging.getLogger("restart")
 
-# Format version stamped into restart files for future checks
+RESTART_FILE = "restart.json"
+
+# Format version stamped into restart files. Files without one were written
+# by releases before the stamp existed and use the same layout.
 RESTART_VERSION = 1
 
 
@@ -34,21 +37,40 @@ class RestartError(Exception):
     """
 
 
+def restart_path(directory: str) -> str:
+    """
+    Path of the restart file inside a run directory.
+
+    Args:
+        directory: Run directory.
+
+    Returns:
+        Absolute path of the restart file.
+    """
+    return os.path.join(directory, RESTART_FILE)
+
+
 def _json_default(obj: object) -> object:
     """
-    Convert objects that json cannot serialize natively.
+    Convert NumPy scalars and arrays for json; refuse anything else.
 
     Args:
         obj: Object that json could not serialize.
 
     Returns:
         A JSON-serializable representation of the object.
+
+    Raises:
+        TypeError: If the object has no faithful JSON representation. It
+            would otherwise silently come back as a string on restart.
     """
     if isinstance(obj, np.generic):
         return obj.item()
     if isinstance(obj, np.ndarray):
         return obj.tolist()
-    return str(obj)
+    raise TypeError(
+        f"{type(obj).__name__} value {obj!r} cannot be stored in the restart file"
+    )
 
 
 def _remap_paths(obj: object, old_root: str, new_root: str) -> object:
@@ -86,7 +108,7 @@ def _diff_configs(saved: dict, current: dict, prefix: str = "") -> list[str]:
         prefix: Key prefix used for nested sections.
 
     Returns:
-        Every differing setting.
+        Every differing setting as ``"section.key: old -> new"``.
     """
     diffs = []
     for key in sorted(set(saved) | set(current), key=str):
@@ -101,29 +123,20 @@ def _diff_configs(saved: dict, current: dict, prefix: str = "") -> list[str]:
 
 class Restart:
     """
-    Manages saving and loading program state for restart functionality.
+    Keeps the progress record of a run: which tasks completed, where their
+    results are, and the config they ran with.
+
+    The record is a JSON file in the run directory, written on the master
+    rank after every completed task. Loading it is collective: every rank
+    ends up with the same state, or every rank raises the same error.
     """
 
-    def __init__(self) -> None:
-        self.comm: MPI.Comm | None = None
-        self.config: dict = {}
-        self.gnrs_info: dict = {}
-        self.restart_file: str | None = None
-        self.is_master: bool = False
-
-    def initialize(
-        self,
-        comm: MPI.Comm,
-        config: dict,
-        gnrs_info: dict
-    ) -> None:
+    def __init__(self, comm: MPI.Comm, config: dict, gnrs_info: dict) -> None:
         """
-        Initialize the restart manager.
-
         Args:
-            comm: MPI communicator
-            config: Config dictionary
-            gnrs_info: Genarris info dictionary
+            comm: MPI communicator.
+            config: Live config dictionary; updated in place on load.
+            gnrs_info: Live Genarris info dictionary; updated in place on load.
         """
         self.comm = comm
         self.config = config
@@ -131,13 +144,11 @@ class Restart:
         self.is_master = comm.Get_rank() == 0
         # The restart file lives in the work directory, next to the run's
         # results, so cleaning the tmp/ scratch dir cannot destroy it.
-        self.restart_file = os.path.join(
-            self.gnrs_info["work_dir"], "restart.json"
-        )
+        self.restart_file = restart_path(gnrs_info["work_dir"])
 
-    def write_restart(self) -> None:
+    def write(self) -> None:
         """
-        Write current program state to restart file.
+        Write the current program state to the restart file.
 
         The file is written atomically (temporary file, then rename) so a
         crash mid-write can never corrupt an existing restart file. A
@@ -170,12 +181,13 @@ class Restart:
             with suppress(OSError):
                 os.remove(tmp_file)
 
-    def load_restart(self) -> bool:
+    def load(self) -> bool:
         """
-        Load program state from restart file.
+        Load program state from the restart file. Collective.
 
-        The current config file takes precedence over the saved config;
-        any settings that changed since the original run are reported.
+        Settings of completed tasks must match the saved ones; for every
+        other setting the current config file takes precedence and the
+        change is reported.
 
         Returns:
             True if a restart file was found and loaded, False otherwise.
@@ -183,40 +195,40 @@ class Restart:
         Raises:
             RestartError: If the restart file exists but cannot be used.
         """
-        payload = None
-        error = None
-        if self.is_master:
-            try:
-                payload = self._read_restart_file()
-            except RestartError as exc:
-                error = str(exc)
-
-        # Fail together on all ranks with a clear message instead of
-        # leaving non-master ranks blocked in the broadcast.
-        error = self.comm.bcast(error, root=0)
-        if error is not None:
-            raise RestartError(error)
-
-        payload = self.comm.bcast(payload, root=0)
+        payload = self._collective(self._read_restart_file)
         if payload is None:
             logger.info("No restart file found")
             return False
 
         self._apply_restart(payload)
+        self._collective(self._check_last_struct)
+        return True
 
-        # Fail early if the structure file needed to resume is gone
-        error = None
-        last_struct = self.gnrs_info.get("last_struct_path")
-        if self.is_master and last_struct and not os.path.isfile(last_struct):
-            error = (
-                f"The structure file needed to resume ({last_struct}) no "
-                "longer exists. Start a fresh run without --restart."
-            )
-        error = self.comm.bcast(error, root=0)
+    def _collective(self, master_func):
+        """
+        Run a step on the master rank and share its result or its error.
+
+        Args:
+            master_func: Callable run on the master rank only. It may raise
+                RestartError.
+
+        Returns:
+            The callable's return value, on every rank.
+
+        Raises:
+            RestartError: On every rank, if the master rank raised one.
+                Non-master ranks would otherwise block in the broadcast.
+        """
+        result, error = None, None
+        if self.is_master:
+            try:
+                result = master_func()
+            except RestartError as exc:
+                error = str(exc)
+        result, error = self.comm.bcast((result, error), root=0)
         if error is not None:
             raise RestartError(error)
-
-        return True
+        return result
 
     def _read_restart_file(self) -> dict | None:
         """
@@ -226,7 +238,8 @@ class Restart:
             Parsed restart data, or None if no restart file exists.
 
         Raises:
-            RestartError: If the file is unreadable or malformed.
+            RestartError: If the file is unreadable, malformed or written by
+                a newer Genarris.
         """
         path = self.restart_file
         if not os.path.isfile(path):
@@ -253,7 +266,29 @@ class Restart:
                 "Delete it and rerun without --restart to start over."
             )
 
+        version = data.get("version", 1)
+        if not isinstance(version, int) or version > RESTART_VERSION:
+            raise RestartError(
+                f"Restart file {path} was written by a newer Genarris "
+                f"(format version {version}, this release reads up to "
+                f"{RESTART_VERSION}). Use that Genarris version to resume, "
+                "or start over with --overwrite."
+            )
         return data
+
+    def _check_last_struct(self) -> None:
+        """
+        Fail early if the structure file needed to resume is gone.
+
+        Raises:
+            RestartError: If the last completed task's result file is missing.
+        """
+        last_struct = self.gnrs_info.get("last_struct_path")
+        if last_struct and not os.path.isfile(last_struct):
+            raise RestartError(
+                f"The structure file needed to resume ({last_struct}) no "
+                "longer exists. Start a fresh run without --restart."
+            )
 
     def _apply_restart(self, payload: dict) -> None:
         """
@@ -287,25 +322,11 @@ class Restart:
         ):
             saved_info.pop(key, None)
         self.gnrs_info.update(saved_info)
-        self._check_task_list(saved_config)
 
-        # The current config file wins; tell the user what changed.
-        current_config = json.loads(
-            json.dumps(self.config, default=_json_default)
-        )
-        diffs = _diff_configs(saved_config, current_config)
-        if diffs:
-            logger.warning(
-                "Config differs from the previous run: " + "; ".join(diffs)
-            )
-            gout.emit(
-                "WARNING: Settings changed since the previous run "
-                "(the current config file takes precedence):"
-            )
-            for diff in diffs:
-                gout.emit(f"    {diff}")
+        completed = self._check_task_list(saved_config)
+        self._check_config(saved_config, completed)
 
-    def _check_task_list(self, saved_config: dict) -> None:
+    def _check_task_list(self, saved_config: dict) -> list[TaskSpec]:
         """
         Refuse to resume if the completed tasks no longer line up with the
         current task list. Completed tasks are matched by position, so
@@ -318,27 +339,31 @@ class Restart:
         Args:
             saved_config: Config stored in the restart file.
 
+        Returns:
+            The completed tasks, in workflow order.
+
         Raises:
             RestartError: If a completed task moved or changed.
         """
         saved_tasks = saved_config.get("workflow", {}).get("tasks", [])
         current_tasks = self.config.get("workflow", {}).get("tasks", [])
-        if saved_tasks == current_tasks:
-            return
         try:
-            saved_ids = [s.instance_id for s in resolve_tasks(saved_tasks)]
+            saved_specs = resolve_tasks(saved_tasks)
             current_ids = [s.instance_id for s in resolve_tasks(current_tasks)]
         except ValueError:
-            return  # an invalid task list is reported when the tasks run
+            return []  # an invalid task list is reported when the tasks run
 
-        for pos, task_id in enumerate(saved_ids):
-            if not self.check_task_completion(task_id):
+        completed = []
+        for pos, spec in enumerate(saved_specs):
+            if not self.is_task_completed(spec.instance_id):
                 continue
-            if pos < len(current_ids) and current_ids[pos] == task_id:
+            if pos < len(current_ids) and current_ids[pos] == spec.instance_id:
+                completed.append(spec)
                 continue
             raise RestartError(
-                "The task list changed since the previous run, so its "
-                "completed tasks no longer line up with it:\n"
+                f"The task list changed since the previous run, so the "
+                f"completed task '{spec.instance_id}' (position {pos + 1}) "
+                "no longer lines up with it:\n"
                 f"    previous: {saved_tasks}\n"
                 f"    current:  {current_tasks}\n"
                 "Completed tasks are matched by their position in [workflow] "
@@ -347,43 +372,67 @@ class Restart:
                 "type already in the list is not), or start over with "
                 "--overwrite."
             )
+        return completed
 
-    def check_task_completion(self, task_name: str) -> bool:
+    def _check_config(self, saved_config: dict, completed: list[TaskSpec]) -> None:
+        """
+        Compare the saved config with the current one.
+
+        Sections of completed tasks are frozen: their results were produced
+        with the saved settings, so a change is refused rather than silently
+        ignored. Any other change is reported and the current config wins.
+
+        Args:
+            saved_config: Config stored in the restart file.
+            completed: Tasks already completed, from ``_check_task_list``.
+
+        Raises:
+            RestartError: If a setting of a completed task changed.
+        """
+        # Normalize the live config the way the saved one was stored
+        current_config = json.loads(
+            json.dumps(self.config, default=_json_default)
+        )
+        frozen = {s.task_type for s in completed} | {s.instance_id for s in completed}
+        blocked = []
+        for section in sorted(frozen):
+            blocked.extend(_diff_configs(
+                saved_config.get(section, {}),
+                current_config.get(section, {}),
+                f"{section}.",
+            ))
+        if blocked:
+            raise RestartError(
+                "Settings of already completed tasks changed since the "
+                "previous run:\n    "
+                + "\n    ".join(blocked)
+                + "\nTheir results were produced with the previous settings. "
+                "Restore them to resume, or start over with --overwrite."
+            )
+        diffs = _diff_configs(saved_config, current_config)
+        if diffs:
+            logger.warning(
+                "Config differs from the previous run: " + "; ".join(diffs)
+            )
+            gout.emit(
+                "WARNING: Settings changed since the previous run "
+                "(the current config file takes precedence):"
+            )
+            for diff in diffs:
+                gout.emit(f"    {diff}")
+
+    def is_task_completed(self, task_name: str) -> bool:
         """
         Check if a task has been completed.
+
+        Args:
+            task_name: Task instance id, e.g. ``dedup_2``.
+
+        Returns:
+            True if the task finished in a previous run.
         """
         task = self.gnrs_info.get(task_name)
         return isinstance(task, dict) and task.get("status") == "completed"
 
 
-# Global singleton instance
-_restart = Restart()
-
-def restart_init(comm: MPI.Comm, config: dict, gnrs_info: dict) -> None:
-    """
-    Initialize the global restart manager.
-    """
-    _restart.initialize(comm, config, gnrs_info)
-
-def write_restart() -> None:
-    """
-    Write current program state to restart file.
-    """
-    _restart.write_restart()
-
-def load_restart() -> bool:
-    """
-    Load program state from restart file.
-    """
-    return _restart.load_restart()
-
-def is_task_completed(task_name: str) -> bool:
-    """
-    Check if a task has been completed.
-    """
-    return _restart.check_task_completion(task_name)
-
-__all__ = [
-    "RestartError", "restart_init", "write_restart",
-    "load_restart", "is_task_completed"
-]
+__all__ = ["RESTART_FILE", "Restart", "RestartError", "restart_path"]

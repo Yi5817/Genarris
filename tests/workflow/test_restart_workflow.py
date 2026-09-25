@@ -182,6 +182,28 @@ def test_restart_with_changed_task_list_is_refused(
     assert "task list changed" in flat(proc.stdout)
 
 
+def test_restart_with_changed_completed_settings_is_refused(
+    run_copy: Path, mpi_free_env: dict[str, str]
+) -> None:
+    make_interrupted(run_copy)
+    conf = run_copy / "ui.conf"
+    conf.write_text(conf.read_text().replace("sr = 0.95", "sr = 0.90"))
+    proc = run_gnrs(run_copy, mpi_free_env, "--restart")
+    assert proc.returncode != 0
+    assert "generation.sr: 0.95 -> 0.9" in flat(proc.stdout)
+
+
+def test_restart_with_changed_pending_settings_warns(
+    run_copy: Path, mpi_free_env: dict[str, str]
+) -> None:
+    make_interrupted(run_copy)
+    conf = run_copy / "ui.conf"
+    conf.write_text(conf.read_text().replace("sr = 0.85", "sr = 0.80"))
+    proc = run_gnrs(run_copy, mpi_free_env, "--restart")
+    assert proc.returncode == 0, proc.stdout + proc.stderr
+    assert "symm_rigid_press.sr: 0.85 -> 0.8" in flat(proc.stdout)
+
+
 def test_fresh_run_over_previous_run_is_refused(
     run_copy: Path, mpi_free_env: dict[str, str]
 ) -> None:
