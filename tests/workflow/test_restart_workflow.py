@@ -128,8 +128,9 @@ def run_copy(finished_run: Path, tmp_path: Path) -> Path:
     return workdir
 
 
+@pytest.mark.parametrize("nproc", [1, 3])
 def test_resume_interrupted_task_on_other_process_count(
-    run_copy: Path, mpi_free_env: dict[str, str]
+    run_copy: Path, mpi_free_env: dict[str, str], nproc: int
 ) -> None:
     make_interrupted(run_copy)
     logs = sorted((run_copy / "tmp" / "symm_rigid_press").glob("rank_*/*.ckpt"))
@@ -142,7 +143,7 @@ def test_resume_interrupted_task_on_other_process_count(
     # The restart must not depend on the user's molecule file any more
     (run_copy / "benzene.xyz").unlink()
 
-    proc = run_gnrs(run_copy, mpi_free_env, "--restart", nproc=1)
+    proc = run_gnrs(run_copy, mpi_free_env, "--restart", nproc=nproc)
 
     assert proc.returncode == 0, proc.stdout + proc.stderr
     out = flat(proc.stdout)
@@ -155,8 +156,10 @@ def test_resume_interrupted_task_on_other_process_count(
     n_out = n_structures(structures / "symm_rigid_press" / "structures.json")
     assert n_out == n_in, "no structure may be lost on restart"
     # Restored structures are not recomputed, so they are not logged again;
-    # only the damaged entry is (the cut line does not end like a whole one)
-    lines = logs[0].read_text().splitlines()
+    # the rest is logged once, on whichever rank computed it (the cut line
+    # does not end like a whole one and is not counted)
+    logs = (run_copy / "tmp" / "symm_rigid_press").glob("rank_*/*.ckpt")
+    lines = [line for log in logs for line in log.read_text().splitlines()]
     names = [line.split(":", 1)[0] for line in lines if line.endswith("},")]
     assert len(names) == len(set(names)) == n_in
 
