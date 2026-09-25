@@ -244,6 +244,22 @@ def test_changed_override_of_method_section_is_reported_once(tmp_path: Path) -> 
     assert "bfgs_maceoff_1.maxiter" in str(info.value)
 
 
+def test_nested_override_of_cluster_task_masks_base_setting(tmp_path: Path) -> None:
+    # Cluster tasks read [ap_center_1] ap: {...}, so the completed ap_center_1
+    # never used [ap].damping and it may change for ap_center_2
+    tasks = ["generation", "ap_center", "ap_center"]
+    manager = _manager(
+        tmp_path, tasks, completed=["generation", "ap_center_1"],
+        config={"ap": {"damping": 0.6}, "ap_center_1": {"ap": {"damping": 0.9}}},
+    )
+    saved = _saved(tasks, ap={"damping": 0.5}, ap_center_1={"ap": {"damping": 0.9}})
+    _apply(manager, saved)
+    saved = _saved(tasks, ap={"damping": 0.6}, ap_center_1={"ap": {"damping": 0.8}})
+    with pytest.raises(RestartError, match="ap_center_1.damping: 0.8 -> 0.9") as info:
+        _apply(manager, saved)
+    assert str(info.value).count("damping") == 1
+
+
 def test_removed_override_falls_back_to_base_setting(tmp_path: Path) -> None:
     tasks = ["generation", "dedup", "dedup"]
     manager = _manager(

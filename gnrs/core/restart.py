@@ -163,6 +163,25 @@ def _resolve(which: str, config: dict) -> list[TaskSpec]:
         raise RestartError(f"The {which} task list is invalid: {exc}") from exc
 
 
+def _section_overrides(overrides: dict, section: str, sections: tuple) -> dict:
+    """
+    The overrides that apply to one section: the entry nested under its
+    name, none if other sections have such entries, else the flat overrides.
+
+    Args:
+        overrides: The ``[instance_id]`` section.
+        section: Config section the task reads.
+        sections: All sections the task reads.
+
+    Returns:
+        The override keys for that section.
+    """
+    nested = set(overrides) & set(sections)
+    if section in nested:
+        return overrides[section]
+    return {} if nested else overrides
+
+
 def _task_diffs(
     saved_config: dict,
     current_config: dict,
@@ -175,8 +194,9 @@ def _task_diffs(
 
     A task reads each of its sections with the per-instance overrides applied
     on top, as ``TaskABC._merge_config`` does, so a change of a base setting
-    that the override masks is not a change. A changed override affects every
-    section alike and is reported once, under the instance id.
+    that the override masks is not a change. Overrides are flat keys, or
+    nested per section as cluster tasks read them (``[ap_center_2] ap:
+    {...}``). A changed override is reported once, under the instance id.
 
     Args:
         saved_config: Config stored in the restart file.
@@ -192,13 +212,15 @@ def _task_diffs(
     base, current_id = spec.task_type, spec.instance_id
     saved_over = saved_config.get(saved_id, {}) if saved_id != base else {}
     current_over = current_config.get(current_id, {}) if current_id != base else {}
-    overridden = set(saved_over) | set(current_over)
     diffs = []
     for section in spec.sections:
         if section == current_id != base:
             continue
-        saved = {**saved_config.get(section, {}), **saved_over}
-        current = {**current_config.get(section, {}), **current_over}
+        s_over = _section_overrides(saved_over, section, spec.sections)
+        c_over = _section_overrides(current_over, section, spec.sections)
+        overridden = set(s_over) | set(c_over)
+        saved = {**saved_config.get(section, {}), **s_over}
+        current = {**current_config.get(section, {}), **c_over}
         for prefix, keys in (
             (spec.instance_id, overridden),
             (section, (set(saved) | set(current)) - overridden),
