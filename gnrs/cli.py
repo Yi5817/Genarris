@@ -68,6 +68,7 @@ def main():
         exit_code = 1
     except Exception as exc:
         logger.exception("Genarris exiting due to error")
+        # Every rank reports its own failure; gout.emit prints on rank 0 only
         print(
             f"\nERROR: Genarris rank {comm.Get_rank()} failed with "
             f"{type(exc).__name__}: {exc}\n{traceback.format_exc()}",
