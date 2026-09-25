@@ -175,10 +175,19 @@ class Genarris:
         """
         found = self.restart_manager.find_records()
         if found and not self.overwrite:
+            if found[0] == self.restart_manager.restart_file:
+                hint = (
+                    "Rerun with --restart to resume it, or with --overwrite "
+                    "to discard its progress and start over."
+                )
+            else:
+                hint = (
+                    "It was made with an older Genarris release and cannot "
+                    "be resumed; start over with --overwrite."
+                )
             raise RestartError(
-                "This directory already contains a Genarris run "
-                f"({found[0]}). Rerun with --restart to resume it, or "
-                "with --overwrite to discard its progress and start over."
+                f"This directory already contains a Genarris run ({found[0]}). "
+                + hint
             )
         if found:
             self.logger.warning("Discarding previous run record (--overwrite)")
