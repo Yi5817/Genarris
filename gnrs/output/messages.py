@@ -195,7 +195,8 @@ def skip_task(task_name: str) -> None:
 
 def emit(message: str) -> None:
     if is_master:
-        print(wrapper.fill(message), flush=True)
+        lines = message.splitlines() or [""]
+        print("\n".join(wrapper.fill(line) for line in lines), flush=True)
 
 
 def single_separator() -> None:

@@ -49,7 +49,6 @@ def main():
     comm = MPI.COMM_WORLD
     logger = logging.getLogger("genarris")
     aborted = False
-    exit_code = 0
     try:
         # Initialize and run Genarris
         from gnrs.workflow import Genarris
@@ -63,10 +62,8 @@ def main():
         comm.Abort(130)
     except (RestartError, UnknownTaskError) as exc:
         logger.error(f"Cannot run: {exc}")
-        gout.emit("")
-        for line in f"ERROR: {exc}".splitlines():
-            gout.emit(line)
-        exit_code = 1
+        gout.emit(f"\nERROR: {exc}")
+        sys.exit(1)  # after the finally block finalizes MPI
     except Exception as exc:
         logger.exception("Genarris exiting due to error")
         # Every rank reports its own failure; gout.emit prints on rank 0 only
@@ -82,8 +79,6 @@ def main():
         if not aborted:
             comm.Barrier()
             MPI.Finalize()
-    if exit_code:
-        sys.exit(exit_code)
 
 
 if __name__ == "__main__":
