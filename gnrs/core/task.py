@@ -14,7 +14,6 @@ import os
 import abc
 import time
 
-from ase import Atoms
 from mpi4py import MPI
 
 import gnrs.output as gout
@@ -186,17 +185,6 @@ class TaskABC(abc.ABC):
             f"{n_total - n_restored} remaining."
         )
         gout.emit("")
-
-    def _checkpoint(self, name: str, xtal: Atoms) -> None:
-        """
-        Log one completed structure to this rank's checkpoint file. Passed
-        to the batch runners as ``on_structure_done``.
-
-        Args:
-            name: Structure ID.
-            xtal: The completed structure.
-        """
-        self.dsdict.checkpoint_save(self.rank_calc_dir, name, xtal)
 
     @abc.abstractmethod
     def perform_task(self, task_set: dict) -> None:

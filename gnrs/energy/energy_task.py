@@ -14,6 +14,7 @@ import importlib
 import json
 import logging
 import os
+from functools import partial
 
 from mpi4py import MPI
 
@@ -111,7 +112,9 @@ class EnergyCalculationTask(TaskABC):
         # Calculate energy
         calc = self.energy_calc(self.comm, task_settings, self.energy_name)
         calc.run_batch(
-            self.structs, on_structure_done=self._checkpoint, done=self.dsdict.done
+            self.structs,
+            on_structure_done=partial(self.dsdict.checkpoint_save, self.rank_calc_dir),
+            done=self.dsdict.done,
         )
 
     def collect_results(self) -> None:

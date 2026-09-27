@@ -36,7 +36,8 @@ def _pool(n: int) -> dict[str, Atoms]:
 
 
 def _logged_names(ckpt: Path) -> list[str]:
-    return [line.split(":", 1)[0].strip('"') for line in ckpt.read_text().splitlines()]
+    lines = [line for line in ckpt.read_text().splitlines() if line]
+    return [line.split(":", 1)[0].strip('"') for line in lines]
 
 
 def test_save_appends_each_completed_structure_once(tmp_path: Path) -> None:

@@ -14,6 +14,7 @@ import os
 import json
 import importlib
 import logging
+from functools import partial
 
 from mpi4py import MPI
 import gnrs.output as gout
@@ -108,10 +109,7 @@ class GeometryOptimizationTask(TaskABC):
             True if this task reads ``struct_path``.
         """
         specs = resolve_tasks(self.config.get("workflow", {}).get("tasks", []))
-        first = next(
-            (s.instance_id for s in specs if self.opt_name in s.sections),
-            self._active_instance_id,
-        )
+        first = next(s.instance_id for s in specs if self.opt_name in s.sections)
         return first == self._active_instance_id
 
     def _load_modules(self) -> None:
@@ -230,7 +228,9 @@ class GeometryOptimizationTask(TaskABC):
         )
 
         opt.run_batch(
-            self.structs, on_structure_done=self._checkpoint, done=self.dsdict.done
+            self.structs,
+            on_structure_done=partial(self.dsdict.checkpoint_save, self.rank_calc_dir),
+            done=self.dsdict.done,
         )
         gout.emit("Completed optimizations.")
 

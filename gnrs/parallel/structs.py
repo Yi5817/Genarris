@@ -194,15 +194,10 @@ class DistributedStructs:
         """
         if name in self._done:
             return
-        with open(os.path.join(path, f"{gp.rank}.ckpt"), "ab+") as chk:
-            # A line cut short by a job kill has no newline; start on a fresh
-            # line so that only the damaged entry is lost, not the next one
-            chk.seek(0, os.SEEK_END)
-            if chk.tell() > 0:
-                chk.seek(-1, os.SEEK_END)
-                if chk.read(1) != b"\n":
-                    chk.write(b"\n")
-            chk.write(encode_struct(name, xtal).encode())
+        with open(os.path.join(path, f"{gp.rank}.ckpt"), "ab") as chk:
+            # Leading newline terminates a line cut short by a job kill, so
+            # only the damaged entry is lost; the reader skips blank lines
+            chk.write(b"\n" + encode_struct(name, xtal).encode())
         self._done.add(name)
 
     @staticmethod
@@ -289,7 +284,7 @@ class DistributedStructs:
                 continue
             if n_bad:
                 problems.append(f"{checkpoint}: {n_bad} damaged line(s) skipped")
-            restored.extend((idx, name, xtal) for name, xtal in structs.items())
+            restored.extend(structs.items())
 
         restored = gp.comm.gather(restored, root=0)
         problems = gp.comm.gather(problems, root=0)
@@ -304,10 +299,8 @@ class DistributedStructs:
                     "will be recomputed."
                 )
             combined = {n: x for structs in current for n, x in structs.items()}
-            # Later files win, so a structure logged twice keeps its newest copy
-            restored = sorted(chain.from_iterable(restored), key=lambda r: r[0])
             done = set()
-            for _, name, xtal in restored:
+            for name, xtal in chain.from_iterable(restored):
                 if name in combined:
                     combined[name] = xtal
                     done.add(name)
@@ -346,29 +339,8 @@ class DistributedStructs:
         across cores
         """
         allstructs = gp.comm.gather(self.structs, root=0)
-        scatter_list = None
-
-        # Assemble the list to be scattered
+        chunks = None
         if gp.is_master:
-            # Combine all dictionaries
-            combined_structs = {}
-            for struct_dict in allstructs:
-                combined_structs.update(struct_dict)
-                
-            # Split dict into list of dicts
-            items = list(combined_structs.items())
-            num_per_rank = len(combined_structs) // gp.size
-            remainder = len(combined_structs) % gp.size
-            
-            scatter_list = []
-            start_idx = 0
-            
-            for rank in range(gp.size):
-                slice_size = num_per_rank + (1 if rank < remainder else 0)
-                end_idx = start_idx + slice_size
-                scatter_list.append(dict(items[start_idx:end_idx]))
-                start_idx = end_idx
-                
-            scatter_list.reverse()
-
-        self.structs = gp.comm.scatter(scatter_list, root=0)
+            combined = {n: x for structs in allstructs for n, x in structs.items()}
+            chunks = self._balanced_chunks(combined, set(), gp.size)
+        self.structs = gp.comm.scatter(chunks, root=0)
