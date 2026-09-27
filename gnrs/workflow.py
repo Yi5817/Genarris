@@ -154,7 +154,8 @@ class Genarris:
             RestartError: If no restart file exists in the current directory.
         """
         gout.print_title("Restarting Genarris")
-        if not self.restart_manager.load():
+        discarded = self.restart_manager.load()
+        if discarded is None:
             raise RestartError(
                 "--restart was requested, but no restart file was found at "
                 f"{self.restart_manager.restart_file}. "
@@ -162,6 +163,12 @@ class Genarris:
                 "a new run without --restart."
             )
         self._print_restart_summary()
+        for task in discarded:
+            gout.emit(
+                f"NOTE: The checkpoints of task '{task}' from the previous "
+                "run are discarded, because the task or one before it "
+                "changed; it starts from scratch."
+            )
         gout.double_separator()
 
     def _check_previous_run(self) -> None:
@@ -176,25 +183,19 @@ class Genarris:
         found = self.restart_manager.find_records()
         if found and not self.overwrite:
             if found[0] == self.restart_manager.restart_file:
-                hint = (
-                    "Rerun with --restart to resume it, or with --overwrite "
-                    "to discard its progress and start over."
-                )
+                hint = "Rerun with --restart to resume it, or --overwrite to start over"
             else:
-                hint = (
-                    "It was made with an older Genarris release and cannot "
-                    "be resumed; start over with --overwrite."
-                )
+                hint = "It is from an older release; start over with --overwrite"
             raise RestartError(
                 f"This directory already contains a Genarris run ({found[0]}). "
-                + hint
+                f"{hint}."
             )
         if found:
             self.logger.warning("Discarding previous run record (--overwrite)")
             gout.emit(
-                "NOTE: --overwrite given. Discarding the previous run's progress "
-                "record; results in structures/ will be overwritten as tasks "
-                "complete."
+                "NOTE: --overwrite given. The previous run's progress record is "
+                "discarded; every task starts from scratch and overwrites its "
+                "results in structures/."
             )
             gout.emit("")
             if self.is_master:

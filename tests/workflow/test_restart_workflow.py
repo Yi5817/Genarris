@@ -128,6 +128,10 @@ def finished_run(
 def run_copy(finished_run: Path, tmp_path: Path) -> Path:
     workdir = tmp_path / "run"
     shutil.copytree(finished_run, workdir)
+    # A run resumes only in its own directory; make the copy look like one
+    restart_file = workdir / "restart.json"
+    text = restart_file.read_text().replace(str(finished_run), str(workdir))
+    restart_file.write_text(text)
     return workdir
 
 
@@ -264,6 +268,6 @@ def test_overwrite_starts_over(
     (stale / "0.ckpt").write_text("")
     proc = run_gnrs(run_copy, mpi_free_env, "--overwrite")
     assert proc.returncode == 0, proc.stdout + proc.stderr
-    assert "Discarding the previous run's progress record" in flat(proc.stdout)
+    assert "progress record is discarded" in flat(proc.stdout)
     assert "All tasks completed successfully" in proc.stdout
     assert not (stale / "0.ckpt").exists()

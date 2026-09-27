@@ -142,8 +142,6 @@ Things that are safe to change between the original run and the restart:
 
 - **Number of MPI processes.** Checkpointed structures are rebalanced across
   the new process count.
-- **Run directory location.** If the directory was moved or renamed, saved
-  paths are remapped automatically.
 - **Settings of tasks that have not completed yet.** The current config file
   takes precedence; every setting that differs from the original run is listed
   at startup. If the settings of the task that was interrupted changed, its
@@ -153,16 +151,17 @@ Things that are safe to change between the original run and the restart:
   finished) and the method sections it reads (`[bfgs]` and `[maceoff]` for
   `bfgs_maceoff`, `[ap]` and `[center]` for `ap_center`). Changing their
   values is refused; restore the previous values, or start over with
-  `--overwrite`. A setting that only one of the two runs has, for example a
+  `--overwrite`. To run a later task of the same type with other values, put
+  them under that task's own id (for example `[bfgs_maceoff_2]`). A setting that only one of the two runs has, for example a
   default added by a newer Genarris release, is listed but does not block.
   `molecule_path` and `z` in `[master]` define the run and can never change
   on a restart. Other `[master]` settings, such as `log_level`, are free.
 - **Tasks after the last completed one** in `[workflow] tasks` may be
   changed, removed or added. Inserting, removing or reordering tasks *before*
   a completed one is refused, because completed tasks are matched by their
-  position in the list. Repeated tasks of one type are renumbered (`dedup_1`,
-  `dedup_2`) automatically, also when one of them is added or removed; the
-  checkpoints of an interrupted task follow it to its new name.
+  position in the list. Adding or removing a task of a type that appears
+  more than once renumbers the others (`dedup_1`, `dedup_2`), which counts as
+  such a change.
 - **The original molecule files.** Genarris works from the copies it made
   under `tmp/molecule/` and recreates them only if they are missing.
 

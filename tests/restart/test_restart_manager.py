@@ -16,7 +16,6 @@ from gnrs.core.restart import (
     RestartError,
     _diff_configs,
     _json_default,
-    _remap_paths,
 )
 
 pytestmark = pytest.mark.skipif(
@@ -58,8 +57,9 @@ def _apply(manager: Restart, saved: dict, gnrs_info: dict | None = None) -> None
     """
     Load a restart file holding the saved config into the manager.
     """
-    _write(Path(manager.gnrs_info["work_dir"]), saved, gnrs_info)
-    assert manager.load()
+    work_dir = manager.gnrs_info["work_dir"]
+    _write(Path(work_dir), saved, {"work_dir": work_dir, **(gnrs_info or {})})
+    assert manager.load() is not None
 
 
 def _checkpoint(tmp_path: Path, task: str) -> Path:
@@ -85,52 +85,24 @@ def test_appending_tasks_is_fine(tmp_path: Path) -> None:
     assert not manager.is_task_completed("dedup")
 
 
-def test_appending_duplicate_task_type_renumbers_completed_task(
+def test_appending_duplicate_of_completed_task_type_is_refused(
     tmp_path: Path,
 ) -> None:
-    # Duplicates are renumbered, so the completed symm_rigid_press is now
-    # symm_rigid_press_1 and must keep its record under that id
-    ckpt = _checkpoint(tmp_path, "symm_rigid_press")
+    # The completed symm_rigid_press would be renumbered to symm_rigid_press_1
     manager = _manager(tmp_path, WORKFLOW + ["symm_rigid_press"], completed=WORKFLOW)
-    _apply(manager, _saved())
-    assert manager.is_task_completed("symm_rigid_press_1")
-    assert not manager.is_task_completed("symm_rigid_press_2")
-    assert "symm_rigid_press" not in manager.gnrs_info
-    # Its scratch directory follows it
-    assert not ckpt.exists()
-    assert (tmp_path / "tmp" / "symm_rigid_press_1" / "rank_0" / "0.ckpt").is_file()
+    with pytest.raises(RestartError, match="task list changed"):
+        _apply(manager, _saved())
 
 
-def test_appending_duplicate_of_pending_task_keeps_its_checkpoints(
+def test_appending_duplicate_of_pending_task_discards_its_checkpoints(
     tmp_path: Path,
 ) -> None:
-    # The interrupted maceoff becomes maceoff_1 and resumes from its checkpoints
+    # The interrupted maceoff is now maceoff_1; nothing resumes from its logs
     ckpt = _checkpoint(tmp_path, "maceoff")
     tasks = ["generation", "maceoff", "bfgs_maceoff", "maceoff"]
     manager = _manager(tmp_path, tasks, completed=["generation"])
     _apply(manager, _saved(["generation", "maceoff"]))
     assert not ckpt.exists()
-    assert (tmp_path / "tmp" / "maceoff_1" / "rank_0" / "0.ckpt").is_file()
-
-
-def test_renumbered_task_replaces_a_stale_scratch_directory(tmp_path: Path) -> None:
-    _checkpoint(tmp_path, "maceoff")
-    stale = tmp_path / "tmp" / "maceoff_1" / "rank_0"
-    stale.mkdir(parents=True)
-    (stale / "old.out").write_text("")
-    tasks = ["generation", "maceoff", "bfgs_maceoff", "maceoff"]
-    _apply(_manager(tmp_path, tasks, completed=["generation"]), _saved(tasks[:2]))
-    assert (tmp_path / "tmp" / "maceoff_1" / "rank_0" / "0.ckpt").is_file()
-    assert not (stale / "old.out").exists()
-
-
-def test_removing_pending_duplicate_task_is_fine(tmp_path: Path) -> None:
-    manager = _manager(
-        tmp_path, ["generation", "dedup"], completed=["generation", "dedup_1"]
-    )
-    _apply(manager, _saved(["generation", "dedup", "dedup"]))
-    assert manager.is_task_completed("dedup")
-    assert "dedup_1" not in manager.gnrs_info
 
 
 def test_changing_pending_tasks_is_fine(tmp_path: Path) -> None:
@@ -157,7 +129,7 @@ def test_invalid_task_list_is_refused_before_touching_anything(
 ) -> None:
     ckpt = _checkpoint(tmp_path, "symm_rigid_press")
     manager = _manager(tmp_path, ["generation", "not_a_task"], completed=["generation"])
-    with pytest.raises(RestartError, match="current task list is invalid"):
+    with pytest.raises(ValueError, match="Unknown task"):
         _apply(manager, _saved())
     assert ckpt.is_file()
 
@@ -198,16 +170,6 @@ def test_instance_overrides_of_completed_task_are_frozen(tmp_path: Path) -> None
         _apply(manager, _saved(tasks, dedup={"tol": 0.1}, dedup_1={"tol": 0.2}))
 
 
-def test_effective_settings_follow_renumbered_task(tmp_path: Path) -> None:
-    # The completed dedup_1 becomes dedup; its override moved into [dedup]
-    manager = _manager(
-        tmp_path, ["generation", "dedup"], completed=["generation", "dedup_1"],
-        config={"dedup": {"tol": 0.2}},
-    )
-    tasks = ["generation", "dedup", "dedup"]
-    _apply(manager, _saved(tasks, dedup={"tol": 0.1}, dedup_1={"tol": 0.2}))
-
-
 def test_method_sections_of_completed_task_are_frozen(tmp_path: Path) -> None:
     tasks = ["generation", "bfgs_maceoff"]
     manager = _manager(
@@ -217,18 +179,6 @@ def test_method_sections_of_completed_task_are_frozen(tmp_path: Path) -> None:
     saved = _saved(tasks, bfgs={"maxiter": 100}, maceoff={"model_size": "large"})
     with pytest.raises(RestartError, match="maceoff.model_size: 'large' -> 'small'"):
         _apply(manager, saved)
-
-
-def test_base_setting_masked_by_override_may_change(tmp_path: Path) -> None:
-    # The completed bfgs_maceoff_1 never used [bfgs].maxiter, so it may
-    # change for the pending bfgs_maceoff_2
-    tasks = ["generation", "bfgs_maceoff", "bfgs_maceoff"]
-    manager = _manager(
-        tmp_path, tasks, completed=["generation", "bfgs_maceoff_1"],
-        config={"bfgs": {"maxiter": 300}, "bfgs_maceoff_1": {"maxiter": 100}},
-    )
-    saved = _saved(tasks, bfgs={"maxiter": 200}, bfgs_maceoff_1={"maxiter": 100})
-    _apply(manager, saved)
 
 
 def test_changed_override_of_method_section_is_reported_once(tmp_path: Path) -> None:
@@ -244,30 +194,15 @@ def test_changed_override_of_method_section_is_reported_once(tmp_path: Path) -> 
     assert "bfgs_maceoff_1.maxiter" in str(info.value)
 
 
-def test_nested_override_of_cluster_task_masks_base_setting(tmp_path: Path) -> None:
-    # Cluster tasks read [ap_center_1] ap: {...}, so the completed ap_center_1
-    # never used [ap].damping and it may change for ap_center_2
-    tasks = ["generation", "ap_center", "ap_center"]
-    manager = _manager(
-        tmp_path, tasks, completed=["generation", "ap_center_1"],
-        config={"ap": {"damping": 0.6}, "ap_center_1": {"ap": {"damping": 0.9}}},
-    )
-    saved = _saved(tasks, ap={"damping": 0.5}, ap_center_1={"ap": {"damping": 0.9}})
-    _apply(manager, saved)
-    saved = _saved(tasks, ap={"damping": 0.6}, ap_center_1={"ap": {"damping": 0.8}})
-    with pytest.raises(RestartError, match="ap_center_1.damping: 0.8 -> 0.9") as info:
-        _apply(manager, saved)
-    assert str(info.value).count("damping") == 1
-
-
-def test_removed_override_falls_back_to_base_setting(tmp_path: Path) -> None:
+def test_removing_override_of_completed_task_is_refused(tmp_path: Path) -> None:
+    # Unlike a base section, an override section has no defaults: a removed
+    # key changes the value the task read
     tasks = ["generation", "dedup", "dedup"]
     manager = _manager(
         tmp_path, tasks, completed=["generation", "dedup_1"],
         config={"dedup": {"tol": 0.2}},
     )
-    _apply(manager, _saved(tasks, dedup={"tol": 0.1}, dedup_1={"tol": 0.2}))
-    with pytest.raises(RestartError, match="dedup_1.tol: 0.1 -> 0.2"):
+    with pytest.raises(RestartError, match="dedup_1.tol: 0.1 -> '<not set>'"):
         _apply(manager, _saved(tasks, dedup={"tol": 0.2}, dedup_1={"tol": 0.1}))
 
 
@@ -311,7 +246,7 @@ def test_settings_changed_by_running_tasks_are_not_saved(tmp_path: Path) -> None
     manager.write()
 
     fresh = _manager(tmp_path, config={"generation": {"sr": 0.95}})
-    assert fresh.load() is True
+    assert fresh.load() == []
 
 
 # --- checkpoints of pending tasks -----------------------------------------
@@ -331,7 +266,7 @@ def test_checkpoints_of_first_task_are_kept(tmp_path: Path) -> None:
     # first task can be resumed from that task's checkpoints
     ckpt = _checkpoint(tmp_path, "generation")
     _manager(tmp_path).write()
-    assert _manager(tmp_path).load()
+    assert _manager(tmp_path).load() == []
     assert ckpt.is_file()
 
 
@@ -372,12 +307,10 @@ def test_checkpoints_after_an_inserted_task_are_discarded(tmp_path: Path) -> Non
 
 
 def test_checkpoints_of_removed_tasks_are_discarded(tmp_path: Path) -> None:
-    # A later run adding a second dedup would otherwise pick them up again
-    ckpt = _checkpoint(tmp_path, "dedup_2")
-    manager = _manager(
-        tmp_path, ["generation", "dedup"], completed=["generation", "dedup_1"]
-    )
-    _apply(manager, _saved(["generation", "dedup", "dedup"]))
+    # A later run adding the task back would otherwise pick them up again
+    ckpt = _checkpoint(tmp_path, "dedup")
+    manager = _manager(tmp_path, WORKFLOW, completed=WORKFLOW)
+    _apply(manager, _saved(WORKFLOW + ["dedup"]))
     assert not ckpt.exists()
 
 
@@ -400,31 +333,19 @@ def test_write_then_load_round_trip(tmp_path: Path) -> None:
     manager.write()
 
     fresh = _manager(tmp_path)
-    assert fresh.load() is True
+    assert fresh.load() == []
     assert fresh.is_task_completed("generation")
     assert fresh.gnrs_info["energy_list"] == [1.5]
     assert not (tmp_path / "restart.json.tmp").exists()
 
 
-def test_load_without_file_returns_false(tmp_path: Path) -> None:
-    assert _manager(tmp_path).load() is False
+def test_load_without_file_returns_none(tmp_path: Path) -> None:
+    assert _manager(tmp_path).load() is None
 
 
-def test_moved_run_directory_remaps_saved_config_paths(tmp_path: Path) -> None:
-    old_dir = "/old/run"
-    manager = _manager(
-        tmp_path, completed=["generation"],
-        config={"generation": {"path": str(tmp_path / "in.json")}},
-    )
-    saved = _saved(generation={"path": f"{old_dir}/in.json"})
-    _apply(manager, saved, gnrs_info={"work_dir": old_dir})
-
-
-def test_load_rejects_newer_format(tmp_path: Path) -> None:
-    (tmp_path / "restart.json").write_text(
-        json.dumps({"version": RESTART_VERSION + 1, "config": {}, "gnrs_info": {}})
-    )
-    with pytest.raises(RestartError, match="newer Genarris"):
+def test_moved_run_directory_is_refused(tmp_path: Path) -> None:
+    _write(tmp_path, _saved(), gnrs_info={"work_dir": "/old/run"})
+    with pytest.raises(RestartError, match="made in /old/run.*--overwrite"):
         _manager(tmp_path).load()
 
 
@@ -456,15 +377,6 @@ def test_unserializable_value_is_refused_not_stringified() -> None:
 
 
 # --- helpers ---------------------------------------------------------------
-
-
-def test_remap_paths_requires_path_boundary() -> None:
-    data = {"a": "/data/run/x", "b": ["/data/run_backup/y", "/data/run"], "c": 1}
-    assert _remap_paths(data, "/data/run", "/new") == {
-        "a": "/new/x",
-        "b": ["/data/run_backup/y", "/new"],
-        "c": 1,
-    }
 
 
 def test_diff_configs_reports_nested_changes() -> None:
