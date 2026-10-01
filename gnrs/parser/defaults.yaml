@@ -59,4 +59,3 @@ vasp:
 
 maceoff:
   model_size: large
-  save_flag: true
