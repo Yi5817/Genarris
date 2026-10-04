@@ -17,6 +17,7 @@ import importlib
 from mpi4py import MPI
 from gnrs.core.task import TaskABC
 from gnrs.parallel.io import read_geometry_out
+from gnrs.parallel.structs import DistributedStructs
 
 GENERATORS = {
     "crystal_generation": "crystal",
@@ -108,6 +109,11 @@ class StructureGenerationTask(TaskABC):
         logger.info(f"Collecting generated {self.gen_name} structures")
         geometry_out = os.path.join(self.calc_dir, "geometry.out")
         self.structs = read_geometry_out(geometry_out)
+        if DistributedStructs(self.structs).get_num_structs() == 0:
+            raise RuntimeError(
+                f"{self.task_name} generated no structures, so the task is not "
+                "completed. Relax the generation settings and run again."
+            )
         super().collect_results()
 
     def analyze(self) -> None:
