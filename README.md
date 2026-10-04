@@ -168,7 +168,7 @@ For co-crystals, salts and solvates, the `asu_generation` task builds random asy
    ```
 3. **Run Genarris** as above. The ASUs are written to `structures/asu_generation/structures.json`.
 
-See the [ASU generation reference](https://yi5817.github.io/Genarris/config/asu_generation.html) for all options. Crystal generation from the ASUs is not available yet.
+See the [ASU generation reference](https://yi5817.github.io/Genarris/config/asu_generation.html) for all options, and for crystal generation from the ASUs.
   
 ## Citation
 

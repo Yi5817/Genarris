@@ -8,9 +8,9 @@ molecule B of a 1:1 co-crystal. The task places the molecules at random and
 keeps a cluster when the molecules are in contact but do not overlap.
 
 ```{note}
-`asu_generation` writes non-periodic structures. Crystal generation from the
-ASUs is not available yet. For single-component crystals, use
-{doc}`crystal_generation`.
+`asu_generation` writes non-periodic structures. To build crystals from them,
+put `crystal_generation` after it, see [Crystals from ASUs](#crystals-from-asus).
+For single-component crystals, use {doc}`crystal_generation` alone.
 ```
 
 ## Example
@@ -50,6 +50,11 @@ ase.io.write("asus.xyz", list(asus.values()))
 In each ASU the atoms keep the input order: all atoms of `molecule_a`, then
 all atoms of `molecule_b`.
 
+```{warning}
+If no ASU is accepted, the task stops with an error. Structures from an
+earlier run stay on disk; do not use them.
+```
+
 ## Options
 
 ```ini
@@ -64,8 +69,8 @@ seed                 = 42
 
 `stoichiometry` : `list[int]`.
 : Copies of each molecule per ASU, in the order of `molecule_path`.
-  `[1, 1]` is one molecule A and one molecule B. `[1, 2]` is one A and two B.
-  `[2]` with one molecule file is a dimer (Z' = 2). The sum must be at least 2.
+  This release supports only two molecules with `[1, 1]`: one molecule A and
+  one molecule B.
 
 `num_asus` : `int`.
 : Total number of ASUs to generate.
@@ -87,3 +92,36 @@ seed                 = 42
 
 `seed` : `int` | default = `42`.
 : Random seed for reproducibility. `0` uses a time-based seed.
+
+## Crystals from ASUs
+
+A `crystal_generation` task after `asu_generation` generates crystals from
+every ASU of the pool. It places the ASU as one rigid unit, so `z` is the
+number of ASUs per cell, not the number of molecules.
+
+```ini
+[master]
+name                   = cocrystal
+molecule_path          = ["molecule_a.xyz", "molecule_b.xyz"]
+z                      = 2
+
+[workflow]
+tasks                  = ['asu_generation', 'crystal_generation']
+
+[asu_generation]
+stoichiometry          = [1, 1]
+num_asus               = 5
+
+[crystal_generation]
+stoichiometry          = [1, 1]
+num_structures_per_spg = 2000
+```
+
+```{warning}
+Every ASU gets `num_structures_per_spg` crystals per space group. Keep
+`num_asus` small.
+```
+
+Set `stoichiometry` in both sections. The crystals of all ASUs are in
+`structures/crystal_generation/structures.json`. The run of each ASU is in
+`tmp/crystal_generation/<ASU name>/`. ASU number `i` uses `seed + i`.

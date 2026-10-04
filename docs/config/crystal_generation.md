@@ -70,7 +70,8 @@ lattice_angle_std       = 8
 : Molecular stoichiometry. `[1]` for a single-component crystal.
 
   ```{note}
-  For multi-component crystals, see {doc}`asu_generation`.
+  For multi-component crystals, give one entry per molecule and run
+  `crystal_generation` after {doc}`asu_generation`.
   ```
 
 `seed` : `int` | default = `42`.

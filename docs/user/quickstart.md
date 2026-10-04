@@ -152,7 +152,8 @@ Run Genarris as in Step 3. The ASUs are written to
 {doc}`/config/asu_generation` for all options.
 
 :::{note}
-Crystal generation from the ASUs is not available yet.
+Add `crystal_generation` after `asu_generation` to build crystals from the
+ASUs. See {doc}`/config/asu_generation`.
 :::
 
 ## Restarting an Interrupted Run
