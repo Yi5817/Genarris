@@ -22,6 +22,7 @@ from mpi4py import MPI
 from ase.atoms import Atoms
 
 from gnrs.core.gpu import GPUDeviceManager
+from gnrs.gnrsutil.core import check_no_changes_in_covalent_matrix
 
 logger = logging.getLogger("optimizer")
 
@@ -80,6 +81,7 @@ class GeometryOptimizerABC(abc.ABC):
         self.size = comm.Get_size()
         self.is_master = self.rank == 0
         self.tsk_set = task_set
+        self.skip_bond_check = task_set.pop("skip_bond_check", False)
         self.energy_method = energy_method
         self.energy_calc = energy_calc
         self.converged = False
@@ -103,8 +105,13 @@ class GeometryOptimizerABC(abc.ABC):
         """
 
         self.initialize()
+        initial = xtal.copy()
         self.optimize(xtal)
         self.update(xtal)
+        if not self.skip_bond_check:
+            xtal.info[f"{self.opt_name}_bonds_intact"] = (
+                check_no_changes_in_covalent_matrix(initial, xtal)
+            )
         self.finalize(xtal)
 
     def run_batch(
