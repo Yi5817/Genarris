@@ -70,7 +70,7 @@ CSP results and applications.
 :gutter: 3
 
 :::{grid-item-card} 🔬 Structure Generation
-Random crystal generation across all 230 space groups.
+Random crystal generation across all 230 space groups, and asymmetric units for multi-component crystals.
 :::
 
 :::{grid-item-card} 📐 Rigid Press

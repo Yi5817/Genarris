@@ -1,9 +1,15 @@
-# Generation
+# Crystal Generation
 
-Random crystal structure generation via `cgenarris`.
+Random crystal structure generation via `cgenarris`. Add `crystal_generation`
+to `[workflow] tasks` and set its options in `[crystal_generation]`.
+
+```{note}
+This task was named `generation` in Genarris 3.x. Config files that use
+`generation` and `[generation]` still work.
+```
 
 ```ini
-[generation]
+[crystal_generation]
 num_structures_per_spg  = 4000
 sr                      = 0.95
 max_attempts_per_spg    = 10000000
@@ -13,7 +19,6 @@ ucv_mult                = 1.5
 ucv_std                 = 0.05
 max_attempts_per_volume = 10000
 spg_distribution_type   = standard
-generation_type         = crystal
 natural_cutoff_mult     = 1.1
 stoichiometry           = [1]
 seed                    = 42
@@ -56,13 +61,6 @@ lattice_angle_std       = 8
 : Space group distribution. `standard` uses all compatible with 230 space groups. A list
   of integers (e.g. `[14, 19]`) restricts generation to those space groups only.
 
-`generation_type` : `str` | default = `crystal`.
-: Generation mode. Currently only `crystal` is supported.
-
-  ```{note}
-  Multi-component crystals are coming soon!
-  ```
-
 `natural_cutoff_mult` : `float` | default = `1.1`.
 : Multiplier for covalent radii used to identify molecular bonds. Based on
   [`ase.neighborlist.natural_cutoffs`](https://docs.ase-lib.org/ase/neighborlist.html#ase.neighborlist.natural_cutoffs).
@@ -72,7 +70,7 @@ lattice_angle_std       = 8
 : Molecular stoichiometry. `[1]` for a single-component crystal.
 
   ```{note}
-  Multi-component crystals are coming soon!
+  For multi-component crystals, see {doc}`asu_generation`.
   ```
 
 `seed` : `int` | default = `42`.

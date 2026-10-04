@@ -15,13 +15,13 @@ debug_flag          = False
 
 `sr` : `float` | default = `0.85`.
 : Specific radius proportion for the cutoff matrix. Should be smaller than the
-  value in `[generation]` (tighter packing).
+  value in `[crystal_generation]` (tighter packing).
 
 `maxiter` : `int` | default = `400`.
 : Maximum optimization iterations.
 
 `natural_cutoff_mult` : `float` | default = `1.1`.
-: Bond identification multiplier. Same as `generation`.
+: Bond identification multiplier. Same as `crystal_generation`.
 
 `debug_flag` : `bool` | default = `False`.
 : Write intermediate `geometry.in` files for debugging.

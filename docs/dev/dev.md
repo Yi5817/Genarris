@@ -23,10 +23,14 @@ The tests live in `tests/`, grouped by what they check:
 - `install/` – the package, its compiled `cgenarris` extension, packaged data
   files, task registry and the `gnrs` command are usable with only the core
   dependencies installed.
+- `generation/` – the structure generators called directly, in a single
+  process.
 - `restart/` – checkpoint logs and the restart manager, in a single process.
-- `workflow/` – a tiny benzene workflow under `mpirun` exercising restart,
-  checkpoint recovery and `--overwrite` end to end. Needs `mpirun` on the
-  `PATH` and is skipped otherwise.
+- `workflow/` – tiny workflows under `mpirun`, end to end: restart, checkpoint
+  recovery and `--overwrite` on benzene, and `asu_generation` on a co-crystal
+  pair. Needs `mpirun` on the `PATH` and is skipped otherwise. The `run_gnrs`
+  fixture in `workflow/conftest.py` launches a run.
+- `data/` – input files shared by the tests.
 
 Run one group with `pytest tests/install`.
 

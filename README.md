@@ -97,7 +97,7 @@ Genarris uses a [configuration file](https://docs.python.org/3/library/configpar
 
 1. **Create a configuration file** `ui.conf`
    
-   Here's an example with key parameters for `generation` and `symm_rigid_press` steps:
+   Here's an example with key parameters for `crystal_generation` and `symm_rigid_press` steps:
 
    ```ini
    [master]
@@ -107,9 +107,9 @@ Genarris uses a [configuration file](https://docs.python.org/3/library/configpar
    log_level                   = info
 
    [workflow]
-   tasks                       = ['generation', 'symm_rigid_press']
+   tasks                       = ['crystal_generation', 'symm_rigid_press']
 
-   [generation]
+   [crystal_generation]
    num_structures_per_spg      = 4000
    sr                          = 0.95
    max_attempts_per_spg        = 100000000
@@ -118,7 +118,6 @@ Genarris uses a [configuration file](https://docs.python.org/3/library/configpar
    ucv_mult                    = 1.5 
    max_attempts_per_volume     = 10000000
    spg_distribution_type       = standard
-   generation_type             = crystal
    natural_cutoff_mult         = 1.2
 
    [symm_rigid_press]
@@ -144,6 +143,32 @@ Genarris uses a [configuration file](https://docs.python.org/3/library/configpar
    ```bash
    mpirun -np 8 gnrs --config ui.conf
    ```
+
+> [!NOTE]
+> `crystal_generation` was named `generation` in Genarris 3.x. Config files that use `generation` and `[generation]` still work.
+
+### Multi-Component Crystals: Asymmetric Units
+
+For co-crystals, salts and solvates, the `asu_generation` task builds random asymmetric units (ASUs): small clusters of the molecules that are in contact but do not overlap.
+
+1. **Prepare one geometry file per molecule.**
+2. **Create a configuration file.** `stoichiometry` gives the copies of each molecule per ASU, in the order of `molecule_path`:
+
+   ```ini
+   [master]
+   name                        = cocrystal
+   molecule_path               = ["molecule_a.xyz", "molecule_b.xyz"]
+
+   [workflow]
+   tasks                       = ['asu_generation']
+
+   [asu_generation]
+   stoichiometry               = [1, 1]
+   num_asus                    = 15000
+   ```
+3. **Run Genarris** as above. The ASUs are written to `structures/asu_generation/structures.json`.
+
+See the [ASU generation reference](https://yi5817.github.io/Genarris/config/asu_generation.html) for all options. Crystal generation from the ASUs is not available yet.
   
 ## Citation
 

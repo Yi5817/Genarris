@@ -23,9 +23,9 @@ Z                           = 4
 log_level                   = info
 
 [workflow]
-tasks                       = ['generation', 'symm_rigid_press', 'dedup', 'maceoff', 'acsf', 'ap_center', 'bfgs_maceoff', 'dedup']
+tasks                       = ['crystal_generation', 'symm_rigid_press', 'dedup', 'maceoff', 'acsf', 'ap_center', 'bfgs_maceoff', 'dedup']
 
-[generation]
+[crystal_generation]
 num_structures_per_spg      = 4000
 sr                          = 0.95
 max_attempts_per_spg        = 100000000
@@ -34,7 +34,6 @@ ucv_mean                    = predict
 ucv_mult                    = 1.5
 max_attempts_per_volume     = 10000000
 spg_distribution_type       = standard
-generation_type             = crystal
 natural_cutoff_mult         = 1.2
 
 [symm_rigid_press]
@@ -96,7 +95,8 @@ config.  See {doc}`energy` for all DFT options and `dft_mode` details.
 
 master
 workflow
-generation
+crystal_generation
+asu_generation
 rigidpress
 dedup
 energy

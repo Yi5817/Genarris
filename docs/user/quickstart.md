@@ -8,7 +8,7 @@ workflow with Genarris.
 Genarris uses a [configuration file](https://docs.python.org/3/library/configparser.html) 
 to control each step of the CSP pipeline. A typical workflow consists of:
 
-1. **Structure Generation** – Random crystal structures across space groups
+1. **Crystal Generation** – Random crystal structures across space groups
 2. **Rigid Press** – Geometry optimization to improve close-packed structures
 3. **Energy Evaluation** – Compute energies and relax geometries with MLIPs or DFT
 4. **Descriptor Computation** – Calculate fingerprints (ACSF)
@@ -32,9 +32,9 @@ Z                           = 4
 log_level                   = info
 
 [workflow]
-tasks                       = ['generation', 'symm_rigid_press']
+tasks                       = ['crystal_generation', 'symm_rigid_press']
 
-[generation]
+[crystal_generation]
 num_structures_per_spg      = 4000
 sr                          = 0.95
 max_attempts_per_spg        = 100000000
@@ -43,7 +43,6 @@ ucv_mean                    = predict
 ucv_mult                    = 1.5
 max_attempts_per_volume     = 10000000
 spg_distribution_type       = standard
-generation_type             = crystal
 natural_cutoff_mult         = 1.2
 
 [symm_rigid_press]
@@ -66,10 +65,15 @@ path = ""
 | `molecule_path` | `[master]` | `list[str]` | Paths to conformer geometry files |
 | `Z` | `[master]` | `int` | Number of molecules per unit cell |
 | `tasks` | `[workflow]` | `list[str]` | Ordered list of pipeline tasks to execute |
-| `num_structures_per_spg` | `[generation]` | `int` | Structures to generate per space group |
+| `num_structures_per_spg` | `[crystal_generation]` | `int` | Structures to generate per space group |
 
 For the full list of options (generation, rigid press, energy calculators,
 clustering, etc.), see the {doc}`/config/index` reference.
+
+:::{note}
+`crystal_generation` was named `generation` in Genarris 3.x. Config files that
+use `generation` and `[generation]` still work.
+:::
 
 ## Step 3: Run Genarris
 
@@ -104,16 +108,52 @@ After running, Genarris creates the following directory structure:
 ```text
 working_directory/
 ├── structures/
-│   ├── generation/
+│   ├── crystal_generation/
 │   │   └── structures.json
 │   └── symm_rigid_press/
 │       └── structures.json
 ├── tmp/
-│   ├── generation/
+│   ├── crystal_generation/
 │   └── symm_rigid_press/
 ├── restart.json
 └── Genarris.log
 ```
+
+Structures are stored as JSON ASE Atoms objects. Load them with:
+
+```python
+from ase.io.jsonio import read_json
+
+xtals = read_json("structures/symm_rigid_press/structures.json")
+```
+
+## Multi-Component Crystals: Asymmetric Units
+
+For co-crystals, salts and solvates, the `asu_generation` task builds random
+asymmetric units (ASUs): small clusters of the molecules that are in contact
+but do not overlap. Provide one geometry file per molecule, and give the
+copies of each molecule per ASU in `stoichiometry`:
+
+```ini
+[master]
+name                        = cocrystal
+molecule_path               = ["molecule_a.xyz", "molecule_b.xyz"]
+
+[workflow]
+tasks                       = ['asu_generation']
+
+[asu_generation]
+stoichiometry               = [1, 1]
+num_asus                    = 15000
+```
+
+Run Genarris as in Step 3. The ASUs are written to
+`structures/asu_generation/structures.json` as non-periodic structures. See
+{doc}`/config/asu_generation` for all options.
+
+:::{note}
+Crystal generation from the ASUs is not available yet.
+:::
 
 ## Restarting an Interrupted Run
 
@@ -147,7 +187,7 @@ Things that are safe to change between the original run and the restart:
   at startup. If the settings of the task that was interrupted changed, its
   checkpoints are discarded and it starts from scratch. Settings of a
   *completed* task are frozen, because its results were produced with the old
-  values: its own section (for example `[generation]` once generation
+  values: its own section (for example `[crystal_generation]` once generation
   finished) and the method sections it reads (`[bfgs]` and `[maceoff]` for
   `bfgs_maceoff`, `[ap]` and `[center]` for `ap_center`). Changing their
   values is refused; restore the previous values, or start over with
@@ -193,12 +233,3 @@ Runs made with older Genarris releases (they keep their restart file at
 `tmp/restart.json`) cannot be resumed with this release. Rerun the workflow
 with this release, starting over with `--overwrite`.
 :::
-
-Structures are stored as JSON ASE Atoms objects. Load them with:
-
-```python
-import json
-from ase.io.jsonio import read_json
-
-xtals = read_json("structures/symm_rigid_press/structures.json")
-```
