@@ -12,11 +12,14 @@ __group__ = "https://www.noamarom.com/"
 
 import os
 import time
+import shutil
 import logging
 
 import numpy as np
+from ase import Atoms
 from mpi4py import MPI
 import gnrs.output as gout
+from gnrs.core import folders
 from gnrs.core.generator import GeneratorABC
 from gnrs.core.molecule import Molecule
 from gnrs.gnrsutil.volume_estimation import predict_cell_volume
@@ -73,6 +76,10 @@ class CRYSTALGenerator(GeneratorABC):
 
         self.spg_distribution = task_set["spg_distribution_type"]
         self.stoic = task_set["stoichiometry"]
+        if len(self.stoic) != len(task_set["molecule_path"]):
+            raise ValueError(
+                "stoichiometry needs one entry per molecule in molecule_path."
+            )
 
         if isinstance(self.spg_distribution, list):
             task_set["spg_distribution_type"] = "custom"
@@ -133,12 +140,13 @@ class CRYSTALGenerator(GeneratorABC):
         gout.single_separator()
         gout.emit("")
 
-    def write_inputs(self, calc_dir: str) -> None:
+    def write_inputs(self, calc_dir: str, asu: Atoms | None = None) -> None:
         """
         Write the molecule, space group list and cutoff matrix for cgenarris.
 
         Args:
-            calc_dir: Folder of the generation task
+            calc_dir: Folder cgenarris runs in
+            asu: Asymmetric unit that cgenarris places instead of the molecule
         """
         # Copy molecule to tmp/generation folder
         # Save number of atoms in the molecule in rtm_set
@@ -148,6 +156,8 @@ class CRYSTALGenerator(GeneratorABC):
             gen_mol_path = os.path.join(calc_dir, "geometry.in")
             self.gnrs_info["n_atoms_in_mol"].append(len(mol))
             mol.write(gen_mol_path, format="aims")
+        if asu is not None:
+            asu.write(gen_mol_path, format="aims")
 
         # Check if only selected spacegroups are requested
         # And create spg file for the given spg
@@ -208,6 +218,35 @@ class CRYSTALGenerator(GeneratorABC):
         gout.single_separator()
         gout.emit("")
         logger.info("Completed generation")
+
+    def generate_from_asus(self, task_set: dict, calc_dir: str, structs: dict) -> None:
+        """
+        Generate crystals from each asymmetric unit (ASU) of a pool.
+
+        cgenarris runs once per ASU in ``calc_dir/<ASU name>`` and places the
+        ASU as one rigid unit, so ``z`` counts ASUs per cell. The runs are
+        merged into ``calc_dir/geometry.out``.
+
+        Args:
+            task_set: Task settings dictionary
+            calc_dir: Folder of the generation task
+            structs: ASUs on this rank
+        """
+        parts = self.comm.allgather(structs)
+        asus = {name: asu for part in parts for name, asu in part.items()}
+        for i, name in enumerate(sorted(asus)):
+            asu_dir = os.path.join(calc_dir, name)
+            folders.mkdir(asu_dir)
+            self.write_inputs(asu_dir, asus[name])
+            self.comm.barrier()
+            # Same seed for every ASU would repeat the lattices
+            self.generate({**task_set, "seed": task_set["seed"] + i}, asu_dir)
+
+        if self.is_master:
+            with open(os.path.join(calc_dir, "geometry.out"), "w") as merged:
+                for name in sorted(asus):
+                    with open(os.path.join(calc_dir, name, "geometry.out")) as part:
+                        shutil.copyfileobj(part, merged)
 
     def analyze(self, structs: dict) -> None:
         """

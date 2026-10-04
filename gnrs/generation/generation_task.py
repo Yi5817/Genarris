@@ -100,7 +100,11 @@ class StructureGenerationTask(TaskABC):
         Args:
             task_set: Task settings dictionary
         """
-        self.generator.generate(task_set, self.calc_dir)
+        # A crystal generation after another task starts from its pool of ASUs
+        if self.gen_name == "crystal" and self.structs is not None:
+            self.generator.generate_from_asus(task_set, self.calc_dir, self.structs)
+        else:
+            self.generator.generate(task_set, self.calc_dir)
 
     def collect_results(self) -> None:
         """
