@@ -1,14 +1,18 @@
+from __future__ import annotations
+
+import importlib
 import os
 import sys
-import importlib
-from setuptools import setup, Extension
+
+from setuptools import Extension, setup
 
 if sys.version_info < (3, 10):
     raise SystemExit("Genarris requires Python >= 3.10")
-    
+
 # Set location of MPI C compiler (mpicc) here:
 MPICC = os.environ.get("MPICC", "mpicc")
 os.environ.setdefault("CC", MPICC)
+
 
 # Cgenarris Extension (aka pygenarris)
 def get_pygenarris_sources():
@@ -81,11 +85,12 @@ def get_pygenarris_sources():
     for mod in required_mods:
         try:
             loaded_mod = importlib.import_module(mod)
-            include.append(getattr(loaded_mod, "get_include")())
+            include.append(loaded_mod.get_include())
         except ModuleNotFoundError:
             raise SystemExit(f"Please install {mod} before installing Genarris!")
 
     return sources, include
+
 
 # Rigid_press C Extension (aka rpack)
 def get_rigid_press_sources():
@@ -134,11 +139,12 @@ def get_rigid_press_sources():
     for mod in required_mods:
         try:
             loaded_mod = importlib.import_module(mod)
-            include_rpress.append(getattr(loaded_mod, "get_include")())
+            include_rpress.append(loaded_mod.get_include())
         except ModuleNotFoundError:
             raise SystemExit(f"Please install {mod} before installing Genarris!")
 
     return sources, include_rpress
+
 
 sources_pygenarris, include_pygenarris = get_pygenarris_sources()
 mpi4py_include = importlib.import_module("mpi4py").get_include()
@@ -162,7 +168,10 @@ rigid_press = Extension(
     sources=sources_rigid_press,
     extra_compile_args=["-std=gnu99", "-O3"],
     libraries=["lapack", "blas"],
-    swig_opts=["-I./gnrs/cgenarris/src/rpack/rigid_press", "-I./gnrs/cgenarris/src/spglib_src"],
+    swig_opts=[
+        "-I./gnrs/cgenarris/src/rpack/rigid_press",
+        "-I./gnrs/cgenarris/src/spglib_src",
+    ],
 )
 
 setup(

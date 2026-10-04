@@ -5,7 +5,7 @@ workflow with Genarris.
 
 ## Overview
 
-Genarris uses a [configuration file](https://docs.python.org/3/library/configparser.html) 
+Genarris uses a [configuration file](https://docs.python.org/3/library/configparser.html)
 to control each step of the CSP pipeline. A typical workflow consists of:
 
 1. **Structure Generation** – Random crystal structures across space groups

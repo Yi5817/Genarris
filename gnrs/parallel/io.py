@@ -6,6 +6,7 @@ LICENSE file in the root directory of this source tree.
 """
 
 from __future__ import annotations
+
 __author__ = ["Yi Yang", "Rithwik Tom"]
 __email__ = "yiy5@andrew.cmu.edu"
 __group__ = "https://www.noamarom.com/"
@@ -14,7 +15,7 @@ import logging
 import random
 
 from ase import Atoms
-from ase.io.jsonio import encode, decode
+from ase.io.jsonio import decode, encode
 
 import gnrs.parallel as gp
 
@@ -24,15 +25,15 @@ logger = logging.getLogger("parallel_io")
 def read_geometry_out(file_path: str) -> dict:
     """
     Master process reads geometry file and scatters data to other processes.
-    
+
     Args:
         file_path: Path to the geometry output file
-        
+
     Returns:
         Dictionary mapping random IDs to Atoms objects
     """
     if gp.is_master:
-        with open(file_path, "r") as gfile:
+        with open(file_path) as gfile:
             str_data = gfile.read()
         str_data = str_data.split("#######  END  STRUCTURE #######")
         str_data = str_data[:-1]
@@ -42,7 +43,8 @@ def read_geometry_out(file_path: str) -> dict:
 
     str_data = gp.comm.scatter(str_data, root=0)
     struct_list = [
-        geo for geo in (
+        geo
+        for geo in (
             str2atoms(str_geo.split("\n"))
             for str_geo in str_data
             if str_geo is not None
@@ -51,17 +53,17 @@ def read_geometry_out(file_path: str) -> dict:
     ]
     # random IDs
     struct_dict = {f"{random.getrandbits(60):x}": s for s in struct_list}
-    
+
     return struct_dict
 
 
 def str2atoms(geometry_str: list) -> Atoms | None:
     """
     Constructs Atoms object from aims geometry format.
-    
+
     Args:
         geometry_string: List of strings containing geometry data
-        
+
     Returns:
         ASE Atoms object representing the crystal structure
     """
@@ -117,8 +119,9 @@ def decode_struct(line: str) -> tuple[str, Atoms]:
     return name.strip().strip('"'), decode(xtal.strip().rstrip(","))
 
 
-def write_parallel(file_path: str, struct_dict: dict,
-                  gather: bool = True, mode: str = "w") -> None:
+def write_parallel(
+    file_path: str, struct_dict: dict, gather: bool = True, mode: str = "w"
+) -> None:
     """
     Convert structures to JSON strings, gather and store to file.
 
@@ -154,18 +157,18 @@ def write_parallel(file_path: str, struct_dict: dict,
 def read_parallel(file_path: str, scatter: bool = True) -> dict:
     """
     Reads JSON database of structures.
-    
+
     Args:
         file_path: Path to JSON file
         scatter: Whether to scatter data to all processes
-        
+
     Returns:
         Dictionary mapping IDs to Atoms objects
     """
     logger.info(f"Reading structures from {file_path}")
-    
+
     if gp.is_master:
-        with open(file_path, "r") as rfile:
+        with open(file_path) as rfile:
             str_list = rfile.readlines()
         # Remove {} and add comma to the last element
         str_list = str_list[1:-1]
@@ -195,10 +198,10 @@ def read_parallel(file_path: str, scatter: bool = True) -> dict:
 def _make_scatterable_form(str_list: list) -> list:
     """
     Construct a list of length comm.size with padding for even distribution.
-    
+
     Args:
         str_list: List of strings to distribute
-        
+
     Returns:
         List of sublists for each process
     """
@@ -207,5 +210,5 @@ def _make_scatterable_form(str_list: list) -> list:
     # Determine the starting and ending indices of each sub-task
     starts = [sum(counts[:p]) for p in range(gp.size)]
     ends = [sum(counts[: p + 1]) for p in range(gp.size)]
-    new_list = [str_list[starts[p]: ends[p]] for p in range(gp.size)]
+    new_list = [str_list[starts[p] : ends[p]] for p in range(gp.size)]
     return new_list

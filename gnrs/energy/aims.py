@@ -4,6 +4,7 @@ This module computes the energy using FHI-aims DFT code with ASE.
 This source code is licensed under the BSD-3-Clause license found in the
 LICENSE file in the root directory of this source tree.
 """
+
 from __future__ import annotations
 
 __author__ = ["Yi Yang", "Rithwik Tom"]
@@ -29,13 +30,12 @@ class AIMSEnergy(EnergyCalculatorABC):
             command,
             default_species_directory=self.tsk_set["species_dir"],
         )
-        self.calc = Aims(profile=prof, **self.tsk_set['energy_settings'])
+        self.calc = Aims(profile=prof, **self.tsk_set["energy_settings"])
 
     def initialize(self) -> None:
         """
         Initialize the energy calculator.
         """
-        pass
 
     def compute(self, xtal: Atoms) -> None:
         """
@@ -52,4 +52,3 @@ class AIMSEnergy(EnergyCalculatorABC):
         """
         Finalize the energy calculator.
         """
-        pass

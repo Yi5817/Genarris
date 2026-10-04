@@ -6,6 +6,7 @@ This module provides the base class for implementing crystal structure descripto
 This source code is licensed under the BSD-3-Clause license found in the
 LICENSE file in the root directory of this source tree.
 """
+
 from __future__ import annotations
 
 __author__ = ["Yi Yang", "Rithwik Tom"]
@@ -14,13 +15,14 @@ __group__ = "https://www.noamarom.com/"
 
 import abc
 
-from mpi4py import MPI
 from ase import Atoms
+from mpi4py import MPI
+
 
 class DescriptorABC(abc.ABC):
     """
     Abstract base class for crystal structure descriptors.
-    
+
     This class defines the interface for computing descriptors for crystal structures.
     All descriptor implementations should inherit from this class and implement
     the abstract methods.
@@ -28,7 +30,7 @@ class DescriptorABC(abc.ABC):
 
     def __init__(self, comm: MPI.Comm, task_settings: dict) -> None:
         """Initialize the descriptor calculator.
-        
+
         Args:
             comm: MPI communicator
             task_settings: Task settings
@@ -42,11 +44,11 @@ class DescriptorABC(abc.ABC):
     def run(self, xtal: Atoms) -> None:
         """
         Run the descriptor computation workflow.
-        
+
         1. Initialize
         2. Compute descriptor
         3. Finalize
-        
+
         Args:
             xtal: Crystal structure
         """
@@ -59,14 +61,12 @@ class DescriptorABC(abc.ABC):
         """
         Initialize for descriptor computation.
         """
-        pass
 
     @abc.abstractmethod
     def compute(self, xtal: Atoms) -> None:
         """
         Compute descriptor for a crystal structure.
         """
-        pass
 
     @abc.abstractmethod
     def finalize(self) -> None:

@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 ascii_art = r"""
                _____                                  _              ____     ___
               / ____|                                (_)            |___ \   / _ \
@@ -16,7 +18,7 @@ Computer Physics Communications, 2020, 250, p.107170.
 
 citation_v3 = """
 Yang, Y., Tom, R., Wui, J.A.G.L., Moussa, J.E., and Marom, N.
-Genarris 3.0: Generating Close-Packed Molecular Crystal Structures with Rigid Press. 
+Genarris 3.0: Generating Close-Packed Molecular Crystal Structures with Rigid Press.
 Journal of Chemical Theory and Computation, 2025, 2025, 21, 21, 11318-11332.
 """
 

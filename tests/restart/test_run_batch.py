@@ -3,6 +3,7 @@ The batch runners of energy calculators and optimizers skip structures the
 task already completed (restored from checkpoints) and report every newly
 completed structure by name. Run in a single process (no mpirun).
 """
+
 from __future__ import annotations
 
 import pytest
@@ -35,9 +36,7 @@ class _Energy(EnergyCalculatorABC):
 
 class _Optimizer(GeometryOptimizerABC):
     def __init__(self, dft_serial_mode: bool = False) -> None:
-        super().__init__(
-            MPI.COMM_WORLD, {}, "bfgs", dft_serial_mode=dft_serial_mode
-        )
+        super().__init__(MPI.COMM_WORLD, {}, "bfgs", dft_serial_mode=dft_serial_mode)
         self.optimized: list[Atoms] = []
 
     def optimize(self, xtal: Atoms) -> None:

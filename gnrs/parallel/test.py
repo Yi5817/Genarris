@@ -4,6 +4,7 @@ This module provides testing utilities for the parallel module.
 This source code is licensed under the BSD-3-Clause license found in the
 LICENSE file in the root directory of this source tree.
 """
+
 from __future__ import annotations
 
 __author__ = ["Yi Yang", "Rithwik Tom"]
@@ -23,7 +24,7 @@ def test_bcast() -> None:
         test_var = None
 
     test_var = gp.comm.bcast(test_var, root=0)
-    
+
     try:
         assert test_var == 999
     except AssertionError:

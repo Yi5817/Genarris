@@ -4,23 +4,24 @@ This module provides the DescriptorEvaluationTask class for evaluating descripto
 This source code is licensed under the BSD-3-Clause license found in the
 LICENSE file in the root directory of this source tree.
 """
+
 from __future__ import annotations
 
 __author__ = ["Yi Yang", "Rithwik Tom"]
 __email__ = "yiy5@andrew.cmu.edu"
 __group__ = "https://www.noamarom.com/"
 
-import os
-import logging
 import importlib
+import logging
+import os
 
 import numpy as np
 from mpi4py import MPI
 from sklearn.decomposition import PCA
 from sklearn.preprocessing import StandardScaler
 
-import gnrs.parallel as gp
 import gnrs.output as gout
+import gnrs.parallel as gp
 from gnrs.core.task import TaskABC
 from gnrs.parallel.io import write_parallel
 
@@ -34,15 +35,15 @@ class DescriptorEvaluationTask(TaskABC):
     """
 
     def __init__(
-        self, 
-        comm: MPI.Comm, 
-        config: dict, 
-        gnrs_info: dict, 
+        self,
+        comm: MPI.Comm,
+        config: dict,
+        gnrs_info: dict,
         descriptor: str,
         instance_id: str | None = None,
     ) -> None:
         """Initialize the descriptor evaluation task.
-        
+
         Args:
             comm: MPI communicator
             config: Config dictionary
@@ -57,13 +58,13 @@ class DescriptorEvaluationTask(TaskABC):
         self.desc_class = f"{descriptor.upper()}Descriptor"
         self.explain_variance: float | None = None
         self.desc = None
-        
+
         # Check if the descriptor is implemented
         try:
             desc_module = importlib.import_module(self.desc_file)
             self.desc = getattr(desc_module, self.desc_class)
         except (ImportError, AttributeError) as e:
-            logger.error(f"Unable to find requested descriptor: {str(e)}")
+            logger.error(f"Unable to find requested descriptor: {e!s}")
             logger.error(f"Available descriptors: {AVAILABLE_DESCRIPTORS}")
             raise
 
@@ -79,7 +80,7 @@ class DescriptorEvaluationTask(TaskABC):
     def pack_settings(self) -> dict:
         """
         Pack settings needed for descriptor evaluation.
-        
+
         Returns:
             Task settings dictionary
         """
@@ -90,7 +91,7 @@ class DescriptorEvaluationTask(TaskABC):
     def print_settings(self, task_set: dict) -> None:
         """
         Print task settings in a formatted table.
-        
+
         Args:
             task_set: Task settings dictionary
         """
@@ -105,11 +106,11 @@ class DescriptorEvaluationTask(TaskABC):
     def perform_task(self, task_set: dict) -> None:
         """
         Execute the descriptor evaluation task.
-        
+
         This method:
         1. Computes descriptors for all structures
         2. Optionally performs PCA compression
-        
+
         Args:
             task_set: Task settings dictionary
         """
@@ -118,7 +119,7 @@ class DescriptorEvaluationTask(TaskABC):
         # Check if PCA compression is requested
         self.pca = task_set.pop("pca", False)
         self.n_components = task_set.pop("n_components", None)
-        
+
         if self.debug_mode:
             dir_name = f"rank_{self.rank}"
             os.makedirs(dir_name, exist_ok=True)
@@ -134,7 +135,7 @@ class DescriptorEvaluationTask(TaskABC):
                     xtal.write(f"{_id}.in", parallel=False)
                     logger.debug(f"{_id} got MemoryError on Rank {self.rank}")
                 self.structs.pop(_id)
-            
+
         # Perform PCA compression if requested
         if self.pca:
             self._standardize()
@@ -153,7 +154,6 @@ class DescriptorEvaluationTask(TaskABC):
         """
         Analyze the results of the task.
         """
-        pass
 
     def finalize(self) -> None:
         """
@@ -170,15 +170,19 @@ class DescriptorEvaluationTask(TaskABC):
         local_features = np.array(
             [xtal.info[self.task_name][0, :] for xtal in self.structs.values()]
         )
-        
+
         all_features = self.comm.gather(local_features, root=0)
-        
+
         if self.is_master:
-            features = np.vstack([
-                feat for sublist in all_features if sublist is not None 
-                for feat in sublist
-            ])
-            
+            features = np.vstack(
+                [
+                    feat
+                    for sublist in all_features
+                    if sublist is not None
+                    for feat in sublist
+                ]
+            )
+
             n_samples, n_features = features.shape
             logger.info(f"PCA input: {n_samples} samples with {n_features} features")
 
@@ -189,10 +193,12 @@ class DescriptorEvaluationTask(TaskABC):
             )
             pca.fit(features)
             explained_var = np.sum(pca.explained_variance_ratio_)
-            logger.info(f"PCA compression: {pca.n_components_} components explain {explained_var:.4f} of variance")
+            logger.info(
+                f"PCA compression: {pca.n_components_} components explain {explained_var:.4f} of variance"
+            )
         else:
             pca = None
-            
+
         pca = self.comm.bcast(pca, root=0)
 
         for xtal in self.structs.values():
@@ -210,29 +216,38 @@ class DescriptorEvaluationTask(TaskABC):
     def _standardize(self) -> None:
         """
         Standardize the descriptor using StandardScaler.
-        
+
         Args:
             name: Name of the descriptor to standardize
         """
-        local_features = np.array([x.info[self.task_name][0, :] for x in self.structs.values()])
+        local_features = np.array(
+            [x.info[self.task_name][0, :] for x in self.structs.values()]
+        )
         fp = np.memmap(
-            f"features_{self.rank}.dat", dtype="float32", mode="w+", shape=local_features.shape
+            f"features_{self.rank}.dat",
+            dtype="float32",
+            mode="w+",
+            shape=local_features.shape,
         )
         fp[:] = local_features[:]
         fp.flush()
 
         all_features = self.comm.gather(fp, root=0)
-        
+
         if self.is_master:
             scaler = StandardScaler()
-            features = np.vstack([
-                feat for sublist in all_features if sublist is not None 
-                for feat in sublist
-            ])
+            features = np.vstack(
+                [
+                    feat
+                    for sublist in all_features
+                    if sublist is not None
+                    for feat in sublist
+                ]
+            )
             scaler.fit(features)
         else:
             scaler = None
-            
+
         scaler = self.comm.bcast(scaler, root=0)
 
         for xtal in self.structs.values():

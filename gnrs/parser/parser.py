@@ -4,19 +4,22 @@ This module provides functionality for parsing user settings from config files.
 This source code is licensed under the BSD-3-Clause license found in the
 LICENSE file in the root directory of this source tree.
 """
+
 from __future__ import annotations
 
 __author__ = ["Yi Yang", "Rithwik Tom"]
 __email__ = "yiy5@andrew.cmu.edu"
 __group__ = "https://www.noamarom.com/"
 
-import os
-import logging
 import json
-import yaml
+import logging
+import os
 from ast import literal_eval
 from configparser import ConfigParser
 from importlib.resources import files
+
+import yaml
+
 from gnrs.output import emit
 
 logger = logging.getLogger("parser")
@@ -47,25 +50,25 @@ class UserSettingsParser:
     def load_config(self) -> dict:
         """
         Load and validate user settings from config file.
-        
+
         Returns:
             Dictionary containing user settings.
         """
         # Load from conf/ini file
         if self.config_path.endswith(("conf", "ini")):
-            logger.info("Reading input from conf/ini file") 
+            logger.info("Reading input from conf/ini file")
             self.config = self.load_settings_config_parser()
-            
+
         # Load from json file
         elif self.config_path.endswith("json"):
             logger.info("Reading input from json file")
             self.config = self.load_settings_from_json()
-            
+
         # Load from yaml file
         elif self.config_path.endswith(("yaml", "yml")):
             logger.info("Reading input from yaml file")
             self.config = self.load_settings_from_yaml()
-            
+
         else:
             raise ValueError(
                 "Genarris supports only json/yaml/config file. "
@@ -78,16 +81,16 @@ class UserSettingsParser:
     def load_settings_config_parser(self) -> dict:
         """
         Load settings from conf/ini file using ConfigParser.
-        
+
         Returns:
             Dictionary containing parsed settings
         """
         settings_dict: dict = {}
         config = ConfigParser()
         # Read config
-        with open(self.config_path, "r") as config_file:
+        with open(self.config_path) as config_file:
             config.read_file(config_file)
-            
+
         # Convert to dict, handling type conversion
         for section in config.sections():
             section_dict = {}
@@ -104,27 +107,27 @@ class UserSettingsParser:
     def load_settings_from_json(self) -> dict:
         """
         Load settings from JSON file.
-        
+
         Returns:
             Dictionary containing parsed settings
         """
-        with open(self.config_path, "r") as config_file:
+        with open(self.config_path) as config_file:
             return json.load(config_file)
-            
+
     def load_settings_from_yaml(self) -> dict:
         """
         Load settings from YAML file.
-        
+
         Returns:
             Dictionary containing parsed settings
         """
-        with open(self.config_path, "r") as config_file:
+        with open(self.config_path) as config_file:
             return yaml.safe_load(config_file)
 
     def _load_defaults(self) -> dict:
         """
         Load default settings from package defaults.yaml.
-        
+
         Returns:
             Dictionary containing default settings
         """
@@ -142,7 +145,7 @@ class UserSettingsParser:
 
         for section, default_options in self.defaults_dict.items():
             user_options = self.config.get(section, {})
-            
+
             if not user_options:
                 continue
 
@@ -161,7 +164,7 @@ class UserSettingsParser:
         for section, user_options in self.config.items():
             if section not in self.defaults_dict:
                 continue
-            
+
             default_options = self.defaults_dict[section]
             for option in user_options:
                 if option not in default_options:

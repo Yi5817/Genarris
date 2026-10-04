@@ -4,6 +4,7 @@ benzene workflow (generation + symm_rigid_press), so they take a few minutes.
 
 Run with:  pytest -m integration
 """
+
 from __future__ import annotations
 
 import json
@@ -71,7 +72,13 @@ def run_gnrs(
 ) -> subprocess.CompletedProcess:
     # CI runners may have fewer slots than the restart test's three ranks.
     cmd = [
-        MPIRUN, "--oversubscribe", "-np", str(nproc), sys.executable, "-m", "gnrs.cli"
+        MPIRUN,
+        "--oversubscribe",
+        "-np",
+        str(nproc),
+        sys.executable,
+        "-m",
+        "gnrs.cli",
     ]
     return subprocess.run(
         cmd + ["-c", "ui.conf"] + list(flags),
@@ -259,9 +266,7 @@ def test_fresh_run_over_old_layout_run_is_refused(
     assert old_file.is_file(), "nothing may be touched"
 
 
-def test_overwrite_starts_over(
-    run_copy: Path, mpi_free_env: dict[str, str]
-) -> None:
+def test_overwrite_starts_over(run_copy: Path, mpi_free_env: dict[str, str]) -> None:
     # A checkpoint of a task the new run never reaches must not survive
     stale = run_copy / "tmp" / "never_run" / "rank_0"
     stale.mkdir(parents=True)

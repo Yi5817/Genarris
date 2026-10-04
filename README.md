@@ -66,7 +66,7 @@ Genarris supports various energy calculators through the [ASE Calculator](https:
 > [!TIP]
 > You can implement additional calculators under [`gnrs/energy/`](./gnrs/energy/).
 
-| Calculator | Type | Install | 
+| Calculator | Type | Install |
 |------------|------|---------|
 | [UMA](https://github.com/facebookresearch/fairchem) | MLIP | `pip install -e .[uma]` |
 | [MACE-OFF](https://github.com/ACEsuit/mace) | MLIP | `pip install -e .[mace]` |
@@ -96,14 +96,14 @@ Genarris uses a [configuration file](https://docs.python.org/3/library/configpar
 ### Basic Workflow
 
 1. **Create a configuration file** `ui.conf`
-   
+
    Here's an example with key parameters for `generation` and `symm_rigid_press` steps:
 
    ```ini
    [master]
-   name                        = 
+   name                        =
    molecule_path               = [""]
-   Z                           = 
+   Z                           =
    log_level                   = info
 
    [workflow]
@@ -115,7 +115,7 @@ Genarris uses a [configuration file](https://docs.python.org/3/library/configpar
    max_attempts_per_spg        = 100000000
    tol                         = 0.01
    ucv_mean                    = predict
-   ucv_mult                    = 1.5 
+   ucv_mult                    = 1.5
    max_attempts_per_volume     = 10000000
    spg_distribution_type       = standard
    generation_type             = crystal
@@ -144,7 +144,7 @@ Genarris uses a [configuration file](https://docs.python.org/3/library/configpar
    ```bash
    mpirun -np 8 gnrs --config ui.conf
    ```
-  
+
 ## Citation
 
 If you use Genarris, please cite:

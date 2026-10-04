@@ -7,21 +7,22 @@ LICENSE file in the root directory of this source tree.
 
 from __future__ import annotations
 
-__author__ = ["Yi Yang","Rithwik Tom"]
+__author__ = ["Yi Yang", "Rithwik Tom"]
 __email__ = "yiy5@andrew.cmu.edu"
 __group__ = "https://www.noamarom.com/"
 
-from ase.io import read
 from ase import Atoms
+from ase.io import read
 
 from gnrs.core.optimizer import GeometryOptimizerABC
 from gnrs.optimize.rpress_symm_impl import RigidPressSymm
+
 
 class SYMM_RIGID_PRESSOptimizer(GeometryOptimizerABC):
     """
     Optimizes crystal structures using rigid_press algorithm with symmetry constraints.
 
-    This optimizer uses van der Waals cutoff matrices for 
+    This optimizer uses van der Waals cutoff matrices for
     tight molecular packing and preserves symmetry during optimization.
 
     Attributes:
@@ -53,7 +54,6 @@ class SYMM_RIGID_PRESSOptimizer(GeometryOptimizerABC):
         """
         Initialize the optimizer.
         """
-        pass
 
     def optimize(self, xtal: Atoms) -> None:
         """

@@ -4,19 +4,20 @@ This module implements the molecule bonding module.
 This source code is licensed under the BSD-3-Clause license found in the
 LICENSE file in the root directory of this source tree.
 """
+
 from __future__ import annotations
 
 __author__ = ["Yi Yang", "Rithwik Tom"]
 __email__ = "yiy5@andrew.cmu.edu"
 __group__ = "https://www.noamarom.com/"
 
-import yaml
 from importlib.resources import files
 
-import numpy as np
 import networkx as nx
-from ase.io import read
+import numpy as np
+import yaml
 from ase.data import atomic_numbers, vdw
+from ase.io import read
 from ase.neighborlist import NeighborList, natural_cutoffs
 
 # Update Hydrogen radii — 1.1 A instead of the default 1.2 A.
@@ -37,6 +38,7 @@ intermolecular_dist = {
     "h_bond": _H_BOND_PARAMS["h_bond"],
 }
 
+
 def construct_pair_keys(elements: list[str]) -> np.ndarray:
     """
     Constructs pair_key matrix for every element in the argument
@@ -45,6 +47,7 @@ def construct_pair_keys(elements: list[str]) -> np.ndarray:
     pair_keys = np.char.add(atom_keys, np.array(["-"], dtype="<U2"))
     pair_keys = np.char.add(pair_keys, atom_keys[:, None])
     return pair_keys
+
 
 def construct_intermolecular_dist_dict() -> None:
     """
@@ -67,10 +70,14 @@ def construct_intermolecular_dist_dict() -> None:
         if np.isnan(r1) or np.isnan(r2):
             continue
         intermolecular_dist["vdw"][pair] = r1 + r2
-        
+
+
 construct_intermolecular_dist_dict()
 
-def get_vdw_distance_cutoff_matrix(mol_path: str | list[str], z: int, sr: float, natural_cutoff_mult: float) -> tuple[np.ndarray, list[str]]:
+
+def get_vdw_distance_cutoff_matrix(
+    mol_path: str | list[str], z: int, sr: float, natural_cutoff_mult: float
+) -> tuple[np.ndarray, list[str]]:
     """
     Get the van der Waals distance cutoff matrix.
 
@@ -266,13 +273,11 @@ class MoleculeBonding:
                         bond_ele = self.ele[bonding]
                         unique_ele = np.unique(bond_ele)
                         # C-O-C
-                        if len(unique_ele) == 1 and unique_ele[0] == "C":
-                            self.acceptor_idx.append(i)
-                        # H-O-H
-                        elif len(unique_ele) == 1 and unique_ele[0] == "H":
-                            self.acceptor_idx.append(i)
-                        # R-O-H
-                        elif "H" in bond_ele:
+                        if (
+                            (len(unique_ele) == 1 and unique_ele[0] == "C")
+                            or (len(unique_ele) == 1 and unique_ele[0] == "H")
+                            or "H" in bond_ele
+                        ):
                             self.acceptor_idx.append(i)
 
                 # Check for terminal nitrogen
@@ -281,7 +286,8 @@ class MoleculeBonding:
                         self.acceptor_idx.append(i)
 
         return self.donor_idx, self.acceptor_idx
-    
+
+
 class BondNeighborhood:
     """
     Returns the bonding neighborhood of each atom for a structure. User is

@@ -6,6 +6,7 @@ This module provides the base class for implementing geometry optimization.
 This source code is licensed under the BSD-3-Clause license found in the
 LICENSE file in the root directory of this source tree.
 """
+
 from __future__ import annotations
 
 __author__ = ["Yi Yang", "Rithwik Tom"]
@@ -15,11 +16,11 @@ __group__ = "https://www.noamarom.com/"
 import abc
 import logging
 from collections import deque
-from typing import Callable, Collection, Optional
+from collections.abc import Callable, Collection
 
 import numpy as np
-from mpi4py import MPI
 from ase.atoms import Atoms
+from mpi4py import MPI
 
 from gnrs.core.gpu import GPUDeviceManager
 
@@ -52,8 +53,8 @@ class GeometryOptimizerABC(abc.ABC):
     """
 
     def __init__(
-        self, 
-        comm: MPI.Comm, 
+        self,
+        comm: MPI.Comm,
         task_set: dict,
         opt_name: str = "relax",
         energy_method: str | None = None,
@@ -63,7 +64,7 @@ class GeometryOptimizerABC(abc.ABC):
     ) -> None:
         """
         Initialize the geometry optimizer.
-        
+
         Args:
             comm: MPI communicator for parallel computation
             task_set: Optimization settings
@@ -84,20 +85,18 @@ class GeometryOptimizerABC(abc.ABC):
         self.energy_calc = energy_calc
         self.converged = False
         self._gpu_mgr = gpu_mgr
-        self._use_worker_feeder = (
-            gpu_mgr is not None and gpu_mgr.num_feeders > 0
-        )
+        self._use_worker_feeder = gpu_mgr is not None and gpu_mgr.num_feeders > 0
         self._dft_serial_mode = dft_serial_mode
 
     def run(self, xtal: Atoms) -> None:
         """
         Run the optimization workflow.
-        
+
         1. Initialize
         2. Perform optimization
         3. Update structure information
         4. Finalize
-        
+
         Args:
             xtal: ASE Atoms object representing the crystal structure
         """
@@ -110,7 +109,7 @@ class GeometryOptimizerABC(abc.ABC):
     def run_batch(
         self,
         structs: dict[str, Atoms],
-        on_structure_done: Optional[Callable[[str, Atoms], None]] = None,
+        on_structure_done: Callable[[str, Atoms], None] | None = None,
         done: Collection[str] = (),
     ) -> None:
         """
@@ -135,7 +134,9 @@ class GeometryOptimizerABC(abc.ABC):
                     self.run(xtal)
                 except (ValueError, RuntimeError) as e:
                     logger.warning(
-                        "Optimization failed for %s: %s", name, e,
+                        "Optimization failed for %s: %s",
+                        name,
+                        e,
                     )
                     failed.append(name)
                     continue
@@ -153,7 +154,7 @@ class GeometryOptimizerABC(abc.ABC):
     def _serial_dft_batch(
         self,
         structs: dict[str, Atoms],
-        on_structure_done: Optional[Callable[[str, Atoms], None]],
+        on_structure_done: Callable[[str, Atoms], None] | None,
         done: Collection[str],
     ) -> None:
         """
@@ -192,7 +193,7 @@ class GeometryOptimizerABC(abc.ABC):
     def _worker_loop(
         self,
         local_structs: dict[str, Atoms],
-        on_structure_done: Optional[Callable[[str, Atoms], None]],
+        on_structure_done: Callable[[str, Atoms], None] | None,
         done: Collection[str],
     ) -> None:
         """
@@ -201,8 +202,7 @@ class GeometryOptimizerABC(abc.ABC):
         my_feeders = set(self._gpu_mgr.assigned_feeders())
 
         local_queue: deque[tuple[str, Atoms]] = deque(
-            (name, xtal) for name, xtal in local_structs.items()
-            if name not in done
+            (name, xtal) for name, xtal in local_structs.items() if name not in done
         )
 
         while local_queue or my_feeders:
@@ -218,10 +218,15 @@ class GeometryOptimizerABC(abc.ABC):
             if my_feeders and not served:
                 status = MPI.Status()
                 data = self.comm.recv(
-                    source=MPI.ANY_SOURCE, tag=MPI.ANY_TAG, status=status,
+                    source=MPI.ANY_SOURCE,
+                    tag=MPI.ANY_TAG,
+                    status=status,
                 )
                 self._handle_worker_msg(
-                    data, status.Get_source(), status.Get_tag(), my_feeders,
+                    data,
+                    status.Get_source(),
+                    status.Get_tag(),
+                    my_feeders,
                 )
 
     def _drain_feeder_requests(self, active_feeders: set[int]) -> bool:
@@ -235,15 +240,21 @@ class GeometryOptimizerABC(abc.ABC):
         while True:
             status = MPI.Status()
             has_msg = self.comm.iprobe(
-                source=MPI.ANY_SOURCE, tag=MPI.ANY_TAG, status=status,
+                source=MPI.ANY_SOURCE,
+                tag=MPI.ANY_TAG,
+                status=status,
             )
             if not has_msg:
                 break
             data = self.comm.recv(
-                source=status.Get_source(), tag=status.Get_tag(),
+                source=status.Get_source(),
+                tag=status.Get_tag(),
             )
             self._handle_worker_msg(
-                data, status.Get_source(), status.Get_tag(), active_feeders,
+                data,
+                status.Get_source(),
+                status.Get_tag(),
+                active_feeders,
             )
             served_any = True
         return served_any
@@ -276,7 +287,7 @@ class GeometryOptimizerABC(abc.ABC):
     def _feeder_loop(
         self,
         local_structs: dict[str, Atoms],
-        on_structure_done: Optional[Callable[[str, Atoms], None]],
+        on_structure_done: Callable[[str, Atoms], None] | None,
         done: Collection[str],
     ) -> None:
         """
@@ -289,7 +300,8 @@ class GeometryOptimizerABC(abc.ABC):
                 continue
             self.comm.send((name, xtal), dest=worker, tag=TAG_OPT_DATA)
             _, info, positions, cell = self.comm.recv(
-                source=worker, tag=TAG_OPT_RESULT,
+                source=worker,
+                tag=TAG_OPT_RESULT,
             )
             xtal.info.update(info)
             xtal.positions = positions
@@ -303,32 +315,29 @@ class GeometryOptimizerABC(abc.ABC):
         """
         Initialize for optimization.
         """
-        pass
 
     @abc.abstractmethod
     def optimize(self, xtal: Atoms) -> None:
         """
         Perform optimization.
-        
+
         Args:
             xtal: ASE Atoms object
         """
-        pass
 
     @abc.abstractmethod
     def update(self, xtal: Atoms) -> None:
         """
         Update the geometry and add energy information.
-        
+
         Args:
             xtal: ASE Atoms object
         """
-        pass
 
     def finalize(self, xtal: Atoms) -> None:
         """
         Finalize the optimization and clean up.
-        
+
         Args:
             xtal: ASE Atoms object
         """

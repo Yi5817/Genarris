@@ -5,12 +5,13 @@ https://github.com/facebookresearch/fairchem
 https://fair-chem.github.io/
 https://huggingface.co/facebook/UMA
 
-Models are made accessible for commerical and non-commerical use under a permissive license 
+Models are made accessible for commerical and non-commerical use under a permissive license
 found in https://huggingface.co/facebook/UMA/blob/main/LICENSE.
 
 This source code is licensed under the BSD-3-Clause license found in the
 LICENSE file in the root directory of this source tree.
 """
+
 from __future__ import annotations
 
 __author__ = ["Vahe Gharakhanyan"]
@@ -34,7 +35,7 @@ class UMAEnergy(EnergyCalculatorABC):
     def __init__(self, *args) -> None:
         super().__init__(*args)
         if self._gpu_mgr is None or self._gpu_mgr.is_worker:
-            from fairchem.core import pretrained_mlip, FAIRChemCalculator
+            from fairchem.core import FAIRChemCalculator, pretrained_mlip
 
             model_name = self.tsk_set.get("model_name", "uma-s-1p1")
             task_name = self.tsk_set.get("task_name", "omc")
@@ -50,7 +51,6 @@ class UMAEnergy(EnergyCalculatorABC):
         """
         Initialize the energy calculator.
         """
-        pass
 
     def compute(self, xtal: Atoms) -> None:
         """
@@ -67,4 +67,3 @@ class UMAEnergy(EnergyCalculatorABC):
         """
         Finalize the energy calculator.
         """
-        pass

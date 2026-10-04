@@ -4,14 +4,15 @@ This module provides the DuplicateRemovalTask class for removing duplicate cryst
 This source code is licensed under the BSD-3-Clause license found in the
 LICENSE file in the root directory of this source tree.
 """
+
 from __future__ import annotations
 
 __author__ = ["Yi Yang"]
 __email__ = "yiy5@andrew.cmu.edu"
 __group__ = "https://www.noamarom.com/"
 
-import os
 import logging
+import os
 
 from mpi4py import MPI
 from pymatgen.analysis.structure_matcher import StructureMatcher
@@ -19,8 +20,8 @@ from pymatgen.analysis.structure_matcher import StructureMatcher
 import gnrs.output as gout
 import gnrs.parallel as gp
 from gnrs.core.task import TaskABC
+from gnrs.deduplication.dedup import dedup_group, group_by_spg
 from gnrs.parallel.structs import DistributedStructs
-from gnrs.deduplication.dedup import group_by_spg, dedup_group
 
 logger = logging.getLogger("DuplicateRemovalTask")
 
@@ -124,7 +125,9 @@ class DuplicateRemovalTask(TaskABC):
             if gp.is_master:
                 spg_groups = group_by_spg(combined)
                 spg_keys = sorted(spg_groups.keys())
-                gout.emit(f"Deduplicating {len(combined)} structures across {len(spg_keys)} space groups")
+                gout.emit(
+                    f"Deduplicating {len(combined)} structures across {len(spg_keys)} space groups"
+                )
                 del combined
 
             spg_keys = gp.comm.bcast(spg_keys, root=0)
@@ -136,12 +139,12 @@ class DuplicateRemovalTask(TaskABC):
                 unique.update(kept)
         else:
             if gp.is_master:
-                gout.emit(
-                    f"Deduplicating all {len(combined)} structures"
-                )
+                gout.emit(f"Deduplicating all {len(combined)} structures")
             unique = dedup_group(
                 combined if gp.is_master else {},
-                matcher, None, energy_key,
+                matcher,
+                None,
+                energy_key,
             )
 
         # Scatter deduplicated pool back across ranks
@@ -166,7 +169,7 @@ class DuplicateRemovalTask(TaskABC):
         gout.print_sub_section("Pool Analysis")
         gout.emit(f"Total number of structures after deduplication = {num_structs}")
         gout.emit("")
-        gout.emit(f"Unit Cell Volume Statistics after deduplication:")
+        gout.emit("Unit Cell Volume Statistics after deduplication:")
         gout.print_dict_table(vol_stat, header=["Stat", "Volume (A^3)"])
 
     def finalize(self) -> None:

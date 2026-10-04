@@ -4,6 +4,7 @@ the optimizer; later ones continue from the previous task's output. Decided
 from the task list, so it also holds on a restart that skips the first task.
 Run in a single process (no mpirun).
 """
+
 from __future__ import annotations
 
 import pytest

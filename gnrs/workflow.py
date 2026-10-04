@@ -11,23 +11,22 @@ __author__ = ["Yi Yang", "Rithwik Tom"]
 __email__ = "yiy5@andrew.cmu.edu"
 __group__ = "https://www.noamarom.com/"
 
+import argparse
+import logging
 import os
 import time
-import logging
 
 from mpi4py import MPI
 
+import gnrs.output as gout
 from gnrs.core import folders
 from gnrs.core.logging import GenarrisLogger
 from gnrs.core.registry import resolve_tasks
-import gnrs.output as gout
-from gnrs.parallel import init_parallel
-from gnrs.parser import UserSettingsParser, UserSettingsSanityChecker
-from gnrs.parallel.test import test_bcast
 from gnrs.core.restart import Restart, RestartError
 from gnrs.gnrsutil.core import check_if_exp_found
-
-import argparse
+from gnrs.parallel import init_parallel
+from gnrs.parallel.test import test_bcast
+from gnrs.parser import UserSettingsParser, UserSettingsSanityChecker
 
 
 class Genarris:
@@ -117,7 +116,7 @@ class Genarris:
         if self.is_master:
             parser = UserSettingsParser(self.config_path)
             config = parser.load_config()
-            
+
             # Update log level
             new_level = config["master"]["log_level"]
             self.Genlogger.reset_loglevel(new_level)
@@ -133,13 +132,13 @@ class Genarris:
         Initialize Genarris information with paths and execution metadata.
         """
         self.logger.info("Setting runtime values")
-        
+
         # Set working directories
         self.work_dir = os.getcwd()
         self.gnrs_info["work_dir"] = self.work_dir
         self.gnrs_info["struct_dir"] = os.path.join(self.work_dir, "structures")
         self.gnrs_info["tmp_dir"] = os.path.join(self.work_dir, "tmp")
-        
+
         # Initialize data containers
         self.gnrs_info["energy_list"] = []
         self.gnrs_info["genarris_start_time"] = time.time()
@@ -187,8 +186,7 @@ class Genarris:
             else:
                 hint = "It is from an older release; start over with --overwrite"
             raise RestartError(
-                f"This directory already contains a Genarris run ({found[0]}). "
-                f"{hint}."
+                f"This directory already contains a Genarris run ({found[0]}). {hint}."
             )
         if found:
             self.logger.warning("Discarding previous run record (--overwrite)")
@@ -240,14 +238,18 @@ class Genarris:
         Args:
             task_specs: Resolved specs of the tasks to execute
         """
-        self.logger.info(f"Running configured tasks: {[s.instance_id for s in task_specs]}")
+        self.logger.info(
+            f"Running configured tasks: {[s.instance_id for s in task_specs]}"
+        )
         gout.emit(f"Executing {len(task_specs)} configured tasks")
-        
+
         for spec in task_specs:
             if not self.restart_manager.is_task_completed(spec.instance_id):
                 gout.emit(f"Running task: {spec.instance_id}")
                 spec.cls(
-                    self.comm, self.config, self.gnrs_info,
+                    self.comm,
+                    self.config,
+                    self.gnrs_info,
                     *spec.extra_args,
                     instance_id=spec.instance_id,
                 ).run()
@@ -255,5 +257,7 @@ class Genarris:
                 test_bcast()
                 check_if_exp_found(self.config, self.gnrs_info)
             else:
-                self.logger.info(f"{spec.instance_id} task was completed before restart")
+                self.logger.info(
+                    f"{spec.instance_id} task was completed before restart"
+                )
                 gout.skip_task(spec.instance_id)

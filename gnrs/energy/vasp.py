@@ -4,6 +4,7 @@ This module computes the energy using VASP DFT code with ASE.
 This source code is licensed under the BSD-3-Clause license found in the
 LICENSE file in the root directory of this source tree.
 """
+
 from __future__ import annotations
 
 __author__ = ["Yi Yang", "Rithwik Tom"]
@@ -26,13 +27,12 @@ class VASPEnergy(EnergyCalculatorABC):
     def __init__(self, *args) -> None:
         super().__init__(*args)
         command = build_dft_command(self.tsk_set, self.rank)
-        self.calc = Vasp(command=command, **self.tsk_set['energy_settings'])
+        self.calc = Vasp(command=command, **self.tsk_set["energy_settings"])
 
     def initialize(self) -> None:
         """
         Initialize the energy calculator.
         """
-        pass
 
     def compute(self, xtal: Atoms) -> None:
         """
@@ -49,4 +49,3 @@ class VASPEnergy(EnergyCalculatorABC):
         """
         Finalize the energy calculator.
         """
-        pass

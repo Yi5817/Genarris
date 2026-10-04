@@ -4,14 +4,15 @@ Core task class for all tasks.
 This source code is licensed under the BSD-3-Clause license found in the
 LICENSE file in the root directory of this source tree.
 """
+
 from __future__ import annotations
 
 __author__ = ["Yi Yang", "Rithwik Tom"]
 __email__ = "yiy5@andrew.cmu.edu"
 __group__ = "https://www.noamarom.com/"
 
-import os
 import abc
+import os
 import time
 
 from mpi4py import MPI
@@ -25,7 +26,7 @@ from gnrs.parallel.structs import DistributedStructs
 class TaskABC(abc.ABC):
     """
     Abstract base class for all tasks.
-    
+
     This class defines the common interface and workflow for tasks like:
     - Structure generation
     - Descriptor evaluation
@@ -43,7 +44,7 @@ class TaskABC(abc.ABC):
     ) -> None:
         """
         Initialize the task with MPI communicator and settings.
-        
+
         Args:
             comm: MPI communicator
             config: Config dictionary
@@ -61,7 +62,7 @@ class TaskABC(abc.ABC):
     def run(self) -> None:
         """
         Execute the complete task workflow.
-        
+
         The workflow consists of:
         1. Initialize task
         2. Pack settings
@@ -101,7 +102,7 @@ class TaskABC(abc.ABC):
     def initialize(self, task_name: str, title: str) -> None:
         """
         Initialize the task with required setup.
-        
+
         Args:
             task_name: Name of the task
             title: Title to display for the task
@@ -123,7 +124,7 @@ class TaskABC(abc.ABC):
             "status": "running",
             "struct_dir": self.struct_dir,
             "struct_path": self.struct_path,
-            "calc_dir": self.calc_dir
+            "calc_dir": self.calc_dir,
         }
 
         # Get structs path from last run task
@@ -138,17 +139,16 @@ class TaskABC(abc.ABC):
     def pack_settings(self) -> dict:
         """
         Collect and pack settings needed for the task.
-        
+
         Returns:
-            Task settings dictionary 
+            Task settings dictionary
         """
-        pass
 
     @abc.abstractmethod
     def print_settings(self, task_set: dict) -> None:
         """
         Print task settings in a formatted table.
-        
+
         Args:
             task_set: Task settings dictionary
         """
@@ -190,11 +190,10 @@ class TaskABC(abc.ABC):
     def perform_task(self, task_set: dict) -> None:
         """
         Execute the main task.
-        
+
         Args:
             task_set: Task settings dictionary
         """
-        pass
 
     @abc.abstractmethod
     def collect_results(self) -> None:
@@ -208,13 +207,12 @@ class TaskABC(abc.ABC):
         """
         Analyze the results of the task.
         """
-        pass
 
     @abc.abstractmethod
     def finalize(self, task_name: str) -> None:
         """
         Finalize the task and update runtime settings.
-        
+
         Args:
             task_name: Name of the task
         """
