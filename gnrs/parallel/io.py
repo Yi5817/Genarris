@@ -82,7 +82,10 @@ def str2atoms(geometry_str: list) -> Atoms | None:
             if spg == 0:
                 return None
 
-    xtal = Atoms(symbols="".join(species), positions=pos, cell=cell, pbc=True)
+    # Asymmetric units have no lattice vectors
+    xtal = Atoms(
+        symbols="".join(species), positions=pos, cell=cell or None, pbc=bool(cell)
+    )
     if spg is not None:
         xtal.info["spg"] = spg
 
