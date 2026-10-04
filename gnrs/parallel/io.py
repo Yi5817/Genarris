@@ -10,8 +10,8 @@ __author__ = ["Yi Yang", "Rithwik Tom"]
 __email__ = "yiy5@andrew.cmu.edu"
 __group__ = "https://www.noamarom.com/"
 
+import hashlib
 import logging
-import random
 
 from ase import Atoms
 from ase.io.jsonio import encode, decode
@@ -29,7 +29,7 @@ def read_geometry_out(file_path: str) -> dict:
         file_path: Path to the geometry output file
         
     Returns:
-        Dictionary mapping random IDs to Atoms objects
+        Dictionary mapping IDs to Atoms objects.
     """
     if gp.is_master:
         with open(file_path, "r") as gfile:
@@ -41,17 +41,13 @@ def read_geometry_out(file_path: str) -> dict:
         str_data = None
 
     str_data = gp.comm.scatter(str_data, root=0)
-    struct_list = [
-        geo for geo in (
-            str2atoms(str_geo.split("\n"))
-            for str_geo in str_data
-            if str_geo is not None
-        )
-        if geo is not None
-    ]
-    # random IDs
-    struct_dict = {f"{random.getrandbits(60):x}": s for s in struct_list}
-    
+    struct_dict = {}
+    for str_geo in str_data:
+        xtal = str2atoms(str_geo.split("\n"))
+        if xtal is not None:
+            name = hashlib.blake2b(str_geo.encode(), digest_size=8).hexdigest()
+            struct_dict[name] = xtal
+
     return struct_dict
 
 
@@ -84,7 +80,7 @@ def str2atoms(geometry_str: list) -> Atoms | None:
 
     # Asymmetric units have no lattice vectors
     xtal = Atoms(
-        symbols="".join(species), positions=pos, cell=cell or None, pbc=bool(cell)
+        symbols=species, positions=pos, cell=cell or None, pbc=bool(cell)
     )
     if spg is not None:
         xtal.info["spg"] = spg
@@ -120,79 +116,51 @@ def decode_struct(line: str) -> tuple[str, Atoms]:
     return name.strip().strip('"'), decode(xtal.strip().rstrip(","))
 
 
-def write_parallel(file_path: str, struct_dict: dict,
-                  gather: bool = True, mode: str = "w") -> None:
+def write_parallel(file_path: str, struct_dict: dict) -> None:
     """
     Convert structures to JSON strings, gather and store to file.
 
     Args:
         file_path: Path to output file
         struct_dict: Dictionary of structures to write
-        gather: Whether to gather data from all processes
-        mode: File opening mode
     """
-
     str_list = [encode_struct(k, v) for k, v in struct_dict.items()]
-
-    if gather:
-        str_list = gp.comm.gather(str_list, root=0)
-        if gp.is_master:
-            str_list = [s for sublist in str_list if sublist for s in sublist]
-            if not str_list:
-                logger.info("No structures to write!")
-                return
-            logger.info(f"Writing {len(str_list)} structures to file")
-    elif not str_list:
-        logger.info("No structures to write!")
+    str_list = gp.comm.gather(str_list, root=0)
+    if not gp.is_master:
         return
 
-    if gp.is_master and str_list:
-        str_list[-1] = str_list[-1][:-2]
-        with open(file_path, mode) as wfile:
-            wfile.write("{\n")
-            wfile.writelines(str_list)
-            wfile.write("\n}")
+    str_list = [s for sublist in str_list for s in sublist]
+    if not str_list:
+        logger.info("No structures to write!")
+        return
+    logger.info(f"Writing {len(str_list)} structures to file")
+    str_list[-1] = str_list[-1][:-2]
+    with open(file_path, "w") as wfile:
+        wfile.write("{\n")
+        wfile.writelines(str_list)
+        wfile.write("\n}")
 
 
-def read_parallel(file_path: str, scatter: bool = True) -> dict:
+def read_parallel(file_path: str) -> dict:
     """
-    Reads JSON database of structures.
-    
+    Reads JSON database of structures and scatters it to all processes.
+
     Args:
         file_path: Path to JSON file
-        scatter: Whether to scatter data to all processes
-        
+
     Returns:
         Dictionary mapping IDs to Atoms objects
     """
     logger.info(f"Reading structures from {file_path}")
-    
+
+    str_list = None
     if gp.is_master:
         with open(file_path, "r") as rfile:
-            str_list = rfile.readlines()
-        # Remove {} and add comma to the last element
-        str_list = str_list[1:-1]
-        if str_list:
-            str_list[-1] = str_list[-1] + ","
-            str_list = _make_scatterable_form(str_list)
-    else:
-        str_list = None
+            # Drop the lines with the opening and closing braces
+            str_list = _make_scatterable_form(rfile.readlines()[1:-1])
 
     str_list = gp.comm.scatter(str_list, root=0)
-    struct_list = []
-    # Construct struct_list
-    for str_struct in str_list:
-        if str_struct is None:
-            continue
-        struct_list.append(list(decode_struct(str_struct)))
-
-    if not scatter:
-        struct_list = gp.comm.gather(struct_list, root=0)
-        if struct_list:
-            struct_list = [item for sublist in struct_list for item in sublist]
-
-    struct_dict = {s[0]: s[1] for s in struct_list}
-    return struct_dict
+    return dict(decode_struct(str_struct) for str_struct in str_list)
 
 
 def _make_scatterable_form(str_list: list) -> list:
@@ -206,9 +174,6 @@ def _make_scatterable_form(str_list: list) -> list:
         List of sublists for each process
     """
     ave, res = divmod(len(str_list), gp.size)
-    counts = [ave + 1 if p < res else ave for p in range(gp.size)]
-    # Determine the starting and ending indices of each sub-task
-    starts = [sum(counts[:p]) for p in range(gp.size)]
-    ends = [sum(counts[: p + 1]) for p in range(gp.size)]
-    new_list = [str_list[starts[p]: ends[p]] for p in range(gp.size)]
-    return new_list
+    # The first ``res`` ranks get one extra item
+    bounds = [p * ave + min(p, res) for p in range(gp.size + 1)]
+    return [str_list[bounds[p]: bounds[p + 1]] for p in range(gp.size)]
