@@ -86,7 +86,7 @@ mpirun -np <num_processes> gnrs -c ui.conf
 | Flag | Description | Default |
 |:-----|:------------|:--------|
 | `-c`, `--config` | Path to the configuration file (required) | — |
-| `-d`, `--seed` | Random seed for reproducibility | `42` |
+| `-d`, `--seed` | Random seed of the run: generation, PCA and clustering. The `seed` option of a generation task overrides it for that task | `42` |
 | `--restart` | Resume the previous run in the current directory, skipping completed tasks and structures | — |
 | `--overwrite` | Start over in a directory that contains a previous run, discarding its progress | — |
 
@@ -212,10 +212,11 @@ of the last completed task was deleted, or the task list changed). A checkpoint
 line cut short when the job was killed is skipped with a warning and that
 structure is recomputed.
 
-A restarted run is not bit-for-bit identical to an uninterrupted one with the
-same seed: the random number stream is seeded once at startup, so tasks that
-run after skipped ones draw different random numbers than they would have in
-the original run.
+A restart keeps the random seed of the original run, so `--seed` has no effect
+together with `--restart`. A run started with an older release did not record
+its seed; pass the same `--seed` again for it. A restarted run is still not
+guaranteed to be bit-for-bit identical to an uninterrupted one, because the
+structures are redistributed over the MPI processes.
 
 ### Starting over
 

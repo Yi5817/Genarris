@@ -19,6 +19,7 @@ import numpy as np
 from ase import Atoms
 from mpi4py import MPI
 import gnrs.output as gout
+import gnrs.parallel as gp
 from gnrs.core import folders
 from gnrs.core.generator import GeneratorABC
 from gnrs.core.molecule import Molecule
@@ -66,7 +67,7 @@ class CRYSTALGenerator(GeneratorABC):
         Returns:
             Task settings dictionary
         """
-        self.seed = int(settings.get("seed", 42))
+        self.seed = int(settings.get("seed", gp.base_seed))
         task_set = {
             "seed": self.seed,
             "z": self.config["master"]["z"],

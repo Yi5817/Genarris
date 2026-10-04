@@ -21,7 +21,7 @@ from gnrs.core import folders
 from gnrs.core.logging import GenarrisLogger
 from gnrs.core.registry import resolve_tasks
 import gnrs.output as gout
-from gnrs.parallel import init_parallel
+import gnrs.parallel as gp
 from gnrs.parser import UserSettingsParser, UserSettingsSanityChecker
 from gnrs.core.restart import Restart, RestartError
 from gnrs.gnrsutil.core import check_if_exp_found
@@ -49,7 +49,7 @@ class Genarris:
         self._mpi_init()
         self._log_init()
         self._output_init()
-        self._parallel_init(seed=self.seed)
+        self._parallel_init()
         self._gnrs_info_init()
         self._config_init(args)
         tasks = self.config.get("workflow", {}).get("tasks", [])
@@ -59,6 +59,9 @@ class Genarris:
             self.attempt_restart()
         else:
             self._check_previous_run()
+
+        gp.base_seed = self.gnrs_info["seed"]
+        gout.emit(f"Random seed: {gp.base_seed}")
         self._folders_init()
         self.restart_manager.write()
 
@@ -88,11 +91,11 @@ class Genarris:
         self.size = self.comm.Get_size()
         self.is_master = self.rank == 0
 
-    def _parallel_init(self, seed: int = 42) -> None:
+    def _parallel_init(self) -> None:
         """
         Initialize parallel processing environment.
         """
-        init_parallel(self.comm, seed=seed)
+        gp.init_parallel(self.comm)
 
     def _output_init(self) -> None:
         """
@@ -144,6 +147,7 @@ class Genarris:
         self.gnrs_info["genarris_start_time"] = time.time()
         self.gnrs_info["size"] = self.size
         self.gnrs_info["restart"] = self.restart
+        self.gnrs_info["seed"] = self.seed
 
     def attempt_restart(self) -> None:
         """

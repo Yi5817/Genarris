@@ -90,8 +90,8 @@ seed                 = 42
   stops early, and Genarris prints a warning. If the pool holds fewer than
   `num_asus` ASUs, increase this value or widen the `sr` window.
 
-`seed` : `int` | default = `42`.
-: Random seed for reproducibility. `0` uses a time-based seed.
+`seed` : `int` | default = the `--seed` value of the run (`42`).
+: Random seed of this task. `0` uses a time-based seed.
 
 ## Crystals from ASUs
 

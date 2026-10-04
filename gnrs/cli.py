@@ -42,6 +42,8 @@ def main():
         "discarding its progress",
     )
     args = parser.parse_args()
+    if not 0 <= args.seed < 2**31:
+        parser.error("--seed must be between 0 and 2**31 - 1")
 
     from gnrs.core.registry import UnknownTaskError
     from gnrs.core.restart import RestartError

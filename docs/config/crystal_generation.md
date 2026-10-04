@@ -74,8 +74,8 @@ lattice_angle_std       = 8
   `crystal_generation` after {doc}`asu_generation`.
   ```
 
-`seed` : `int` | default = `42`.
-: Random seed for reproducibility.
+`seed` : `int` | default = the `--seed` value of the run (`42`).
+: Random seed of this task. `0` uses a time-based seed.
 
 `lattice_norm_dev` : `float` | default = `0.4`.
 : Standard deviation for lattice norm sampling.

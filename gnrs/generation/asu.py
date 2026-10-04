@@ -16,6 +16,7 @@ import logging
 import numpy as np
 
 import gnrs.output as gout
+import gnrs.parallel as gp
 from gnrs.core.generator import GeneratorABC
 from gnrs.core.molecule import Molecule
 from gnrs.parallel.structs import DistributedStructs
@@ -50,7 +51,7 @@ class ASUGenerator(GeneratorABC):
                 "ASU generation currently supports exactly two components "
                 "with stoichiometry 1:1."
             )
-        return {"molecule_path": molecule_path, **settings}
+        return {"molecule_path": molecule_path, "seed": gp.base_seed, **settings}
 
     def generate(self, task_set: dict, calc_dir: str) -> None:
         """
