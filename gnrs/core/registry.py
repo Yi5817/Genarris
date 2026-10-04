@@ -55,6 +55,7 @@ class TaskSpec(NamedTuple):
             ``bfgs`` and ``maceoff`` for ``bfgs_maceoff``), plus per-instance
             overrides under ``instance_id``.
     """
+
     task_type: str
     instance_id: str
     cls: type
@@ -113,7 +114,7 @@ def resolve_task(task_name: str):
     if name in _RIGID_PRESS_OPTIMIZERS:
         cls = _import_class(*_TASK_TYPES["optimize"])
         return cls, (name,)
-    
+
     # duplicate removal
     if name == "dedup":
         cls = _import_class(*_TASK_TYPES["dedup"])
@@ -148,8 +149,7 @@ def resolve_task(task_name: str):
                 return cls, (cm, selection)
 
     raise UnknownTaskError(
-        f"Unknown task: {task_name}. "
-        f"Could not resolve to any registered task type."
+        f"Unknown task: {task_name}. Could not resolve to any registered task type."
     )
 
 

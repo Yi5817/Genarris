@@ -4,6 +4,7 @@ Abstract base class for structure generators.
 This source code is licensed under the BSD-3-Clause license found in the
 LICENSE file in the root directory of this source tree.
 """
+
 from __future__ import annotations
 
 __author__ = "Yi Yang"
@@ -55,7 +56,6 @@ class GeneratorABC(abc.ABC):
         Returns:
             Task settings dictionary
         """
-        pass
 
     def print_settings(self, task_set: dict) -> None:
         """
@@ -73,7 +73,6 @@ class GeneratorABC(abc.ABC):
         Args:
             calc_dir: Folder of the generation task
         """
-        pass
 
     @abc.abstractmethod
     def generate(self, task_set: dict, calc_dir: str) -> None:
@@ -84,7 +83,6 @@ class GeneratorABC(abc.ABC):
             task_set: Task settings dictionary
             calc_dir: Folder of the generation task
         """
-        pass
 
     @abc.abstractmethod
     def analyze(self, structs: dict) -> None:
@@ -94,4 +92,3 @@ class GeneratorABC(abc.ABC):
         Args:
             structs: Generated structures on this rank
         """
-        pass

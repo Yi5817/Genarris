@@ -5,6 +5,7 @@ restart functionality.
 This source code is licensed under the BSD-3-Clause license found in the
 LICENSE file in the root directory of this source tree.
 """
+
 from __future__ import annotations
 
 __author__ = ["Yi Yang", "Rithwik Tom"]
@@ -15,8 +16,9 @@ import copy
 import json
 import logging
 import os
+from collections.abc import Callable, Collection
 from contextlib import suppress
-from typing import Callable, Collection, TypeVar
+from typing import TypeVar
 
 import numpy as np
 from mpi4py import MPI
@@ -288,7 +290,7 @@ class Restart:
 
         logger.info(f"Reading restart file {path}")
         try:
-            with open(path, "r") as rfile:
+            with open(path) as rfile:
                 data = json.load(rfile)
         except (OSError, ValueError) as exc:
             raise RestartError(
@@ -353,7 +355,10 @@ class Restart:
         # Keep values that describe the current run, not the previous one
         # (the molecule files under tmp/ are recreated if they are missing)
         for key in (
-            "size", "genarris_start_time", "config_path", "restart",
+            "size",
+            "genarris_start_time",
+            "config_path",
+            "restart",
             "molecule_path",
         ):
             saved_info.pop(key, None)
@@ -459,9 +464,7 @@ class Restart:
             )
         diffs = _diff_configs(saved_config, current_config)
         if diffs:
-            logger.warning(
-                "Config differs from the previous run: " + "; ".join(diffs)
-            )
+            logger.warning("Config differs from the previous run: " + "; ".join(diffs))
             gout.emit(
                 "WARNING: Settings changed since the previous run "
                 "(the current config file takes precedence):\n    "

@@ -12,9 +12,9 @@ __email__ = "yiy5@andrew.cmu.edu"
 __group__ = "https://www.noamarom.com/"
 
 from ase.atoms import Atoms
-from ase.optimize import BFGS
-from ase.filters import FrechetCellFilter
 from ase.constraints import FixSymmetry
+from ase.filters import FrechetCellFilter
+from ase.optimize import BFGS
 
 from gnrs.core.optimizer import GeometryOptimizerABC
 
@@ -22,7 +22,7 @@ from gnrs.core.optimizer import GeometryOptimizerABC
 class BFGSOptimizer(GeometryOptimizerABC):
     """
     Limited-memory BFGS optimization using ASE's BFGS implementation.
-    
+
     Attributes:
         fmax: Maximum force tolerance for convergence criterion
         steps: Maximum number of optimization steps to perform
@@ -43,7 +43,7 @@ class BFGSOptimizer(GeometryOptimizerABC):
     def optimize(self, xtal: Atoms) -> None:
         """
         Performs geometry optimization using BFGS algorithm.
-        
+
         Args:
             xtal: ASE Atoms object
         """
@@ -55,9 +55,7 @@ class BFGSOptimizer(GeometryOptimizerABC):
             ecf = FrechetCellFilter(xtal)
             dyn = BFGS(ecf, master=True, logfile="bfgs.log", **self.tsk_set)
         else:
-            dyn = BFGS(
-                xtal, master=True, logfile="bfgs.log", **self.tsk_set
-            )
+            dyn = BFGS(xtal, master=True, logfile="bfgs.log", **self.tsk_set)
 
         try:
             self.converged = dyn.run(fmax=self.fmax, steps=self.steps)
@@ -73,7 +71,9 @@ class BFGSOptimizer(GeometryOptimizerABC):
         """
         super().update(xtal)
         try:
-            xtal.info[f"{self.opt_name}_{self.energy_method}"] = xtal.get_potential_energy()
+            xtal.info[f"{self.opt_name}_{self.energy_method}"] = (
+                xtal.get_potential_energy()
+            )
         except:
             xtal.info[f"{self.opt_name}_{self.energy_method}"] = 0
         xtal.info[self.opt_name] = "converged" if self.converged else "unconverged"

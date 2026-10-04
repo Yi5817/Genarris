@@ -4,17 +4,19 @@ This module provides the StructureGenerationTask class for performing structure 
 This source code is licensed under the BSD-3-Clause license found in the
 LICENSE file in the root directory of this source tree.
 """
+
 from __future__ import annotations
 
 __author__ = ["Yi Yang", "Rithwik Tom"]
 __email__ = "yiy5@andrew.cmu.edu"
 __group__ = "https://www.noamarom.com/"
 
-import os
-import logging
 import importlib
+import logging
+import os
 
 from mpi4py import MPI
+
 from gnrs.core.task import TaskABC
 from gnrs.parallel.io import read_geometry_out
 from gnrs.parallel.structs import DistributedStructs

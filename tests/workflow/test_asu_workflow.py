@@ -4,6 +4,7 @@ mpirun on the two molecules of the BEDQAG co-crystal.
 
 Run with:  pytest -m integration
 """
+
 from __future__ import annotations
 
 import shutil
@@ -66,17 +67,24 @@ def test_crystal_generation_from_asus(
 
     assert proc.returncode == 0, proc.stdout + proc.stderr
     asus = read_json(tmp_path / "structures" / "asu_generation" / "structures.json")
-    xtals = read_json(tmp_path / "structures" / "crystal_generation" / "structures.json")
+    xtals = read_json(
+        tmp_path / "structures" / "crystal_generation" / "structures.json"
+    )
     # 2 crystals for each of 2 ASUs in 2 space groups, with 2 ASUs per cell
     assert len(xtals) == 8
     for xtal in xtals.values():
         assert xtal.pbc.all()
         assert xtal.info["spg"] in (2, 4)
-        assert xtal.get_chemical_symbols() == 2 * next(
-            iter(asus.values())
-        ).get_chemical_symbols()
+        assert (
+            xtal.get_chemical_symbols()
+            == 2 * next(iter(asus.values())).get_chemical_symbols()
+        )
     for name in asus:
-        assert (tmp_path / "tmp" / "crystal_generation" / name / "geometry.out").stat().st_size
+        assert (
+            (tmp_path / "tmp" / "crystal_generation" / name / "geometry.out")
+            .stat()
+            .st_size
+        )
 
 
 def test_asu_generation_workflow(

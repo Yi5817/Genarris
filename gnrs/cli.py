@@ -28,16 +28,20 @@ def main():
     Main CLI for Genarris workflow.
     """
     parser = argparse.ArgumentParser(description="Genarris3.0")
-    parser.add_argument("-c", "--config", required=True, type=str, help="Path to the configuration file")
+    parser.add_argument(
+        "-c", "--config", required=True, type=str, help="Path to the configuration file"
+    )
     parser.add_argument("-d", "--seed", type=int, help="Random seed", default=42)
     mode = parser.add_mutually_exclusive_group()
     mode.add_argument(
-        "--restart", action="store_true",
+        "--restart",
+        action="store_true",
         help="Resume the previous run in the current directory, "
         "skipping completed tasks and structures",
     )
     mode.add_argument(
-        "--overwrite", action="store_true",
+        "--overwrite",
+        action="store_true",
         help="Start over in a directory that contains a previous run, "
         "discarding its progress",
     )
@@ -53,8 +57,9 @@ def main():
     aborted = False
     try:
         # Initialize and run Genarris
-        from gnrs.workflow import Genarris
         import gnrs.output as gout
+        from gnrs.workflow import Genarris
+
         gnrs_workflow = Genarris(args)
         gnrs_workflow.run()
         gout.emit("All tasks completed successfully.\nHave a nice day! :-)")

@@ -11,17 +11,17 @@ __author__ = ["Yi Yang", "Rithwik Tom"]
 __email__ = "yiy5@andrew.cmu.edu"
 __group__ = "https://www.noamarom.com/"
 
-import os
-import numpy as np
 import logging
-
-from mpi4py import MPI
+import os
 from bisect import bisect_left
+
+import numpy as np
+from mpi4py import MPI
 from sklearn.cluster import AffinityPropagation
 from sklearn.metrics.pairwise import euclidean_distances
 
-import gnrs.parallel as gp
 import gnrs.output as gout
+import gnrs.parallel as gp
 from gnrs.core.cluster import ClusterABC
 
 logger = logging.getLogger("AP")
@@ -101,16 +101,19 @@ class APCluster(ClusterABC):
         all_features = self.comm.gather(local_features, root=0)
         all_ids = self.comm.gather(local_ids, root=0)
         if self.is_master:
-            all_features = np.vstack([feat for sublist in all_features if sublist is not None for feat in sublist], dtype=np.float32)
+            all_features = np.vstack(
+                [
+                    feat
+                    for sublist in all_features
+                    if sublist is not None
+                    for feat in sublist
+                ],
+                dtype=np.float32,
+            )
             n_samples, n_features = all_features.shape
 
             ids_array = np.array(
-                [
-                    _id
-                    for sublist in all_ids
-                    if sublist is not None
-                    for _id in sublist
-                ],
+                [_id for sublist in all_ids if sublist is not None for _id in sublist],
                 dtype="<U15",
             )
 
@@ -183,10 +186,7 @@ class APCluster(ClusterABC):
             else:
                 gout.emit(f"Loading IDs file: {self.ids_file}")
                 self.ids = np.memmap(
-                    self.ids_file,
-                    dtype="<U15",
-                    mode="r",
-                    shape=(n_samples,)
+                    self.ids_file, dtype="<U15", mode="r", shape=(n_samples,)
                 )
             del ids_array
             del all_ids
@@ -242,7 +242,9 @@ class APCluster(ClusterABC):
                 random_state=gp.base_seed,
             )
 
-        logger.info(f"Started AP clustering with {self.n_ap_workers} AP workers out of {self.size} ranks")
+        logger.info(
+            f"Started AP clustering with {self.n_ap_workers} AP workers out of {self.size} ranks"
+        )
         gout.emit(
             f"Running AP clustering targeting {self.n_clusters} clusters "
             f"with {self.n_ap_workers} AP workers out of {self.size} ranks"
@@ -274,7 +276,7 @@ class APCluster(ClusterABC):
                     + float(pref_range[0] - pref_range[-1])
                     * float(ap_rank + 1)
                     / float(ap_size + 1),
-                    4
+                    4,
                 )
 
                 try:
@@ -321,8 +323,7 @@ class APCluster(ClusterABC):
                 if self.is_ap_worker and converged_result["rank"] == ap_rank:
                     self.result = result
                 break
-            else:
-                pref_range = converged_result["new_pref_range"]
+            pref_range = converged_result["new_pref_range"]
             gout.emit(
                 f"Attempt {n_attempts}: Preference range updated: "
                 f"[{pref_range[0]:.4f}, {pref_range[-1]:.4f}]"
@@ -330,7 +331,7 @@ class APCluster(ClusterABC):
             n_attempts += 1
 
         if converged_result is not None and converged_result["converged"]:
-            gout.emit(f"Affinity Propagation with fixed number of clusters succeeded!")
+            gout.emit("Affinity Propagation with fixed number of clusters succeeded!")
         else:
             gout.emit(
                 f"Failed to cluster to {self.n_clusters} clusters "
@@ -439,24 +440,20 @@ class APCluster(ClusterABC):
             mid_point = (pref_range[0] + pref_range[1]) / 2
 
             if iteration % 2 == 0:
-                new_pref = mid_point + (
-                    (pref_range[1] - pref_range[0]) * 0.5 * factor
-                )
+                new_pref = mid_point + ((pref_range[1] - pref_range[0]) * 0.5 * factor)
             else:
-                new_pref = mid_point - (
-                    (pref_range[1] - pref_range[0]) * 0.5 * factor
-                )
+                new_pref = mid_point - ((pref_range[1] - pref_range[0]) * 0.5 * factor)
 
             pref = round(new_pref, 4)
 
             if self.debug_mode:
                 print(
                     f"preference: {pref} failed to converge. Trying a random preference: {new_pref}",
-                    flush=True
+                    flush=True,
                 )
 
             if iteration == self.max_ap_attempts - 1:
-                raise StopIteration()
+                raise StopIteration
 
         cluster_centers = clustering.cluster_centers_indices_
         n_clusters = len(cluster_centers)
@@ -538,22 +535,24 @@ class APCluster(ClusterABC):
             # Target clusters is lower than any value obtained - decrease preference range
             new_pref_range = [
                 pref_range[0] - abs(pref_range[0]) * 0.2,
-                pref_list[sorted_clusters_with_indices[0][1]]
+                pref_list[sorted_clusters_with_indices[0][1]],
             ]
         elif idx == len(pref_list):
             # Target clusters is higher than any value obtained - increase preference range
             new_pref_range = [
                 pref_list[sorted_clusters_with_indices[-1][1]],
-                pref_range[1] + abs(pref_range[1]) * 0.2
+                pref_range[1] + abs(pref_range[1]) * 0.2,
             ]
         else:
             # Target clusters is between values obtained
             # Get the preference values on either side of where self.n_clusters would be inserted
             # Find the indices in the original list that correspond to the sorted positions
-            new_pref_range = sorted([
-                pref_list[sorted_clusters_with_indices[idx - 1][1]],
-                pref_list[sorted_clusters_with_indices[idx][1]]
-            ])
+            new_pref_range = sorted(
+                [
+                    pref_list[sorted_clusters_with_indices[idx - 1][1]],
+                    pref_list[sorted_clusters_with_indices[idx][1]],
+                ]
+            )
 
         return {
             "converged": False,

@@ -4,6 +4,7 @@ benzene workflow (generation + symm_rigid_press), so they take a few minutes.
 
 Run with:  pytest -m integration
 """
+
 from __future__ import annotations
 
 import json
@@ -94,9 +95,7 @@ def make_interrupted(workdir: Path) -> None:
 
 
 @pytest.fixture(scope="module")
-def finished_run(
-    tmp_path_factory: pytest.TempPathFactory, run_gnrs: RunGnrs
-) -> Path:
+def finished_run(tmp_path_factory: pytest.TempPathFactory, run_gnrs: RunGnrs) -> Path:
     workdir = tmp_path_factory.mktemp("finished")
     (workdir / "benzene.xyz").write_text(BENZENE_XYZ)
     (workdir / "ui.conf").write_text(CONFIG)
@@ -186,7 +185,6 @@ def test_restart_with_changed_pending_settings_warns(
     assert "Checkpoints from a previous run found" not in out
 
 
-
 def test_fresh_run_over_previous_run_is_refused(
     run_copy: Path, run_gnrs: RunGnrs
 ) -> None:
@@ -208,9 +206,7 @@ def test_fresh_run_over_old_layout_run_is_refused(
     assert old_file.is_file(), "nothing may be touched"
 
 
-def test_overwrite_starts_over(
-    run_copy: Path, run_gnrs: RunGnrs
-) -> None:
+def test_overwrite_starts_over(run_copy: Path, run_gnrs: RunGnrs) -> None:
     # A checkpoint of a task the new run never reaches must not survive
     stale = run_copy / "tmp" / "never_run" / "rank_0"
     stale.mkdir(parents=True)

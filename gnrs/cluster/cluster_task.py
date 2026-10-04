@@ -4,15 +4,17 @@ This module provides the ClusterSelectionTask class for performing cluster selec
 This source code is licensed under the BSD-3-Clause license found in the
 LICENSE file in the root directory of this source tree.
 """
+
 from __future__ import annotations
 
 __author__ = ["Yi Yang", "Rithwik Tom"]
 __email__ = "yiy5@andrew.cmu.edu"
 __group__ = "https://www.noamarom.com/"
 
-import os
-import logging
 import importlib
+import logging
+import os
+
 from mpi4py import MPI
 
 import gnrs.output as gout
@@ -29,6 +31,7 @@ class ClusterSelectionTask(TaskABC):
     """
     Task for performing cluster selection.
     """
+
     def __init__(
         self,
         comm: MPI.Comm,
@@ -40,7 +43,7 @@ class ClusterSelectionTask(TaskABC):
     ) -> None:
         """
         Initialize the cluster selection task.
-        
+
         Args:
             comm: MPI communicator
             config: Config dictionary
@@ -53,7 +56,7 @@ class ClusterSelectionTask(TaskABC):
         self.clstr_name = cluster.lower()
         self.clstr_file = f"gnrs.cluster.{self.clstr_name}"
         self.clstr_class = f"{cluster.upper()}Cluster"
-        
+
         self.slct_name = selection.lower()
         self.slct_file = f"gnrs.cluster.selection.{self.slct_name}"
         self.slct_class = f"{selection.upper()}Selection"
@@ -87,20 +90,30 @@ class ClusterSelectionTask(TaskABC):
     def pack_settings(self) -> dict:
         """
         Pack settings needed for cluster selection.
-        
+
         Returns:
             Task settings dictionary
         """
-        overrides = self.config.get(self._active_instance_id, {}) if self._active_instance_id != self.task_name else {}
+        overrides = (
+            self.config.get(self._active_instance_id, {})
+            if self._active_instance_id != self.task_name
+            else {}
+        )
         task_set = {}
-        task_set[self.clstr_name] = {**self.config.get(self.clstr_name, {}), **overrides.get(self.clstr_name, {})}
-        task_set[self.slct_name] = {**self.config.get(self.slct_name, {}), **overrides.get(self.slct_name, {})}
+        task_set[self.clstr_name] = {
+            **self.config.get(self.clstr_name, {}),
+            **overrides.get(self.clstr_name, {}),
+        }
+        task_set[self.slct_name] = {
+            **self.config.get(self.slct_name, {}),
+            **overrides.get(self.slct_name, {}),
+        }
         return task_set
 
     def print_settings(self, task_set: dict) -> None:
         """
         Print task settings in a formatted table.
-        
+
         Args:
             task_set: Task settings dictionary
         """
@@ -118,7 +131,7 @@ class ClusterSelectionTask(TaskABC):
     def perform_task(self, task_set: dict) -> None:
         """
         Execute the cluster selection task.
-        
+
         Args:
             task_set: Task settings dictionary
         """
@@ -126,7 +139,9 @@ class ClusterSelectionTask(TaskABC):
 
         n_structs = DistributedStructs(self.structs).get_num_structs()
         if type(task_set[self.clstr_name]["n_clusters"]) is float:
-            task_set[self.clstr_name]["n_clusters"] = int(n_structs * task_set[self.clstr_name]["n_clusters"])
+            task_set[self.clstr_name]["n_clusters"] = int(
+                n_structs * task_set[self.clstr_name]["n_clusters"]
+            )
         # If total number of structs too low, dont cluster
         if n_structs < task_set[self.clstr_name]["n_clusters"]:
             gout.emit(
@@ -134,11 +149,13 @@ class ClusterSelectionTask(TaskABC):
                 f" less than number of clusters. Skipping task!"
             )
             return
-        
+
         clusters_tol = task_set[self.clstr_name].get("clusters_tol", 0.5)
         if type(clusters_tol) is float:
-            task_set[self.clstr_name]["clusters_tol"] = int(clusters_tol * task_set[self.clstr_name]["n_clusters"])
-        
+            task_set[self.clstr_name]["clusters_tol"] = int(
+                clusters_tol * task_set[self.clstr_name]["n_clusters"]
+            )
+
         self._run_cluster(task_set[self.clstr_name])
         self._run_selection(task_set[self.slct_name])
         return
@@ -170,7 +187,7 @@ class ClusterSelectionTask(TaskABC):
     def _run_cluster(self, cluster_settings: dict) -> None:
         """
         Run the clustering algorithm.
-        
+
         Args:
             cluster_settings: Clustering task settings
         """
@@ -181,7 +198,7 @@ class ClusterSelectionTask(TaskABC):
     def _run_selection(self, selection_settings: dict) -> None:
         """
         Run the selection algorithm.
-        
+
         Args:
             selection_settings: Selection task settings
         """

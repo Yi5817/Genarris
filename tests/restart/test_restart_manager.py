@@ -1,6 +1,7 @@
 """
 Unit tests for the restart manager. Run in a single process (no mpirun).
 """
+
 from __future__ import annotations
 
 import json
@@ -138,7 +139,8 @@ def test_invalid_task_list_is_refused_before_touching_anything(
 
 def test_changing_settings_of_pending_task_is_allowed(tmp_path: Path) -> None:
     manager = _manager(
-        tmp_path, completed=["generation"],
+        tmp_path,
+        completed=["generation"],
         config={"generation": {"sr": 0.95}, "symm_rigid_press": {"sr": 0.9}},
     )
     _apply(manager, _saved(generation={"sr": 0.95}, symm_rigid_press={"sr": 0.85}))
@@ -162,7 +164,9 @@ def test_removing_section_of_completed_task_is_reported_only(tmp_path: Path) -> 
 def test_instance_overrides_of_completed_task_are_frozen(tmp_path: Path) -> None:
     tasks = ["generation", "dedup", "dedup"]
     manager = _manager(
-        tmp_path, tasks, completed=["generation", "dedup_1"],
+        tmp_path,
+        tasks,
+        completed=["generation", "dedup_1"],
         config={"dedup": {"tol": 0.1}, "dedup_1": {"tol": 0.3}},
     )
     with pytest.raises(RestartError, match="dedup_1.tol: 0.2 -> 0.3"):
@@ -172,7 +176,9 @@ def test_instance_overrides_of_completed_task_are_frozen(tmp_path: Path) -> None
 def test_method_sections_of_completed_task_are_frozen(tmp_path: Path) -> None:
     tasks = ["generation", "bfgs_maceoff"]
     manager = _manager(
-        tmp_path, tasks, completed=tasks,
+        tmp_path,
+        tasks,
+        completed=tasks,
         config={"bfgs": {"maxiter": 100}, "maceoff": {"model_size": "small"}},
     )
     saved = _saved(tasks, bfgs={"maxiter": 100}, maceoff={"model_size": "large"})
@@ -183,7 +189,9 @@ def test_method_sections_of_completed_task_are_frozen(tmp_path: Path) -> None:
 def test_changed_override_of_method_section_is_reported_once(tmp_path: Path) -> None:
     tasks = ["generation", "bfgs_maceoff", "bfgs_maceoff"]
     manager = _manager(
-        tmp_path, tasks, completed=["generation", "bfgs_maceoff_1"],
+        tmp_path,
+        tasks,
+        completed=["generation", "bfgs_maceoff_1"],
         config={"bfgs": {"maxiter": 200}, "bfgs_maceoff_1": {"maxiter": 150}},
     )
     saved = _saved(tasks, bfgs={"maxiter": 200}, bfgs_maceoff_1={"maxiter": 100})
@@ -198,7 +206,9 @@ def test_removing_override_of_completed_task_is_refused(tmp_path: Path) -> None:
     # key changes the value the task read
     tasks = ["generation", "dedup", "dedup"]
     manager = _manager(
-        tmp_path, tasks, completed=["generation", "dedup_1"],
+        tmp_path,
+        tasks,
+        completed=["generation", "dedup_1"],
         config={"dedup": {"tol": 0.2}},
     )
     with pytest.raises(RestartError, match="dedup_1.tol: 0.1 -> '<not set>'"):
@@ -218,7 +228,8 @@ def test_settings_only_one_run_has_do_not_freeze_completed_task(
     # e.g. a default added or removed by a newer release, or a setting the
     # user added after the task completed; the results cannot depend on it
     manager = _manager(
-        tmp_path, completed=["generation"],
+        tmp_path,
+        completed=["generation"],
         config={"generation": {"sr": 0.95, "new_opt": 1}},
     )
     _apply(manager, _saved(generation={"sr": 0.95, "old_opt": 2}))
@@ -229,7 +240,8 @@ def test_setting_added_to_pending_task_discards_its_checkpoints(
 ) -> None:
     ckpt = _checkpoint(tmp_path, "symm_rigid_press")
     manager = _manager(
-        tmp_path, completed=["generation"],
+        tmp_path,
+        completed=["generation"],
         config={"symm_rigid_press": {"sr": 0.85, "maxiter": 10}},
     )
     _apply(manager, _saved(symm_rigid_press={"sr": 0.85}))

@@ -4,29 +4,31 @@ This module provides the molecular crystal generator.
 This source code is licensed under the BSD-3-Clause license found in the
 LICENSE file in the root directory of this source tree.
 """
+
 from __future__ import annotations
 
 __author__ = ["Yi Yang", "Rithwik Tom"]
 __email__ = "yiy5@andrew.cmu.edu"
 __group__ = "https://www.noamarom.com/"
 
-import os
-import time
-import shutil
 import logging
+import os
+import shutil
+import time
 
 import numpy as np
 from ase import Atoms
 from mpi4py import MPI
+
 import gnrs.output as gout
 import gnrs.parallel as gp
+from gnrs.cgenarris import pygenarris_mpi as pg_mpi
 from gnrs.core import folders
 from gnrs.core.generator import GeneratorABC
 from gnrs.core.molecule import Molecule
-from gnrs.gnrsutil.volume_estimation import predict_cell_volume
 from gnrs.gnrsutil.molecule_bonding import get_vdw_distance_cutoff_matrix
+from gnrs.gnrsutil.volume_estimation import predict_cell_volume
 from gnrs.parallel.structs import DistributedStructs
-from gnrs.cgenarris import pygenarris_mpi as pg_mpi
 
 logger = logging.getLogger("crystal_generation")
 
@@ -72,7 +74,7 @@ class CRYSTALGenerator(GeneratorABC):
             "seed": self.seed,
             "z": self.config["master"]["z"],
             "molecule_path": self.config["master"]["molecule_path"],
-            **settings
+            **settings,
         }
 
         self.spg_distribution = task_set["spg_distribution_type"]
@@ -85,8 +87,12 @@ class CRYSTALGenerator(GeneratorABC):
         if isinstance(self.spg_distribution, list):
             task_set["spg_distribution_type"] = "custom"
 
-        self.ucv_mean = task_set.pop("ucv_mean", task_set.pop("unit_cell_volume_mean", None))
-        self.ucv_std = task_set.pop("ucv_std", task_set.pop("unit_cell_volume_std", None))
+        self.ucv_mean = task_set.pop(
+            "ucv_mean", task_set.pop("unit_cell_volume_mean", None)
+        )
+        self.ucv_std = task_set.pop(
+            "ucv_std", task_set.pop("unit_cell_volume_std", None)
+        )
         self.ucv_mult = task_set.pop("ucv_mult", task_set.pop("volume_mult", 1.5))
         self.sr = task_set.pop("sr", task_set.pop("specific_radius_proportion", 0.95))
         self._predict_cell_volume(task_set["z"])
@@ -98,11 +104,11 @@ class CRYSTALGenerator(GeneratorABC):
         gout.emit("Constructing Van der Waal cutoff matrix...")
         logger.info("Getting van der waal distance cutoff matrix")
         self.cutoff_matrix, self.hbond = get_vdw_distance_cutoff_matrix(
-            mol_path = task_set["molecule_path"],
-            z = task_set["z"],
-            sr = task_set["sr"],
-            natural_cutoff_mult = task_set["natural_cutoff_mult"]
-            )
+            mol_path=task_set["molecule_path"],
+            z=task_set["z"],
+            sr=task_set["sr"],
+            natural_cutoff_mult=task_set["natural_cutoff_mult"],
+        )
         task_set["cutoff_matrix"] = self.cutoff_matrix
         gout.emit("Van der Waal cutoff matrix constructed")
         return task_set
@@ -119,8 +125,7 @@ class CRYSTALGenerator(GeneratorABC):
         ucv_std = task_set["ucv_std"]
         gout.emit(f"Predicted unit cell volume = {ucv_mean:.1f} A^3.")
         gout.emit(
-            f"Standard deviation of unit cell"
-            f" volume distribution = {ucv_std:.1f} A^3."
+            f"Standard deviation of unit cell volume distribution = {ucv_std:.1f} A^3."
         )
         gout.emit("")
 
@@ -130,13 +135,10 @@ class CRYSTALGenerator(GeneratorABC):
             gout.emit("No Hydrogen bond corrections applied")
         gout.emit("")
 
-        gout.print_dict_table(
-            task_set, ["Option", "Value"], skip=("cutoff_matrix")
-        )
+        gout.print_dict_table(task_set, ["Option", "Value"], skip=("cutoff_matrix"))
 
         gout.emit(
-            "Passing control to cgenarris, fast"
-            " and scalable structure generator...\n"
+            "Passing control to cgenarris, fast and scalable structure generator...\n"
         )
         gout.single_separator()
         gout.emit("")
@@ -170,9 +172,7 @@ class CRYSTALGenerator(GeneratorABC):
 
         # Write cutoff matrix to file
         if self.is_master:
-            np.savetxt(
-                os.path.join(calc_dir, "cutoff_matrix.txt"), self.cutoff_matrix
-            )
+            np.savetxt(os.path.join(calc_dir, "cutoff_matrix.txt"), self.cutoff_matrix)
 
     def generate(self, task_set: dict, calc_dir: str) -> None:
         """
@@ -269,7 +269,7 @@ class CRYSTALGenerator(GeneratorABC):
         gout.print_sub_section("Pool Analysis")
         gout.emit(f"Total number of generated structures = {num_structs}")
         gout.emit("")
-        gout.emit(f"Unit Cell Volume Statistics:")
+        gout.emit("Unit Cell Volume Statistics:")
         gout.print_dict_table(vol_stat, header=["Stat", "Volume (A^3)"])
 
     def _predict_cell_volume(self, Z: int) -> None:
@@ -294,7 +294,9 @@ class CRYSTALGenerator(GeneratorABC):
 
             logger.debug(f"Predicted molecular volume: {pred_volume:.2f} A^3")
             logger.debug(f"Final unit cell volume: {self.ucv_mean:.2f} A^3")
-            gout.emit(f"Unit cell volume prediction completed in {elapsed_time:.1f} seconds.")
+            gout.emit(
+                f"Unit cell volume prediction completed in {elapsed_time:.1f} seconds."
+            )
 
         self.ucv_mean = self.comm.bcast(self.ucv_mean, root=0)
         self.ucv_std = self.ucv_mean * self.ucv_std  # Get std in A^3

@@ -6,6 +6,7 @@ This module provides the base class for implementing energy calculators.
 This source code is licensed under the BSD-3-Clause license found in the
 LICENSE file in the root directory of this source tree.
 """
+
 from __future__ import annotations
 
 __author__ = ["Yi Yang", "Rithwik Tom"]
@@ -15,12 +16,13 @@ __group__ = "https://www.noamarom.com/"
 import abc
 import logging
 from collections import deque
-from typing import Any, Callable, Collection, Optional
+from collections.abc import Callable, Collection
+from typing import Any
 
-from mpi4py import MPI
 from ase import Atoms
+from mpi4py import MPI
 
-from gnrs.core.gpu import GPUDeviceManager, TAG_WORK_DATA, TAG_WORK_RESULT, TAG_SHUTDOWN
+from gnrs.core.gpu import TAG_SHUTDOWN, TAG_WORK_DATA, TAG_WORK_RESULT, GPUDeviceManager
 
 logger = logging.getLogger("energy")
 
@@ -77,7 +79,8 @@ class EnergyCalculatorABC(abc.ABC):
         if self.requires_gpu:
             max_workers = task_settings.get("max_workers_per_gpu", 1)
             self._gpu_mgr = GPUDeviceManager(
-                comm, max_workers_per_gpu=max_workers,
+                comm,
+                max_workers_per_gpu=max_workers,
             )
             self._use_worker_feeder = self._gpu_mgr.num_feeders > 0
 
@@ -104,7 +107,7 @@ class EnergyCalculatorABC(abc.ABC):
     def run_batch(
         self,
         structs: dict[str, Atoms],
-        on_structure_done: Optional[Callable[[str, Atoms], None]] = None,
+        on_structure_done: Callable[[str, Atoms], None] | None = None,
         done: Collection[str] = (),
     ) -> None:
         """
@@ -137,7 +140,7 @@ class EnergyCalculatorABC(abc.ABC):
     def _serial_dft_batch(
         self,
         structs: dict[str, Atoms],
-        on_structure_done: Optional[Callable[[str, Atoms], None]],
+        on_structure_done: Callable[[str, Atoms], None] | None,
         done: Collection[str],
     ) -> None:
         """
@@ -169,7 +172,7 @@ class EnergyCalculatorABC(abc.ABC):
     def _worker_loop(
         self,
         local_structs: dict[str, Atoms],
-        on_structure_done: Optional[Callable[[str, Atoms], None]],
+        on_structure_done: Callable[[str, Atoms], None] | None,
         done: Collection[str],
     ) -> None:
         """
@@ -178,8 +181,7 @@ class EnergyCalculatorABC(abc.ABC):
         my_feeders = set(self._gpu_mgr.assigned_feeders())
 
         local_queue: deque[tuple[str, Atoms]] = deque(
-            (name, xtal) for name, xtal in local_structs.items()
-            if name not in done
+            (name, xtal) for name, xtal in local_structs.items() if name not in done
         )
 
         while local_queue or my_feeders:
@@ -195,10 +197,15 @@ class EnergyCalculatorABC(abc.ABC):
             if my_feeders and not served:
                 status = MPI.Status()
                 data = self.comm.recv(
-                    source=MPI.ANY_SOURCE, tag=MPI.ANY_TAG, status=status,
+                    source=MPI.ANY_SOURCE,
+                    tag=MPI.ANY_TAG,
+                    status=status,
                 )
                 self._handle_worker_msg(
-                    data, status.Get_source(), status.Get_tag(), my_feeders,
+                    data,
+                    status.Get_source(),
+                    status.Get_tag(),
+                    my_feeders,
                 )
 
     def _drain_feeder_requests(self, active_feeders: set[int]) -> bool:
@@ -212,19 +219,28 @@ class EnergyCalculatorABC(abc.ABC):
         while True:
             status = MPI.Status()
             has_msg = self.comm.iprobe(
-                source=MPI.ANY_SOURCE, tag=MPI.ANY_TAG, status=status,
+                source=MPI.ANY_SOURCE,
+                tag=MPI.ANY_TAG,
+                status=status,
             )
             if not has_msg:
                 break
             data = self.comm.recv(source=status.Get_source(), tag=status.Get_tag())
             self._handle_worker_msg(
-                data, status.Get_source(), status.Get_tag(), active_feeders,
+                data,
+                status.Get_source(),
+                status.Get_tag(),
+                active_feeders,
             )
             served_any = True
         return served_any
 
     def _handle_worker_msg(
-        self, data: Any, source: int, tag: int, active_feeders: set[int],
+        self,
+        data: Any,
+        source: int,
+        tag: int,
+        active_feeders: set[int],
     ) -> None:
         """
         Process a single message received by a worker
@@ -244,7 +260,7 @@ class EnergyCalculatorABC(abc.ABC):
     def _feeder_loop(
         self,
         local_structs: dict[str, Atoms],
-        on_structure_done: Optional[Callable[[str, Atoms], None]],
+        on_structure_done: Callable[[str, Atoms], None] | None,
         done: Collection[str],
     ) -> None:
         """
@@ -268,7 +284,6 @@ class EnergyCalculatorABC(abc.ABC):
         """
         Initialize the energy calculations.
         """
-        pass
 
     def get_calculator(self) -> Any:
         """
@@ -284,11 +299,9 @@ class EnergyCalculatorABC(abc.ABC):
         Args:
             xtal: Crystal structure
         """
-        pass
 
     @abc.abstractmethod
     def finalize(self) -> None:
         """
         Finalize the energy calculations.
         """
-        pass

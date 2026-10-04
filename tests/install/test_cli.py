@@ -1,6 +1,7 @@
 """
 The ``gnrs`` command line entry point is installed and parses its options.
 """
+
 from __future__ import annotations
 
 import shutil

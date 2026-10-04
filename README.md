@@ -66,7 +66,7 @@ Genarris supports various energy calculators through the [ASE Calculator](https:
 > [!TIP]
 > You can implement additional calculators under [`gnrs/energy/`](./gnrs/energy/).
 
-| Calculator | Type | Install | 
+| Calculator | Type | Install |
 |------------|------|---------|
 | [UMA](https://github.com/facebookresearch/fairchem) | MLIP | `pip install -e .[uma]` |
 | [MACE-OFF](https://github.com/ACEsuit/mace) | MLIP | `pip install -e .[mace]` |
@@ -96,14 +96,14 @@ Genarris uses a [configuration file](https://docs.python.org/3/library/configpar
 ### Basic Workflow
 
 1. **Create a configuration file** `ui.conf`
-   
+
    Here's an example with key parameters for `crystal_generation` and `symm_rigid_press` steps:
 
    ```ini
    [master]
-   name                        = 
+   name                        =
    molecule_path               = [""]
-   Z                           = 
+   Z                           =
    log_level                   = info
 
    [workflow]
@@ -115,7 +115,7 @@ Genarris uses a [configuration file](https://docs.python.org/3/library/configpar
    max_attempts_per_spg        = 100000000
    tol                         = 0.01
    ucv_mean                    = predict
-   ucv_mult                    = 1.5 
+   ucv_mult                    = 1.5
    max_attempts_per_volume     = 10000000
    spg_distribution_type       = standard
    natural_cutoff_mult         = 1.2
@@ -169,7 +169,7 @@ For co-crystals, salts and solvates, the `asu_generation` task builds random asy
 3. **Run Genarris** as above. The ASUs are written to `structures/asu_generation/structures.json`.
 
 See the [ASU generation reference](https://yi5817.github.io/Genarris/config/asu_generation.html) for all options, and for crystal generation from the ASUs.
-  
+
 ## Citation
 
 If you use Genarris, please cite:

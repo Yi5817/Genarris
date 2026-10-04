@@ -8,6 +8,7 @@ and compared against the remaining candidates in parallel.
 This source code is licensed under the BSD-3-Clause license found in the
 LICENSE file in the root directory of this source tree.
 """
+
 from __future__ import annotations
 
 __author__ = ["Yi Yang"]
@@ -43,14 +44,11 @@ def group_by_spg(structs: dict[str, Atoms]) -> dict[int, dict[str, Atoms]]:
     return groups
 
 
-def _select(
-    candidates: dict[str, Atoms],
-    energy_key: str | None
-) -> str:
+def _select(candidates: dict[str, Atoms], energy_key: str | None) -> str:
     """
     Select one structure from a set of duplicates.
 
-    If energy_key is provided, the lowest-energy structure is chosen. 
+    If energy_key is provided, the lowest-energy structure is chosen.
     Otherwise the first one by name is chosen.
 
     Args:
@@ -70,6 +68,7 @@ def _select(
             return min(energies, key=lambda x: x[1])[0]
 
     return min(candidates)
+
 
 def _scatter_structs(pool: dict[str, Atoms]) -> dict[str, Atoms]:
     """

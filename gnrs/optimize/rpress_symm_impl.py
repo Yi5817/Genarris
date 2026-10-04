@@ -1,5 +1,5 @@
 """
-This module implements the RIGID_PRESS algorithm for 
+This module implements the RIGID_PRESS algorithm for
 optimizing crystal structures under symmetry constraints.
 
 RIGID_PRESS algorithm is adapted from:
@@ -15,15 +15,15 @@ __author__ = ["Yi Yang", "Rithwik Tom", "Jonathan Moussa"]
 __email__ = "yiy5@andrew.cmu.edu"
 __group__ = "https://www.noamarom.com/"
 
-import numpy as np
 import logging
+import warnings
 
+import numpy as np
 from ase import Atoms
-from spglib import get_symmetry_dataset
+from scipy.optimize import minimize
 from scipy.spatial.distance import cdist
 from scipy.spatial.transform import Rotation
-from scipy.optimize import minimize
-import warnings
+from spglib import get_symmetry_dataset
 
 warnings.filterwarnings("ignore", category=RuntimeWarning)
 
@@ -103,9 +103,7 @@ def find_symm(xtal: Atoms, natoms: int) -> tuple[np.ndarray, np.ndarray, int]:
     )
     if symm is None:
         # spglib failed to determine the symmetry of this structure
-        raise ValueError(
-            "spglib get_symmetry_dataset returned None for this crystal "
-        )
+        raise ValueError("spglib get_symmetry_dataset returned None for this crystal ")
     spg = symm.number
     rot, trans = symm.rotations, symm.translations
 
@@ -561,8 +559,7 @@ class RigidPressSymm:
             if self.debug_flag:
                 self.logger.debug(f"Failed optimization in {self.rank}")
             raise StopIteration("Custom stopping condition met")
-        else:
-            return self.standardize_state(xk)
+        return self.standardize_state(xk)
 
     def objective_function(self, state: np.ndarray) -> float:
         """

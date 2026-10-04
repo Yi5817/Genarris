@@ -36,7 +36,7 @@ Check out the [`ACSF.__init__`](https://singroup.github.io/dscribe/latest/tutori
 : Apply PCA compression to the ACSF vector.
 
 `n_components` : `float` | `int` | default = `None`.
-: Number of components to keep. Only used when `pca` is `True`. 
+: Number of components to keep. Only used when `pca` is `True`.
 
 ```{note}
 Check out the [scikit-learn PCA](https://scikit-learn.org/stable/modules/generated/sklearn.decomposition.PCA.html) for more details.

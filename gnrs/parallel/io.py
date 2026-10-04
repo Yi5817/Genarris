@@ -6,6 +6,7 @@ LICENSE file in the root directory of this source tree.
 """
 
 from __future__ import annotations
+
 __author__ = ["Yi Yang", "Rithwik Tom"]
 __email__ = "yiy5@andrew.cmu.edu"
 __group__ = "https://www.noamarom.com/"
@@ -14,7 +15,7 @@ import hashlib
 import logging
 
 from ase import Atoms
-from ase.io.jsonio import encode, decode
+from ase.io.jsonio import decode, encode
 
 import gnrs.parallel as gp
 
@@ -24,15 +25,15 @@ logger = logging.getLogger("parallel_io")
 def read_geometry_out(file_path: str) -> dict:
     """
     Master process reads geometry file and scatters data to other processes.
-    
+
     Args:
         file_path: Path to the geometry output file
-        
+
     Returns:
         Dictionary mapping IDs to Atoms objects.
     """
     if gp.is_master:
-        with open(file_path, "r") as gfile:
+        with open(file_path) as gfile:
             str_data = gfile.read()
         str_data = str_data.split("#######  END  STRUCTURE #######")
         str_data = str_data[:-1]
@@ -54,10 +55,10 @@ def read_geometry_out(file_path: str) -> dict:
 def str2atoms(geometry_str: list) -> Atoms | None:
     """
     Constructs Atoms object from aims geometry format.
-    
+
     Args:
         geometry_string: List of strings containing geometry data
-        
+
     Returns:
         ASE Atoms object representing the crystal structure
     """
@@ -79,9 +80,7 @@ def str2atoms(geometry_str: list) -> Atoms | None:
                 return None
 
     # Asymmetric units have no lattice vectors
-    xtal = Atoms(
-        symbols=species, positions=pos, cell=cell or None, pbc=bool(cell)
-    )
+    xtal = Atoms(symbols=species, positions=pos, cell=cell or None, pbc=bool(cell))
     if spg is not None:
         xtal.info["spg"] = spg
 
@@ -155,7 +154,7 @@ def read_parallel(file_path: str) -> dict:
 
     str_list = None
     if gp.is_master:
-        with open(file_path, "r") as rfile:
+        with open(file_path) as rfile:
             # Drop the lines with the opening and closing braces
             str_list = _make_scatterable_form(rfile.readlines()[1:-1])
 
@@ -166,14 +165,14 @@ def read_parallel(file_path: str) -> dict:
 def _make_scatterable_form(str_list: list) -> list:
     """
     Construct a list of length comm.size with padding for even distribution.
-    
+
     Args:
         str_list: List of strings to distribute
-        
+
     Returns:
         List of sublists for each process
     """
     ave, res = divmod(len(str_list), gp.size)
     # The first ``res`` ranks get one extra item
     bounds = [p * ave + min(p, res) for p in range(gp.size + 1)]
-    return [str_list[bounds[p]: bounds[p + 1]] for p in range(gp.size)]
+    return [str_list[bounds[p] : bounds[p + 1]] for p in range(gp.size)]

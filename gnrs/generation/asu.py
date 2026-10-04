@@ -4,23 +4,24 @@ This module provides the asymmetric unit (ASU) generator.
 This source code is licensed under the BSD-3-Clause license found in the
 LICENSE file in the root directory of this source tree.
 """
+
 from __future__ import annotations
 
 __author__ = ["Yi Yang"]
 __email__ = "yiy5@andrew.cmu.edu"
 __group__ = "https://www.noamarom.com/"
 
-import os
 import logging
+import os
 
 import numpy as np
 
 import gnrs.output as gout
 import gnrs.parallel as gp
+from gnrs.cgenarris import pygenarris_mpi as pg_mpi
 from gnrs.core.generator import GeneratorABC
 from gnrs.core.molecule import Molecule
 from gnrs.parallel.structs import DistributedStructs
-from gnrs.cgenarris import pygenarris_mpi as pg_mpi
 
 logger = logging.getLogger("asu_generation")
 
@@ -68,7 +69,9 @@ class ASUGenerator(GeneratorABC):
         positions = np.concatenate([mol.get_positions() for mol in molecules])
 
         species = "".join(
-            symbol.ljust(2) for mol in molecules for symbol in mol.get_chemical_symbols()
+            symbol.ljust(2)
+            for mol in molecules
+            for symbol in mol.get_chemical_symbols()
         )
         n_atoms_per_mol = np.array([len(mol) for mol in molecules], dtype=np.int32)
         stoichiometry = np.array(task_set["stoichiometry"], dtype=np.int32)

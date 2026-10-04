@@ -4,17 +4,17 @@ This module provides functions for managing folder.
 This source code is licensed under the BSD-3-Clause license found in the
 LICENSE file in the root directory of this source tree.
 """
+
 from __future__ import annotations
 
 __author__ = ["Yi Yang", "Rithwik Tom"]
 __email__ = "yiy5@andrew.cmu.edu"
 __group__ = "https://www.noamarom.com/"
 
-import os
 import logging
+import os
 
 from gnrs.core.molecule import Molecule
-
 
 is_master = False
 logger = logging.getLogger("folders")

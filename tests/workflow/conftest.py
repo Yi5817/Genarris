@@ -1,6 +1,7 @@
 """
 Fixtures for the end-to-end tests, which launch Genarris under mpirun.
 """
+
 from __future__ import annotations
 
 import shutil
@@ -23,8 +24,13 @@ def run_gnrs(
     def run(workdir: Path, *flags: str, nproc: int = 2) -> subprocess.CompletedProcess:
         # CI runners may have fewer slots than the restart test's three ranks.
         cmd = [
-            shutil.which("mpirun"), "--oversubscribe", "-np", str(nproc),
-            sys.executable, "-m", "gnrs.cli",
+            shutil.which("mpirun"),
+            "--oversubscribe",
+            "-np",
+            str(nproc),
+            sys.executable,
+            "-m",
+            "gnrs.cli",
         ]
         return subprocess.run(
             cmd + ["-c", "ui.conf", *flags],

@@ -4,6 +4,7 @@ This module provides k-means clustering.
 This source code is licensed under the BSD-3-Clause license found in the
 LICENSE file in the root directory of this source tree.
 """
+
 from __future__ import annotations
 
 __author__ = ["Yi Yang", "Rithwik Tom"]
@@ -11,9 +12,9 @@ __email__ = "yiy5@andrew.cmu.edu"
 __group__ = "https://www.noamarom.com/"
 
 import logging
-from mpi4py import MPI
 
 import numpy as np
+from mpi4py import MPI
 from sklearn.cluster import MiniBatchKMeans
 
 import gnrs.output as gout

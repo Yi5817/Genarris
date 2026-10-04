@@ -1,6 +1,7 @@
 """
 Unit tests for structure checkpoints. Run in a single process (no mpirun).
 """
+
 from __future__ import annotations
 
 from pathlib import Path

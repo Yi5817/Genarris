@@ -4,25 +4,27 @@ This module provides the GeometryOptimizationTask class for performing geometry 
 This source code is licensed under the BSD-3-Clause license found in the
 LICENSE file in the root directory of this source tree.
 """
+
 from __future__ import annotations
 
 __author__ = ["Yi Yang", "Rithwik Tom"]
 __email__ = "yiy5@andrew.cmu.edu"
 __group__ = "https://www.noamarom.com/"
 
-import os
-import json
 import importlib
+import json
 import logging
+import os
 from functools import partial
 
 from mpi4py import MPI
+
 import gnrs.output as gout
 from gnrs.core.registry import resolve_tasks
 from gnrs.core.task import TaskABC
+from gnrs.gnrsutil.molecule_bonding import get_vdw_distance_cutoff_matrix
 from gnrs.parallel.io import read_parallel
 from gnrs.parallel.structs import DistributedStructs
-from gnrs.gnrsutil.molecule_bonding import get_vdw_distance_cutoff_matrix
 
 AVAILABLE_METHODS = ["LBFGS", "BFGS", "RIGID_PRESS", "SYMM_RIGID_PRESS"]
 AVAILABLE_ENERGY_METHODS = ["DFTB", "AIMS", "MACEOFF", "UMA", "VASP", "AIMNET"]
@@ -35,17 +37,17 @@ class GeometryOptimizationTask(TaskABC):
     """
 
     def __init__(
-        self, 
-        comm: MPI.Comm, 
-        config: dict, 
-        gnrs_info: dict, 
-        optimizer: str, 
+        self,
+        comm: MPI.Comm,
+        config: dict,
+        gnrs_info: dict,
+        optimizer: str,
         energy_method: str | None = None,
         instance_id: str | None = None,
     ) -> None:
         """
         Initialize the geometry optimization task.
-        
+
         Args:
             comm: MPI communicator
             config: Config dictionary
@@ -65,7 +67,7 @@ class GeometryOptimizationTask(TaskABC):
         else:
             self.energy_method = None
             self.task_name = self.opt_name
-            
+
         self.energy_set = {}
         self.structs = None
         self.dsdict = None
@@ -90,7 +92,9 @@ class GeometryOptimizationTask(TaskABC):
 
         # Log the optimizer being used
         if self.energy_method is not None:
-            gout.emit(f"Using ASE {self.opt_name} optimizer with {self.energy_method} energy method.")
+            gout.emit(
+                f"Using ASE {self.opt_name} optimizer with {self.energy_method} energy method."
+            )
         else:
             gout.emit("Using builtin optimizer.")
 
@@ -115,7 +119,7 @@ class GeometryOptimizationTask(TaskABC):
     def _load_modules(self) -> None:
         """
         Load the required optimizer and energy calculator modules.
-        
+
         Raises:
             ImportError: If the requested optimization method or energy calculator is not found.
         """
@@ -139,14 +143,14 @@ class GeometryOptimizationTask(TaskABC):
             energy_module = importlib.import_module(self.energy_file)
             self.energy_calc = getattr(energy_module, self.energy_class)
         except (ImportError, AttributeError):
-            logger.error(f"Unable to find requested energy calculation method.")
+            logger.error("Unable to find requested energy calculation method.")
             logger.error(f"Available methods: {AVAILABLE_ENERGY_METHODS}")
             raise
 
     def pack_settings(self) -> dict:
         """
         Pack settings for the optimization task.
-        
+
         Returns:
             dict: Task settings dictionary
         """
@@ -169,13 +173,13 @@ class GeometryOptimizationTask(TaskABC):
         if self.energy_method is not None:
             energy_method = task_set.pop("energy_method")
             self.energy_set = dict(self.config[energy_method])
-            
+
         return task_set
 
     def print_settings(self, task_set: dict) -> None:
         """
         Print the task settings.
-        
+
         Args:
             task_set: Task settings dictionary
         """
@@ -184,7 +188,6 @@ class GeometryOptimizationTask(TaskABC):
         if self.energy_method is not None:
             gout.emit("Energy Settings:")
             super().print_settings(self.energy_set)
-
 
     def create_folders(self) -> None:
         """
@@ -195,7 +198,7 @@ class GeometryOptimizationTask(TaskABC):
     def perform_task(self, task_set: dict) -> None:
         """
         Perform the optimization task.
-        
+
         Args:
             task_set: Task settings dictionary
         """
@@ -204,7 +207,7 @@ class GeometryOptimizationTask(TaskABC):
         if self.energy_method is not None:
             set_file = self.energy_set.get("energy_settings_path")
             if set_file is not None:
-                with open(set_file, "r") as jfile:
+                with open(set_file) as jfile:
                     self.energy_set["energy_settings"] = json.load(jfile)
             ec_obj = self.energy_calc(self.comm, self.energy_set, self.energy_method)
             e_calc = ec_obj.get_calculator()
@@ -223,8 +226,13 @@ class GeometryOptimizationTask(TaskABC):
         # Run optimization
         gout.emit("Optimizing structures...")
         opt = self.opt_calc(
-            self.comm, task_set, self.opt_name, self.energy_method, e_calc,
-            gpu_mgr, dft_serial,
+            self.comm,
+            task_set,
+            self.opt_name,
+            self.energy_method,
+            e_calc,
+            gpu_mgr,
+            dft_serial,
         )
 
         opt.run_batch(
@@ -260,10 +268,10 @@ class GeometryOptimizationTask(TaskABC):
         """
         dsdict = DistributedStructs(self.structs)
         vol_stat = dsdict.get_statistics("get_volume", ptype="method")
-        
+
         gout.print_sub_section("Unit Cell Volume Statistics")
         gout.print_dict_table(vol_stat, header=["Stat", "Volume (A^3)"])
-        
+
         if self.energy_method is not None:
             energy_stat = dsdict.get_statistics(f"{self.opt_name}_{self.energy_method}")
             gout.print_sub_section("Energy Statistics")

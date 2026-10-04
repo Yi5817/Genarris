@@ -5,25 +5,25 @@ Kept for compatibility of PyMoVE.
 This source code is licensed under the BSD-3-Clause license found in the
 LICENSE file in the root directory of this source tree.
 """
+
 from __future__ import annotations
 
 __author__ = ["Yi Yang", "Rithwik Tom"]
 __email__ = "yiy5@andrew.cmu.edu"
 __group__ = "https://www.noamarom.com/"
 
-import os
 import json
 import math
-import numpy as np
 from collections import defaultdict
 
 import ase
+import numpy as np
 from pymatgen.core.lattice import Lattice as LatticeP
-from pymatgen.core.structure import Structure as StructureP
 from pymatgen.core.structure import Molecule
+from pymatgen.core.structure import Structure as StructureP
 
 
-class Structure(object):
+class Structure:
     """
     An optimized structure with relevant information
     information includes: geometry, energy, stoichiometry, distance array,
@@ -53,7 +53,9 @@ class Structure(object):
 
     # setters
 
-    def build_geo_by_atom(self, x, y, z, element, spin=None, charge=None, fixed=False) -> None:
+    def build_geo_by_atom(
+        self, x, y, z, element, spin=None, charge=None, fixed=False
+    ) -> None:
         """THIS METHOD SHOULD JUST BE CALLED APPEND"""
         self.append(x, y, z, element, spin, charge, fixed)
 
@@ -115,7 +117,7 @@ class Structure(object):
 
         if len(vectors) != 3:
             raise Exception(
-                "set_lattice_vectors got {}".format(vectors)
+                f"set_lattice_vectors got {vectors}"
                 + "This is supposed to be a list of three "
                 + "lattice vectors."
             )
@@ -626,7 +628,7 @@ def get_geo_from_file(file_name):
     given the path to a geometry-style file, returns the geometry in proper format
     """
     tmp_struct = Structure()
-    atom_file = open(file_name, "r")
+    atom_file = open(file_name)
     geo = tmp_struct.build_geo_whole_atom_format(atom_file.read())
     atom_file.close()
     return geo
@@ -676,7 +678,7 @@ def convert_array(list_of_list):
 
 def read_data(filepath):
     full_filepath = filepath
-    d_file = open(full_filepath, "r")
+    d_file = open(full_filepath)
     contents_string = d_file.read()
     d_file.close()
     return contents_string

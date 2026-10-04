@@ -4,6 +4,7 @@ Structure file IO, with or without mpirun.
 Run with:  pytest tests/parallel
            mpirun -np 3 python -m pytest tests/parallel
 """
+
 from __future__ import annotations
 
 from pathlib import Path

@@ -1,25 +1,27 @@
 """
-This module is based on the PyMoVE algorithm implemented in: 
+This module is based on the PyMoVE algorithm implemented in:
 [PyMoVE](https://github.com/manny405/PyMoVE)
 predicting the unit cell volume of a molecule.
 
 This source code is licensed under the BSD-3-Clause license found in the
 LICENSE file in the root directory of this source tree.
 """
+
 from __future__ import annotations
 
 __author__ = ["Yi Yang", "Rithwik Tom"]
 __email__ = "yiy5@andrew.cmu.edu"
 __group__ = "https://www.noamarom.com/"
 
-import yaml
 from importlib.resources import files
 
 import numpy as np
+import yaml
+from ase.data import atomic_numbers, vdw_radii
 from scipy.spatial.distance import cdist
-from ase.data import vdw_radii, atomic_numbers
-from gnrs.gnrsutil.molecule_bonding import BondNeighborhood
+
 from gnrs.core.structure import Structure
+from gnrs.gnrsutil.molecule_bonding import BondNeighborhood
 
 _PYMOVE_MODEL = yaml.safe_load(
     files("gnrs.gnrsutil").joinpath("pymove_model.yaml").read_text()
@@ -111,9 +113,12 @@ class MoleculeVolumeEstimator:
 
         # Get radii array for each element
         radii = np.array(
-            [self.vdW[atomic_numbers[ele]] for ele in molecule_struct.geometry["element"]]
+            [
+                self.vdW[atomic_numbers[ele]]
+                for ele in molecule_struct.geometry["element"]
+            ]
         )
-        radii_sq = radii ** 2
+        radii_sq = radii**2
 
         # Set sample region
         min_region = np.min(geo, axis=0) - 5.0
