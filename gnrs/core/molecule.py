@@ -4,6 +4,7 @@ This module provides functions for handling molecules.
 This source code is licensed under the BSD-3-Clause license found in the
 LICENSE file in the root directory of this source tree.
 """
+
 from __future__ import annotations
 
 __author__ = ["Yi Yang", "Rithwik Tom"]
@@ -13,6 +14,7 @@ __group__ = "https://www.noamarom.com/"
 import numpy as np
 from ase import Atoms
 from ase.io import read as ase_read
+
 
 class Molecule(Atoms):
     """

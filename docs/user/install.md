@@ -83,7 +83,10 @@ rigid_press = Extension(
     extra_compile_args=["-std=gnu99", "-O3"],
     libraries=["nvpl_blas_lp64_gomp", "nvpl_lapack_lp64_gomp"],
     library_dirs=[os.path.join(os.environ.get("TACC_NVPL_DIR"), "lib")],
-    swig_opts=["-I./gnrs/cgenarris/src/rpack/rigid_press", "-I./gnrs/cgenarris/src/spglib_src"],
+    swig_opts=[
+        "-I./gnrs/cgenarris/src/rpack/rigid_press",
+        "-I./gnrs/cgenarris/src/spglib_src",
+    ],
 )
 ```
 

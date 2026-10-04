@@ -1,0 +1,85 @@
+target-version = "py310"
+line-length = 88
+extend-exclude = [
+  "gnrs/cgenarris", # git submodule: C/SWIG sources and generated wrappers
+  "cases",          # data only (CIF, CSV)
+]
+
+[lint]
+select = [
+  "B",    # flake8-bugbear
+  "C4",   # flake8-comprehensions
+  "E",    # pycodestyle error
+  "EXE",  # flake8-executable
+  "F",    # pyflakes
+  "FA",   # flake8-future-annotations
+  "FLY",  # flynt
+  "I",    # isort
+  "ICN",  # flake8-import-conventions
+  "PERF", # perflint
+  "PIE",  # flake8-pie
+  "PL",   # pylint
+  "PT",   # flake8-pytest-style
+  "PYI",  # flake8-pyi
+  "Q",    # flake8-quotes
+  "RET",  # flake8-return
+  "RSE",  # flake8-raise
+  "RUF",  # Ruff-specific rules
+  "SIM",  # flake8-simplify
+  "SLOT", # flake8-slots
+  "TC",   # flake8-type-checking
+  "TID",  # flake8-tidy-imports
+  "UP",   # pyupgrade
+  "W",    # pycodestyle warning
+  "YTT",  # flake8-2020
+]
+ignore = [
+  "PLR",     # Design related pylint codes
+  "E501",    # Line too long (the formatter wraps what it can)
+  "RET504",  # Unnecessary assignment before `return` statement
+  "RET505",  # Unnecessary `elif` after `return`
+  "PERF203", # `try`-`except` within a loop (no overhead in Python 3.11+)
+  "RUF005",  # Concatenate lists
+  "SIM108",  # Use ternary operator
+  "PT006",   # Wrong type passed to first argument of `pytest.mark.parametrize`
+  # TODO: enable after Genarris 4 release
+  "B006",    # mutable-argument-default
+  "B007",    # unused-loop-control-variable
+  "B027",    # empty-method-without-abstract-decorator
+  "B904",    # raise-without-from-inside-except
+  "B905",    # zip-without-explicit-strict
+  "C416",    # unnecessary-comprehension
+  "E712",    # true-false-comparison
+  "E721",    # type-comparison
+  "E722",    # bare-except
+  "EXE002",  # shebang-missing-executable-file
+  "F841",    # unused-variable
+  "PERF401", # manual-list-comprehension
+  "PLC0415", # import-outside-top-level
+  "PLW0127", # self-assigning-variable
+  "PLW0602", # global-variable-not-assigned
+  "PLW0603", # global-statement
+  "PLW1510", # subprocess-run-without-check
+  "RET503",  # implicit-return
+  "RUF043",  # pytest-raises-ambiguous-pattern
+  "RUF059",  # unused-unpacked-variable
+  "SIM102",  # collapsible-if
+  "SIM105",  # suppressible-exception
+  "SIM114",  # if-with-same-arms
+  "SIM115",  # open-file-with-context-handler
+  "SIM118",  # in-dict-keys
+  "SIM201",  # negate-equal-op
+  "SIM210",  # if-expr-with-true-false
+  "TC001",   # typing-only-first-party-import
+  "TC002",   # typing-only-third-party-import
+  "TC003",   # typing-only-standard-library-import
+  "UP031",   # printf-string-formatting
+  "UP036",   # outdated-version-block
+]
+
+[lint.isort]
+known-first-party = ["gnrs"]
+required-imports = ["from __future__ import annotations"]
+
+[lint.per-file-ignores]
+"__init__.py" = ["F401", "F403"] # re-exports

@@ -9,6 +9,7 @@ when running with many MPI ranks and few GPUs.
 This source code is licensed under the BSD-3-Clause license found in the
 LICENSE file in the root directory of this source tree.
 """
+
 from __future__ import annotations
 
 __author__ = ["Yi Yang"]
@@ -16,7 +17,6 @@ __email__ = "yiy5@andrew.cmu.edu"
 __group__ = "https://www.noamarom.com/"
 
 import logging
-from typing import Optional
 
 import torch
 from mpi4py import MPI
@@ -75,7 +75,7 @@ class GPUDeviceManager:
 
         # Assign GPUs by node-local rank: the first
         # num_gpus * max_workers_per_gpu ranks on each node become workers.
-        self.gpu_id: Optional[int] = None
+        self.gpu_id: int | None = None
         if self.num_gpus > 0:
             if self.local_rank < self.num_gpus * self.max_workers_per_gpu:
                 self.gpu_id = self.local_rank % self.num_gpus
@@ -105,7 +105,6 @@ class GPUDeviceManager:
             self._device = "cuda"
         else:
             self._device = "cpu"
-
 
         logger.debug(
             f"GPU rank assignment: rank={self.rank} local_rank={self.local_rank} "

@@ -4,6 +4,7 @@ This module contains the DistributedStructs class, which is used to handle distr
 This source code is licensed under the BSD-3-Clause license found in the
 LICENSE file in the root directory of this source tree.
 """
+
 from __future__ import annotations
 
 __author__ = ["Yi Yang", "Rithwik Tom"]
@@ -33,10 +34,10 @@ class DistributedStructs:
     def __init__(self, structs: dict):
         """
         Initialize with a dictionary of structures.
-        
+
         Args:
             structs: Dictionary mapping structure names to ASE Atoms objects
-        
+
         Raises:
             ValueError: If structs is not a dictionary
         """
@@ -49,7 +50,7 @@ class DistributedStructs:
         """
         Get the total number of structures in a distributed
         structures dictionary.
-        
+
         Returns:
             Total number of structures across all ranks
         """
@@ -72,16 +73,16 @@ class DistributedStructs:
     def find_matches(self, target: Atoms, settings: dict | None = None) -> list:
         """
         Runs pymatgen duplicate checks on a distributed struct dictionary.
-        
+
         Args:
             target: Target structure to be matched
             settings: Settings for pymatgen StructureMatcher
-            
+
         Returns:
             List of matching structure IDs
         """
-        from pymatgen.io.ase import AseAtomsAdaptor
         from pymatgen.analysis.structure_matcher import StructureMatcher
+        from pymatgen.io.ase import AseAtomsAdaptor
 
         pmg_target = AseAtomsAdaptor.get_structure(target)
 
@@ -107,11 +108,11 @@ class DistributedStructs:
     def collect_property(self, prpty: str, ptype: str = "info") -> list:
         """
         Collects the property of all the structures into a list.
-        
+
         Args:
             prpty: Property name to collect
             ptype: Property type, either 'info' or 'method'
-            
+
         Returns:
             List of property values on master rank, None on other ranks
         """
@@ -133,19 +134,19 @@ class DistributedStructs:
     def get_statistics(self, prpty: str, ptype: str = "info") -> dict:
         """
         Gets the statistics on a property of interest.
-        
+
         Args:
             prpty: Property name to analyze
             ptype: Get property from either 'info' or 'method'
-            
+
         Returns:
             Dictionary with statistics on master rank, None on other ranks
         """
         prpty_list = self.collect_property(prpty, ptype)
-        
+
         if not gp.is_master:
             return None
-            
+
         prpty_array = np.array(prpty_list)
         stats = {
             "Minimum": np.min(prpty_array),
@@ -159,7 +160,7 @@ class DistributedStructs:
         """
         Finds the space group of all structures.
         Space group number is stored in info["spg"]
-        
+
         Args:
             tol: Tolerance for symmetry finding
         """
@@ -232,7 +233,7 @@ class DistributedStructs:
             skipped.
         """
         structs, n_bad = {}, 0
-        with open(checkpoint, "r") as chk:
+        with open(checkpoint) as chk:
             for line in chk:
                 if not line.strip():
                     continue

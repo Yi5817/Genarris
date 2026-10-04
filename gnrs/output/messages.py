@@ -4,15 +4,16 @@ This module provides functions for printing messages and configuration settings.
 This source code is licensed under the BSD-3-Clause license found in the
 LICENSE file in the root directory of this source tree.
 """
+
 from __future__ import annotations
 
 __author__ = ["Yi Yang", "Rithwik Tom"]
 __email__ = "yiy5@andrew.cmu.edu"
 __group__ = "https://www.noamarom.com/"
 
+import logging
 import os
 import socket
-import logging
 import subprocess
 import textwrap
 from datetime import datetime
@@ -35,7 +36,7 @@ is_master = False
 def init_output(comm: MPI.Comm) -> None:
     """
     Initialize output module.
-    
+
     Args:
         comm: MPI communicator object
     """
@@ -52,7 +53,7 @@ def welcome_message() -> None:
     """
     if not is_master:
         return
-        
+
     logger.debug("Printing Genarris startup message")
     double_separator()
     print(ascii_art)
@@ -68,27 +69,27 @@ def welcome_message() -> None:
     print(pymove.strip())
     print("")
     double_separator()
-    
+
     # System information
     current_time = datetime.now().strftime("%m/%d/%Y %I:%M:%S %p")
     hostname = socket.gethostname()
-    
-    emit(f"Welcome to Genarris 3.0")
-    emit(f"")
+
+    emit("Welcome to Genarris 3.0")
+    emit("")
     emit(f"Date and Time: {current_time}")
     emit(f"Host Machine: {hostname}")
     emit(f"Using {size} parallel tasks.")
-    
+
     # Version information
     install_location = os.path.dirname(os.path.dirname(__file__))
     git_hash = get_git_revision_hash(install_location)
-    
-    emit(f"")
-    emit(f"Version Information:")
+
+    emit("")
+    emit("Version Information:")
     emit(f"Git Revision: {git_hash}")
     emit(f"Installation Location: {install_location}")
-    emit(f"")
-    
+    emit("")
+
     logger.info(f"Genarris started on {hostname} with {size} processes")
     logger.info(f"Git Rev Hash: {git_hash}")
 
@@ -99,9 +100,9 @@ def get_git_revision_hash(install_location: str) -> str:
     """
     try:
         gh = subprocess.check_output(
-            ["git", "rev-parse", "--short", "HEAD"], 
+            ["git", "rev-parse", "--short", "HEAD"],
             cwd=install_location,
-            stderr=subprocess.DEVNULL
+            stderr=subprocess.DEVNULL,
         )
         return gh.decode("ascii").strip()
     except (subprocess.CalledProcessError, FileNotFoundError):
@@ -114,12 +115,12 @@ def print_configs(settings_dict: dict) -> None:
     """
     if not is_master:
         return
-        
+
     logger.info("Printing configs")
     emit("")
     emit("Printing settings to be used for this Genarris run...")
     half_separator()
-    
+
     for section, options in settings_dict.items():
         emit("")
         emit(f"[{section}]")
@@ -131,22 +132,20 @@ def print_configs(settings_dict: dict) -> None:
 
 
 def print_dict_table(
-    dct: dict | None, 
-    header: str | None = None, 
-    skip: tuple = ()
+    dct: dict | None, header: str | None = None, skip: tuple = ()
 ) -> None:
     """
     Print dictionary as a formatted table.
     """
     if not is_master or dct is None:
         return
-        
+
     emit("")
     if header is not None:
         emit(f"{header[0]:^30}  |  {header[1]}")
 
     three_quarter_separator()
-    
+
     for key, value in dct.items():
         if key in skip:
             continue
@@ -156,7 +155,7 @@ def print_dict_table(
             value_str = f"{value:.2f}"
         else:
             value_str = str(value)
-            
+
         emit(f"{key_str:<30}  | {value_str:<60}")
 
     three_quarter_separator()
@@ -172,7 +171,7 @@ def section_complete() -> None:
 def print_title(title: str) -> None:
     if not is_master:
         return
-        
+
     title = title.upper()
     print("")
     current_time = datetime.now().strftime("%m/%d/%Y %I:%M:%S %p")

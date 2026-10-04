@@ -4,6 +4,7 @@ Utility for building MPI-aware DFT execution commands.
 This source code is licensed under the BSD-3-Clause license found in the
 LICENSE file in the root directory of this source tree.
 """
+
 from __future__ import annotations
 
 __author__ = ["Yi Yang"]
@@ -25,7 +26,7 @@ def build_dft_command(task_settings: dict, rank: int) -> str:
     Args:
         task_settings: Energy/optimization settings
         rank: MPI rank of the calling process
-    
+
     Returns:
         Command string to be passed to the ASE calculator
     """
@@ -34,9 +35,7 @@ def build_dft_command(task_settings: dict, rank: int) -> str:
     dft_mode = task_settings.get("dft_mode", "parallel")
 
     if launcher not in _VALID_LAUNCHERS:
-        raise ValueError(
-            f"Invalid mpi_launcher={launcher!r}."
-        )
+        raise ValueError(f"Invalid mpi_launcher={launcher!r}.")
 
     if launcher == "none":
         logger.info("mpi_launcher=none: running DFT binary directly (no MPI wrapper)")
@@ -46,7 +45,7 @@ def build_dft_command(task_settings: dict, rank: int) -> str:
 
     if launcher == "srun":
         return f"srun -n {num_cores} {binary}"
-    
+
     elif launcher == "ibrun":
         return f"ibrun {binary}"
 
@@ -67,15 +66,10 @@ def _get_slurm_host(rank: int) -> str:
 
     Args:
         rank: MPI rank of the calling process
-    
+
     Returns:
         Hostname string for the target node
     """
     cmd = "scontrol show hostname $SLURM_JOB_NODELIST"
-    all_hosts = (
-        subprocess.check_output(cmd, shell=True)
-        .decode()
-        .strip()
-        .split("\n")
-    )
+    all_hosts = subprocess.check_output(cmd, shell=True).decode().strip().split("\n")
     return all_hosts[rank + 1]

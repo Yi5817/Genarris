@@ -4,6 +4,7 @@ This module provides a wrapper around the rigid_press C code.
 This source code is licensed under the BSD-3-Clause license found in the
 LICENSE file in the root directory of this source tree.
 """
+
 from __future__ import annotations
 
 __author__ = ["Yi Yang", "Rithwik Tom"]
@@ -11,9 +12,10 @@ __email__ = "yiy5@andrew.cmu.edu"
 __group__ = "https://www.noamarom.com/"
 
 from ase import Atoms
-from gnrs.cgenarris.src.rpack.rigid_press import optimize_structure
 
+from gnrs.cgenarris.src.rpack.rigid_press import optimize_structure
 from gnrs.core.optimizer import GeometryOptimizerABC
+
 
 class RIGID_PRESSOptimizer(GeometryOptimizerABC):
     """
@@ -32,7 +34,6 @@ class RIGID_PRESSOptimizer(GeometryOptimizerABC):
         """
         Initialize the optimizer.
         """
-        pass
 
     def optimize(self, xtal: Atoms) -> None:
         """
@@ -43,12 +44,12 @@ class RIGID_PRESSOptimizer(GeometryOptimizerABC):
         self.status = False
 
         self.status = optimize_structure(
-                xtal,
-                self.z,
-                self.cutoff_matrix,
-                max_iter=self.maxiter,
-            )
-            
+            xtal,
+            self.z,
+            self.cutoff_matrix,
+            max_iter=self.maxiter,
+        )
+
     def update(self, xtal: Atoms) -> None:
         """
         Update the optimizer with the new structure.

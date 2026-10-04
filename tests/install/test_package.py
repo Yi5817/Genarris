@@ -2,6 +2,7 @@
 The package, its compiled extension and its packaged data files are usable
 with only the core dependencies installed.
 """
+
 from __future__ import annotations
 
 from importlib import resources

@@ -6,6 +6,7 @@ Layout:
     restart/   single-process tests of checkpoints and the restart manager
     workflow/  end-to-end runs under mpirun (marked ``integration``)
 """
+
 from __future__ import annotations
 
 import os

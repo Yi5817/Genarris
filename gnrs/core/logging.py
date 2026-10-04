@@ -4,6 +4,7 @@ This module provides functions for logging.
 This source code is licensed under the BSD-3-Clause license found in the
 LICENSE file in the root directory of this source tree.
 """
+
 from __future__ import annotations
 
 __author__ = ["Yi Yang", "Rithwik Tom"]
@@ -20,7 +21,12 @@ class GenarrisLogger:
     Sets up the logging.
     """
 
-    def __init__(self, comm: MPI.Comm, level: str = "DEBUG", parallel_log: str = "redirect_errors") -> None:
+    def __init__(
+        self,
+        comm: MPI.Comm,
+        level: str = "DEBUG",
+        parallel_log: str = "redirect_errors",
+    ) -> None:
         """
         Initialize the logger.
 
@@ -59,7 +65,7 @@ class GenarrisLogger:
             logging.basicConfig(
                 filename="Genarris.log",
                 level=self.log_level,
-                format="%(asctime)s: %(levelname)5s: " "%(name)15s- %(message)s",
+                format="%(asctime)s: %(levelname)5s: %(name)15s- %(message)s",
                 datefmt="%b %d %I:%M:%S %p",
             )
         else:
