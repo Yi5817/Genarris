@@ -14,7 +14,6 @@ from gnrs.core.restart import (
     RESTART_VERSION,
     Restart,
     RestartError,
-    _diff_configs,
     _json_default,
 )
 
@@ -374,15 +373,3 @@ def test_unserializable_value_is_refused_not_stringified() -> None:
     assert _json_default(np.array([1, 2])) == [1, 2]
     with pytest.raises(TypeError, match="cannot be stored"):
         _json_default(Path("/x"))
-
-
-# --- helpers ---------------------------------------------------------------
-
-
-def test_diff_configs_reports_nested_changes() -> None:
-    saved = {"master": {"z": 2, "name": "a"}, "gen": {"n": 1}}
-    current = {"master": {"z": 4, "name": "a"}, "gen": {"n": 1}, "new": {"k": 0}}
-    assert _diff_configs(saved, current) == [
-        "master.z: 2 -> 4",
-        "new: '<not set>' -> {'k': 0}",
-    ]

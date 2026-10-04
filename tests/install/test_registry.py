@@ -13,8 +13,8 @@ from gnrs.core.registry import resolve_tasks
 
 def test_core_task_names_resolve() -> None:
     names = [
-        "generation", "rigid_press", "symm_rigid_press", "dedup", "acsf",
-        "ap_center", "kmeans_window",
+        "crystal_generation", "asu_generation", "generation", "rigid_press",
+        "symm_rigid_press", "dedup", "acsf", "ap_center", "kmeans_window",
     ]
     specs = resolve_tasks(names)
     assert [spec.instance_id for spec in specs] == names
