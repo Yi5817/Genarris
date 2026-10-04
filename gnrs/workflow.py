@@ -49,7 +49,6 @@ class Genarris:
         self._mpi_init()
         self._log_init()
         self._output_init()
-        self._parallel_init()
         self._gnrs_info_init()
         self._config_init(args)
         tasks = self.config.get("workflow", {}).get("tasks", [])
@@ -84,18 +83,13 @@ class Genarris:
 
     def _mpi_init(self) -> None:
         """
-        Initialize MPI.
+        Initialize MPI and the package communicator.
         """
-        self.comm = MPI.COMM_WORLD
+        gp.init_parallel(MPI.COMM_WORLD)
+        self.comm = gp.comm
         self.rank = self.comm.Get_rank()
         self.size = self.comm.Get_size()
         self.is_master = self.rank == 0
-
-    def _parallel_init(self) -> None:
-        """
-        Initialize parallel processing environment.
-        """
-        gp.init_parallel(self.comm)
 
     def _output_init(self) -> None:
         """

@@ -13,6 +13,7 @@ __group__ = "https://www.noamarom.com/"
 import logging
 
 from mpi4py import MPI
+from mpi4py.util import pkl5
 
 logger = logging.getLogger("parallel")
 
@@ -26,13 +27,16 @@ base_seed = 42
 def init_parallel(comm_in: MPI.Comm) -> None:
     """
     Initialize parallel environment with MPI communicator.
-    
+
+    ``gnrs.parallel.comm`` is the package communicator; pass it to tasks.
+    It has no 2 GiB limit on gather, scatter and bcast, unlike plain mpi4py.
+
     Args:
         comm_in: MPI communicator object
     """
     global comm, rank, size, is_master
     
-    comm = comm_in
+    comm = pkl5.Intracomm(comm_in)
     rank = comm.Get_rank()
     size = comm.Get_size()
     is_master = rank == 0
