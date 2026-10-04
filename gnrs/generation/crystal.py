@@ -235,13 +235,19 @@ class CRYSTALGenerator(GeneratorABC):
         """
         parts = self.comm.allgather(structs)
         asus = {name: asu for part in parts for name, asu in part.items()}
-        for i, name in enumerate(sorted(asus)):
+        # Seed 0 asks for a fresh seed; rank 0 draws it for all ranks
+        entropy = task_set["seed"] or self.comm.bcast(
+            np.random.SeedSequence().entropy if self.is_master else None, root=0
+        )
+        children = np.random.SeedSequence(entropy).spawn(len(asus))
+        for name, child in zip(sorted(asus), children):
             asu_dir = os.path.join(calc_dir, name)
             folders.mkdir(asu_dir)
             self.write_inputs(asu_dir, asus[name])
             self.comm.barrier()
-            # Same seed for every ASU would repeat the lattices
-            self.generate({**task_set, "seed": task_set["seed"] + i}, asu_dir)
+            # Independent stream per ASU, as a nonzero seed that fits a C int
+            seed = int(child.generate_state(1)[0] % 2**30) + 1
+            self.generate({**task_set, "seed": seed}, asu_dir)
 
         if self.is_master:
             with open(os.path.join(calc_dir, "geometry.out"), "w") as merged:

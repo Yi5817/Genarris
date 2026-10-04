@@ -124,4 +124,5 @@ Every ASU gets `num_structures_per_spg` crystals per space group. Keep
 
 Set `stoichiometry` in both sections. The crystals of all ASUs are in
 `structures/crystal_generation/structures.json`. The run of each ASU is in
-`tmp/crystal_generation/<ASU name>/`. ASU number `i` uses `seed + i`.
+`tmp/crystal_generation/<ASU name>/`. Each ASU gets its own seed, derived from
+`seed` with `numpy.random.SeedSequence`.
