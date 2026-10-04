@@ -8,8 +8,7 @@ master:
   z: required
   log_level: info
 
-generation:
-  generation_type: crystal
+crystal_generation: &crystal_generation
   spg_distribution_type: standard
   stoichiometry: [1]
   num_structures_per_spg: required
@@ -23,7 +22,16 @@ generation:
   lattice_norm_dev: 0.4
   lattice_angle_std: 8
   natural_cutoff_mult: 1.1
-  seed: 42
+
+# Genarris 3.x name of crystal_generation
+generation: *crystal_generation
+
+asu_generation:
+  stoichiometry: required
+  num_asus: required
+  sr_min: 0.75
+  sr_max: 1.3
+  max_attempts_per_asu: 100000
 
 rigid_press:
   natural_cutoff_mult: 1.1

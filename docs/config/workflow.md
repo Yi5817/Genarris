@@ -4,7 +4,7 @@ Defines which tasks to run and in what order.
 
 ```ini
 [workflow]
-tasks = ['generation', 'symm_rigid_press', 'dedup', 'maceoff', 'acsf', 'ap_center']
+tasks = ['crystal_generation', 'symm_rigid_press', 'dedup', 'maceoff', 'acsf', 'ap_center']
 ```
 
 `tasks` : `list[str]`.
@@ -19,8 +19,10 @@ tasks = ['generation', 'symm_rigid_press', 'dedup', 'maceoff', 'acsf', 'ap_cente
 
 * - Task name
   - Description
-* - `generation`
-  - Random crystal structure generation
+* - `crystal_generation`
+  - Random crystal structure generation. See {doc}`crystal_generation`. The Genarris 3.x name `generation` still works.
+* - `asu_generation`
+  - Random asymmetric unit (ASU) generation for multi-component crystals. See {doc}`asu_generation`.
 * - `rigid_press`
   - Rigid press geometry optimization (C implementation, fast but may break symmetry)
 * - `symm_rigid_press`

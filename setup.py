@@ -13,6 +13,11 @@ if sys.version_info < (3, 10):
 MPICC = os.environ.get("MPICC", "mpicc")
 os.environ.setdefault("CC", MPICC)
 
+# Layout of the cgenarris submodule
+CGENARRIS_INCLUDE_DIR = "./gnrs/cgenarris/include"
+CGENARRIS_PYTHON_DIR = "./gnrs/cgenarris/python"
+SPGLIB_DIR = "./gnrs/cgenarris/third_party/spglib"
+
 
 # Cgenarris Extension (aka pygenarris)
 def get_pygenarris_sources():
@@ -45,18 +50,20 @@ def get_pygenarris_sources():
         "combinatorics.c",
         "crystal_utils.c",
         "lattice_generator.c",
+        "lattice_generator_layer.c",
         "molecule_placement.c",
         "molecule_utils.c",
         "pygenarris_mpi.c",
-        "pygenarris_mpi.i",
         "pygenarris_mpi_utils.c",
         "randomgen.c",
         "read_input.c",
         "spg_generation.c",
+        "asu_generation.c",
+        "asu_utils.c",
     ]
 
     pygenarris_src_dir = "./gnrs/cgenarris/src/"
-    spglib_src_dir = os.path.join(pygenarris_src_dir, "spglib_src")
+    spglib_src_dir = SPGLIB_DIR
 
     if not os.path.exists(pygenarris_src_dir):
         raise SystemExit(
@@ -65,20 +72,20 @@ def get_pygenarris_sources():
 
     # Create __init__.py files if missing
     inits = [
-        os.path.join(pygenarris_src_dir, "__init__.py"),
-        os.path.join(pygenarris_src_dir, "..", "__init__.py"),
+        os.path.join(CGENARRIS_PYTHON_DIR, "__init__.py"),
+        os.path.join(CGENARRIS_PYTHON_DIR, "..", "__init__.py"),
     ]
     for init in inits:
         if not os.path.isfile(init):
             open(init, "a").close()
 
-    sources = []
+    sources = [os.path.join(CGENARRIS_PYTHON_DIR, "pygenarris_mpi.i")]
     for src in src_pygenarris:
         sources.append(os.path.join(pygenarris_src_dir, src))
     for src in src_spglib:
         sources.append(os.path.join(spglib_src_dir, src))
 
-    include = [pygenarris_src_dir, spglib_src_dir]
+    include = [CGENARRIS_INCLUDE_DIR, pygenarris_src_dir, spglib_src_dir]
 
     # Get numpy and mpi4py include
     required_mods = ["numpy", "mpi4py"]
@@ -124,8 +131,8 @@ def get_rigid_press_sources():
         "symmetry.c",
     ]
 
-    rpress_source_dir = "./gnrs/cgenarris/src/rpack/rigid_press"
-    spglib_src_dir = "./gnrs/cgenarris/src/spglib_src"
+    rpress_source_dir = os.path.join(CGENARRIS_PYTHON_DIR, "rpack", "rigid_press")
+    spglib_src_dir = SPGLIB_DIR
 
     sources = []
     for src in src_rpress:
@@ -133,7 +140,12 @@ def get_rigid_press_sources():
     for src in src_spglib:
         sources.append(os.path.join(spglib_src_dir, src))
 
-    include_rpress = [rpress_source_dir, spglib_src_dir]
+    include_rpress = [
+        rpress_source_dir,
+        CGENARRIS_INCLUDE_DIR,
+        "./gnrs/cgenarris/src",
+        spglib_src_dir,
+    ]
 
     required_mods = ["numpy"]
     for mod in required_mods:
@@ -148,30 +160,31 @@ def get_rigid_press_sources():
 
 sources_pygenarris, include_pygenarris = get_pygenarris_sources()
 mpi4py_include = importlib.import_module("mpi4py").get_include()
+with open("./gnrs/cgenarris/VERSION") as version_file:
+    cgenarris_version = version_file.read().strip()
 pygenarris_mpi = Extension(
-    "gnrs.cgenarris.src._pygenarris_mpi",
+    "gnrs.cgenarris.python._pygenarris_mpi",
     include_dirs=include_pygenarris,
     sources=sources_pygenarris,
     extra_compile_args=["-std=gnu99", "-O3"],
     swig_opts=[
+        f"-I{CGENARRIS_PYTHON_DIR}",
+        f"-I{CGENARRIS_INCLUDE_DIR}",
         "-I./gnrs/cgenarris/src/",
-        "-I./gnrs/cgenarris/src/spglib_src",
         f"-I{mpi4py_include}",
     ],
+    define_macros=[("CGENARRIS_VERSION", f'"{cgenarris_version}"')],
 )
 
 # Add rigid_press extension
 sources_rigid_press, include_rigid_press = get_rigid_press_sources()
 rigid_press = Extension(
-    "gnrs.cgenarris.src.rpack.rigid_press._rigid_press",
+    "gnrs.cgenarris.python.rpack.rigid_press._rigid_press",
     include_dirs=include_rigid_press,
     sources=sources_rigid_press,
     extra_compile_args=["-std=gnu99", "-O3"],
     libraries=["lapack", "blas"],
-    swig_opts=[
-        "-I./gnrs/cgenarris/src/rpack/rigid_press",
-        "-I./gnrs/cgenarris/src/spglib_src",
-    ],
+    swig_opts=[f"-I{CGENARRIS_INCLUDE_DIR}"],
 )
 
 setup(

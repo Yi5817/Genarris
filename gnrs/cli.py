@@ -19,6 +19,8 @@ import warnings
 
 from mpi4py import MPI
 
+from gnrs import __version__
+
 warnings.filterwarnings("ignore", category=UserWarning)
 warnings.filterwarnings("ignore", category=RuntimeWarning)
 
@@ -27,7 +29,8 @@ def main():
     """
     Main CLI for Genarris workflow.
     """
-    parser = argparse.ArgumentParser(description="Genarris3.0")
+    parser = argparse.ArgumentParser(description="Genarris")
+    parser.add_argument("--version", action="version", version=__version__)
     parser.add_argument(
         "-c", "--config", required=True, type=str, help="Path to the configuration file"
     )
@@ -46,12 +49,14 @@ def main():
         "discarding its progress",
     )
     args = parser.parse_args()
+    if not 0 <= args.seed < 2**31:
+        parser.error("--seed must be between 0 and 2**31 - 1")
 
     from gnrs.core.registry import UnknownTaskError
     from gnrs.core.restart import RestartError
 
     comm = MPI.COMM_WORLD
-    logger = logging.getLogger("genarris")
+    logger = logging.getLogger(__name__)
     aborted = False
     try:
         # Initialize and run Genarris

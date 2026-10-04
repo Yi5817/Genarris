@@ -28,7 +28,7 @@ from gnrs.parallel.structs import DistributedStructs
 
 AVAILABLE_METHODS = ["LBFGS", "BFGS", "RIGID_PRESS", "SYMM_RIGID_PRESS"]
 AVAILABLE_ENERGY_METHODS = ["DFTB", "AIMS", "MACEOFF", "UMA", "VASP", "AIMNET"]
-logger = logging.getLogger("GeoOptTask")
+logger = logging.getLogger(__name__)
 
 
 class GeometryOptimizationTask(TaskABC):
@@ -184,7 +184,7 @@ class GeometryOptimizationTask(TaskABC):
             task_set: Task settings dictionary
         """
         gout.emit("Optimization Settings:")
-        gout.print_dict_table(task_set, ["Option", "Value"], skip=("cutoff_matrix"))
+        gout.print_dict_table(task_set, ["Option", "Value"], skip=("cutoff_matrix",))
         if self.energy_method is not None:
             gout.emit("Energy Settings:")
             super().print_settings(self.energy_set)
@@ -240,7 +240,24 @@ class GeometryOptimizationTask(TaskABC):
             on_structure_done=partial(self.dsdict.checkpoint_save, self.rank_calc_dir),
             done=self.dsdict.done,
         )
+        self._remove_broken_structures()
         gout.emit("Completed optimizations.")
+
+    def _remove_broken_structures(self) -> None:
+        """
+        Remove the structures whose covalent bonds changed during optimization.
+        Must be called by all ranks.
+        """
+        key = f"{self.opt_name}_bonds_intact"
+        broken = [n for n, x in self.structs.items() if not x.info.get(key, True)]
+        for name in broken:
+            del self.structs[name]
+        n_broken = self.comm.allreduce(len(broken))
+        if n_broken:
+            gout.emit(
+                f"Removed {n_broken} structure(s) whose covalent bonds changed "
+                "during optimization."
+            )
 
     def collect_results(self):
         super().collect_results()

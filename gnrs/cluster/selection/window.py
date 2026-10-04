@@ -18,7 +18,7 @@ import gnrs.output as gout
 from gnrs.core.selection import SelectionABC
 from gnrs.gnrsutil.core import eV2kJ
 
-logger = logging.getLogger("WindowSelection")
+logger = logging.getLogger(__name__)
 
 
 class WINDOWSelection(SelectionABC):

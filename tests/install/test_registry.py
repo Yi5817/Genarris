@@ -14,6 +14,8 @@ from gnrs.core.registry import resolve_tasks
 
 def test_core_task_names_resolve() -> None:
     names = [
+        "crystal_generation",
+        "asu_generation",
         "generation",
         "rigid_press",
         "symm_rigid_press",
