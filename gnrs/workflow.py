@@ -23,7 +23,6 @@ from gnrs.core.registry import resolve_tasks
 import gnrs.output as gout
 from gnrs.parallel import init_parallel
 from gnrs.parser import UserSettingsParser, UserSettingsSanityChecker
-from gnrs.parallel.test import test_bcast
 from gnrs.core.restart import Restart, RestartError
 from gnrs.gnrsutil.core import check_if_exp_found
 
@@ -252,7 +251,6 @@ class Genarris:
                     instance_id=spec.instance_id,
                 ).run()
                 self.restart_manager.write()
-                test_bcast()
                 check_if_exp_found(self.config, self.gnrs_info)
             else:
                 self.logger.info(f"{spec.instance_id} task was completed before restart")

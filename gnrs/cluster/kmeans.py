@@ -17,6 +17,7 @@ import numpy as np
 from sklearn.cluster import MiniBatchKMeans
 
 import gnrs.output as gout
+import gnrs.parallel as gp
 from gnrs.core.cluster import ClusterABC
 
 logger = logging.getLogger("kmeans")
@@ -44,8 +45,6 @@ class KMEANSCluster(ClusterABC):
         """
         Initialize the k-means clustering.
         """
-        import gnrs.parallel as gp
-
         self.features = np.array(
             [x.info[self.feature_name][0, :] for x in self.structs.values()]
         )

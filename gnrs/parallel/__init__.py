@@ -44,3 +44,6 @@ def init_parallel(comm_in: MPI.Comm, seed: int = 42) -> None:
     rank_seed = base_seed + rank
     random.seed(rank_seed)
     np.random.seed(rank_seed)
+
+
+init_parallel(MPI.COMM_WORLD)

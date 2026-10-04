@@ -35,9 +35,8 @@ SETTINGS = {
 def generate_asus(
     run_dir: Path, molecule_paths: list[str] = MOLECULE_PATHS, **settings
 ) -> list[Atoms]:
-    gp.init_parallel(MPI.COMM_WORLD)
     generator = ASUGenerator(
-        MPI.COMM_WORLD,
+        gp.comm,
         {"master": {"molecule_path": molecule_paths}},
         {"molecule_path": molecule_paths},
     )
