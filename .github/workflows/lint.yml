@@ -1,14 +1,32 @@
 name: Lint
 
-on: [push, pull_request]
+on:
+  push:
+    branches: [master]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   lint:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
-      - uses: actions/setup-python@v2
-      - run: pip install black
-      - name: Run black
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+      - name: Install lint tools
         run: |
-          find . -name '*.py' | xargs black
+          python -m pip install --upgrade pip
+          pip install --group dev
+      - name: Check ruff pin matches .pre-commit-config.yaml
+        run: |
+          grep "rev: v$(ruff --version | cut -d' ' -f2)" .pre-commit-config.yaml
+      - name: Run pre-commit
+        run: pre-commit run --all-files --show-diff-on-failure

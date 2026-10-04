@@ -11,6 +11,18 @@ git submodule update --init --recursive
 pip install -e .[test]
 ```
 
+## Code Style
+
+Genarris uses [ruff](https://docs.astral.sh/ruff/) for linting and formatting,
+run through [pre-commit](https://pre-commit.com/). Install the hooks once:
+
+```bash
+pip install --group dev
+pre-commit install
+```
+
+The hooks then run on every commit. CI runs `pre-commit run --all-files`.
+
 ## Running the Tests
 
 ```bash
