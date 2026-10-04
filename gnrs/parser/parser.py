@@ -20,9 +20,7 @@ from importlib.resources import files
 
 import yaml
 
-from gnrs.output import emit
-
-logger = logging.getLogger("parser")
+logger = logging.getLogger(__name__)
 
 
 class UserSettingsParser:
@@ -37,7 +35,7 @@ class UserSettingsParser:
         Args:
             config_path: Path to configuration file
         """
-        logger.info("Parsing Genarris input file")
+        logger.debug("Parsing Genarris input file")
         self.config_path = config_path
         self.config = {}
         self.defaults_dict = {}
@@ -56,17 +54,17 @@ class UserSettingsParser:
         """
         # Load from conf/ini file
         if self.config_path.endswith(("conf", "ini")):
-            logger.info("Reading input from conf/ini file")
+            logger.debug("Reading input from conf/ini file")
             self.config = self.load_settings_config_parser()
 
         # Load from json file
         elif self.config_path.endswith("json"):
-            logger.info("Reading input from json file")
+            logger.debug("Reading input from json file")
             self.config = self.load_settings_from_json()
 
         # Load from yaml file
         elif self.config_path.endswith(("yaml", "yml")):
-            logger.info("Reading input from yaml file")
+            logger.debug("Reading input from yaml file")
             self.config = self.load_settings_from_yaml()
 
         else:
@@ -131,7 +129,7 @@ class UserSettingsParser:
         Returns:
             Dictionary containing default settings
         """
-        logger.info("Loading defaults.yaml")
+        logger.debug("Loading defaults.yaml")
         defaults_text = files("gnrs.parser").joinpath("defaults.yaml").read_text()
         return yaml.safe_load(defaults_text)
 
@@ -139,8 +137,7 @@ class UserSettingsParser:
         """
         Update user settings with default values where not specified.
         """
-        logger.info("Adding defaults to user settings")
-        emit("Setting defaults...")
+        logger.debug("Adding defaults to user settings")
         self.defaults_dict = self._load_defaults()
 
         for section, default_options in self.defaults_dict.items():
@@ -152,7 +149,7 @@ class UserSettingsParser:
             for option, default_value in default_options.items():
                 if option not in user_options and default_value != "required":
                     self.config[section][option] = default_value
-                    emit(
+                    logger.debug(
                         f"Defaulting option '{option}' in section '{section}' "
                         f"to '{default_value}'."
                     )

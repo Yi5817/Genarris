@@ -21,7 +21,7 @@ import gnrs.output as gout
 import gnrs.parallel as gp
 from gnrs.core.cluster import ClusterABC
 
-logger = logging.getLogger("kmeans")
+logger = logging.getLogger(__name__)
 
 
 class KMEANSCluster(ClusterABC):
@@ -82,7 +82,7 @@ class KMEANSCluster(ClusterABC):
                 distance = self.kmeans.transform(sf.reshape(1, -1)).min()
                 distance = float(distance)
                 xtal.info[self.cluster_name + "_dist"] = distance
-        logger.info("Completed predicting clusters")
+        logger.debug("Completed predicting clusters")
         return
 
     def finalize(self) -> None:

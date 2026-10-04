@@ -2,24 +2,18 @@ from __future__ import annotations
 
 import logging
 
-from gnrs.output import emit
-
-logger = logging.getLogger("sanity_check")
+logger = logging.getLogger(__name__)
 
 
 class UserSettingsSanityChecker:
     def __init__(self, user_settings):
-        logger.info("Performing input sanity checks")
-        emit("")
-        emit("Performing checks on user input...")
+        logger.debug("Performing input sanity checks")
         self.user_settings = user_settings
 
         self._check_required_sections()
         self._check_required_options()
         self._check_optionvalue_types()
         self._check_unavailable_options()
-
-        emit("All checks passed. Input OK.")
 
         return
 

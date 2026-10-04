@@ -23,7 +23,7 @@ import gnrs.output as gout
 import gnrs.parallel as gp
 from gnrs.parallel.io import decode_struct, encode_struct
 
-logger = logging.getLogger("DistributedStructs")
+logger = logging.getLogger(__name__)
 
 
 class DistributedStructs:
@@ -294,10 +294,8 @@ class DistributedStructs:
         chunks, done = None, None
         if gp.is_master:
             for problem in chain.from_iterable(problems):
-                self.logger.error(f"Checkpoint {problem}")
-                gout.emit(
-                    f"WARNING: Checkpoint {problem}. The affected structures "
-                    "will be recomputed."
+                gout.warning(
+                    f"Checkpoint {problem}. The affected structures will be recomputed."
                 )
             combined = {n: x for structs in current for n, x in structs.items()}
             done = set()

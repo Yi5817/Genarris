@@ -26,7 +26,7 @@ GENERATORS = {
     "asu_generation": "asu",
     "generation": "crystal",
 }
-logger = logging.getLogger("GenerationTask")
+logger = logging.getLogger(__name__)
 
 
 class StructureGenerationTask(TaskABC):
@@ -112,7 +112,7 @@ class StructureGenerationTask(TaskABC):
         """
         Collect and save the results of the task.
         """
-        logger.info(f"Collecting generated {self.gen_name} structures")
+        logger.debug(f"Collecting generated {self.gen_name} structures")
         geometry_out = os.path.join(self.calc_dir, "geometry.out")
         self.structs = read_geometry_out(geometry_out)
         if DistributedStructs(self.structs).get_num_structs() == 0:
@@ -132,5 +132,5 @@ class StructureGenerationTask(TaskABC):
         """
         Finalize the task and update runtime settings.
         """
-        logger.info(f"Finalizing {self.task_name}")
+        logger.debug(f"Finalizing {self.task_name}")
         super().finalize(self.task_name)

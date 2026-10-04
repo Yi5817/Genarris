@@ -64,6 +64,7 @@ class Genarris:
         self.restart_manager.write()
 
         self.comm.barrier()
+        self.Genlogger.sync()
         self.logger.info("Genarris initialized successfully")
 
     def run(self) -> None:
@@ -78,7 +79,7 @@ class Genarris:
         Initialize logger with MPI communicator.
         """
         self.Genlogger = GenarrisLogger(self.comm)
-        self.logger = logging.getLogger("genarris")
+        self.logger = logging.getLogger(__name__)
 
     def _mpi_init(self) -> None:
         """
@@ -94,7 +95,6 @@ class Genarris:
         """
         Initialize output system and display welcome message.
         """
-        gout.init_output(self.comm)
         gout.welcome_message()
 
     def _config_init(self, args: argparse.Namespace) -> None:
@@ -127,7 +127,7 @@ class Genarris:
         """
         Initialize Genarris information with paths and execution metadata.
         """
-        self.logger.info("Setting runtime values")
+        self.logger.debug("Setting runtime values")
 
         # Set working directories
         self.work_dir = os.getcwd()
@@ -186,7 +186,6 @@ class Genarris:
                 f"This directory already contains a Genarris run ({found[0]}). {hint}."
             )
         if found:
-            self.logger.warning("Discarding previous run record (--overwrite)")
             gout.emit(
                 "NOTE: --overwrite given. The previous run's progress record is "
                 "discarded; every task starts from scratch and overwrites its "
@@ -194,6 +193,7 @@ class Genarris:
             )
             gout.emit("")
             if self.is_master:
+                self.logger.warning("Discarding previous run record (--overwrite)")
                 for restart_file in found:
                     os.remove(restart_file)
         self.restart_manager.discard_checkpoints()
@@ -224,7 +224,7 @@ class Genarris:
         Runs in restart mode too, so a cleaned tmp/ dir is recreated.
         """
         folders.init_folders(self.is_master)
-        self.logger.info("Setting up folders: structures and tmp")
+        self.logger.debug("Setting up folders: structures and tmp")
         folders.setup_main_folders(self.gnrs_info)
         folders.copy_molecule(self.config, self.gnrs_info)
 
@@ -242,7 +242,6 @@ class Genarris:
 
         for spec in task_specs:
             if not self.restart_manager.is_task_completed(spec.instance_id):
-                gout.emit(f"Running task: {spec.instance_id}")
                 spec.cls(
                     self.comm,
                     self.config,
@@ -257,3 +256,4 @@ class Genarris:
                     f"{spec.instance_id} task was completed before restart"
                 )
                 gout.skip_task(spec.instance_id)
+            self.Genlogger.sync()

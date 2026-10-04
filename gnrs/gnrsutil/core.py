@@ -90,7 +90,6 @@ def check_if_exp_found(config: dict, gnrs_info: dict):
         gnrs_info: Dictionary containing information about the Genarris run
     """
     if "experimental_structure" not in config:
-        gout.emit("Passing experimental structure check...")
         return
 
     exp_path = config["experimental_structure"].get("path", None)

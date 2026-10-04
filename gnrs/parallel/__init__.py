@@ -16,7 +16,7 @@ import logging
 from mpi4py import MPI
 from mpi4py.util import pkl5
 
-logger = logging.getLogger("parallel")
+logger = logging.getLogger(__name__)
 
 comm = None
 rank = None

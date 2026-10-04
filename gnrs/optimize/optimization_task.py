@@ -28,7 +28,7 @@ from gnrs.parallel.structs import DistributedStructs
 
 AVAILABLE_METHODS = ["LBFGS", "BFGS", "RIGID_PRESS", "SYMM_RIGID_PRESS"]
 AVAILABLE_ENERGY_METHODS = ["DFTB", "AIMS", "MACEOFF", "UMA", "VASP", "AIMNET"]
-logger = logging.getLogger("GeoOptTask")
+logger = logging.getLogger(__name__)
 
 
 class GeometryOptimizationTask(TaskABC):
@@ -184,7 +184,7 @@ class GeometryOptimizationTask(TaskABC):
             task_set: Task settings dictionary
         """
         gout.emit("Optimization Settings:")
-        gout.print_dict_table(task_set, ["Option", "Value"], skip=("cutoff_matrix"))
+        gout.print_dict_table(task_set, ["Option", "Value"], skip=("cutoff_matrix",))
         if self.energy_method is not None:
             gout.emit("Energy Settings:")
             super().print_settings(self.energy_set)

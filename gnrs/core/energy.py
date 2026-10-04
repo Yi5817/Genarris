@@ -24,7 +24,7 @@ from mpi4py import MPI
 
 from gnrs.core.gpu import TAG_SHUTDOWN, TAG_WORK_DATA, TAG_WORK_RESULT, GPUDeviceManager
 
-logger = logging.getLogger("energy")
+logger = logging.getLogger(__name__)
 
 _VALID_DFT_MODES = {"serial", "parallel"}
 

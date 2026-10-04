@@ -27,7 +27,7 @@ from spglib import get_symmetry_dataset
 
 warnings.filterwarnings("ignore", category=RuntimeWarning)
 
-logger = logging.getLogger("SymmRigidPress")
+logger = logging.getLogger(__name__)
 # Maximum number of unit cells to sum over before deciding a crystal is too tightly packed
 MAX_CELL_SUM = 2000
 

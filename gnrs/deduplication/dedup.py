@@ -24,7 +24,7 @@ from pymatgen.io.ase import AseAtomsAdaptor
 
 import gnrs.parallel as gp
 
-logger = logging.getLogger("dedup")
+logger = logging.getLogger(__name__)
 
 
 def group_by_spg(structs: dict[str, Atoms]) -> dict[int, dict[str, Atoms]]:

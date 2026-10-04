@@ -19,7 +19,7 @@ from ase.io.jsonio import decode, encode
 
 import gnrs.parallel as gp
 
-logger = logging.getLogger("parallel_io")
+logger = logging.getLogger(__name__)
 
 
 def read_geometry_out(file_path: str) -> dict:
@@ -130,7 +130,7 @@ def write_parallel(file_path: str, struct_dict: dict) -> None:
 
     str_list = [s for sublist in str_list for s in sublist]
     if not str_list:
-        logger.info("No structures to write!")
+        logger.warning("No structures to write!")
         return
     logger.info(f"Writing {len(str_list)} structures to file")
     str_list[-1] = str_list[-1][:-2]

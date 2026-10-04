@@ -26,7 +26,7 @@ from gnrs.core.task import TaskABC
 from gnrs.parallel.io import write_parallel
 
 AVAILABLE_DESCRIPTORS = ["ACSF"]
-logger = logging.getLogger("DescriptorTask")
+logger = logging.getLogger(__name__)
 
 
 class DescriptorEvaluationTask(TaskABC):

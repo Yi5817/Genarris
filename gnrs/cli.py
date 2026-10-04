@@ -19,6 +19,8 @@ import warnings
 
 from mpi4py import MPI
 
+from gnrs import __version__
+
 warnings.filterwarnings("ignore", category=UserWarning)
 warnings.filterwarnings("ignore", category=RuntimeWarning)
 
@@ -27,7 +29,8 @@ def main():
     """
     Main CLI for Genarris workflow.
     """
-    parser = argparse.ArgumentParser(description="Genarris3.0")
+    parser = argparse.ArgumentParser(description="Genarris")
+    parser.add_argument("--version", action="version", version=__version__)
     parser.add_argument(
         "-c", "--config", required=True, type=str, help="Path to the configuration file"
     )
@@ -53,7 +56,7 @@ def main():
     from gnrs.core.restart import RestartError
 
     comm = MPI.COMM_WORLD
-    logger = logging.getLogger("genarris")
+    logger = logging.getLogger(__name__)
     aborted = False
     try:
         # Initialize and run Genarris

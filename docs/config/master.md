@@ -25,4 +25,7 @@ log_level       = info
   `asu_generation`.
 
 `log_level` : `str` | default = `info`.
-: Python logging level (`debug`, `info`, `warning`, `error`).
+: Python logging level (`debug`, `info`, `warning`, `error`) of `Genarris.log`.
+  Rank 0 writes the file. Warnings and errors of the other MPI ranks are added
+  when a task ends, one line per distinct message, with the rank or the number
+  of ranks that logged it.

@@ -23,7 +23,7 @@ from gnrs.core.generator import GeneratorABC
 from gnrs.core.molecule import Molecule
 from gnrs.parallel.structs import DistributedStructs
 
-logger = logging.getLogger("asu_generation")
+logger = logging.getLogger(__name__)
 
 
 class ASUGenerator(GeneratorABC):
@@ -103,8 +103,8 @@ class ASUGenerator(GeneratorABC):
                 "see the ***ERROR message above."
             )
         if num_generated < num_asus:
-            gout.emit(
-                f"WARNING: Only {num_generated} of {num_asus} asymmetric units "
+            gout.warning(
+                f"Only {num_generated} of {num_asus} asymmetric units "
                 "were generated before max_attempts_per_asu was reached."
             )
         logger.info("Completed ASU generation")

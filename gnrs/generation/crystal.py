@@ -30,7 +30,7 @@ from gnrs.gnrsutil.molecule_bonding import get_vdw_distance_cutoff_matrix
 from gnrs.gnrsutil.volume_estimation import predict_cell_volume
 from gnrs.parallel.structs import DistributedStructs
 
-logger = logging.getLogger("crystal_generation")
+logger = logging.getLogger(__name__)
 
 
 class CRYSTALGenerator(GeneratorABC):
@@ -101,8 +101,8 @@ class CRYSTALGenerator(GeneratorABC):
         task_set["sr"] = self.sr
 
         # Get van der waal cutoff matrix for structure checks
-        gout.emit("Constructing Van der Waal cutoff matrix...")
-        logger.info("Getting van der waal distance cutoff matrix")
+        gout.emit("Constructing van der Waals cutoff matrix...")
+        logger.debug("Getting van der waal distance cutoff matrix")
         self.cutoff_matrix, self.hbond = get_vdw_distance_cutoff_matrix(
             mol_path=task_set["molecule_path"],
             z=task_set["z"],
@@ -110,7 +110,7 @@ class CRYSTALGenerator(GeneratorABC):
             natural_cutoff_mult=task_set["natural_cutoff_mult"],
         )
         task_set["cutoff_matrix"] = self.cutoff_matrix
-        gout.emit("Van der Waal cutoff matrix constructed")
+        gout.emit("van der Waals cutoff matrix constructed")
         return task_set
 
     def print_settings(self, task_set: dict) -> None:
@@ -120,7 +120,6 @@ class CRYSTALGenerator(GeneratorABC):
         Args:
             task_set: Task settings dictionary
         """
-        logger.debug("Printing settings for generation")
         ucv_mean = task_set["ucv_mean"]
         ucv_std = task_set["ucv_std"]
         gout.emit(f"Predicted unit cell volume = {ucv_mean:.1f} A^3.")
@@ -135,7 +134,7 @@ class CRYSTALGenerator(GeneratorABC):
             gout.emit("No Hydrogen bond corrections applied")
         gout.emit("")
 
-        gout.print_dict_table(task_set, ["Option", "Value"], skip=("cutoff_matrix"))
+        gout.print_dict_table(task_set, ["Option", "Value"], skip=("cutoff_matrix",))
 
         gout.emit(
             "Passing control to cgenarris, fast and scalable structure generator...\n"

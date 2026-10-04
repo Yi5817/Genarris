@@ -27,7 +27,7 @@ import gnrs.output as gout
 from gnrs.core.registry import TaskSpec, resolve_tasks
 from gnrs.parallel.structs import DistributedStructs
 
-logger = logging.getLogger("restart")
+logger = logging.getLogger(__name__)
 
 RESTART_FILE = "restart.json"
 RESTART_VERSION = 1
@@ -177,7 +177,7 @@ class Restart:
         """
         if not self.is_master:
             return
-        logger.info("Writing restart file")
+        logger.debug("Writing restart file")
         restart = {
             "version": RESTART_VERSION,
             "config": self.config,
@@ -193,9 +193,8 @@ class Restart:
                 os.fsync(rfile.fileno())
             os.replace(tmp_file, self.restart_file)
         except (OSError, TypeError, ValueError) as exc:
-            logger.error(f"Failed to write restart file: {exc}")
-            gout.emit(
-                f"WARNING: Could not write restart file {self.restart_file}: "
+            gout.warning(
+                f"Could not write restart file {self.restart_file}: "
                 f"{exc}. The run continues, but restarting from this point "
                 "will not be possible."
             )
@@ -464,9 +463,8 @@ class Restart:
             )
         diffs = _diff_configs(saved_config, current_config)
         if diffs:
-            logger.warning("Config differs from the previous run: " + "; ".join(diffs))
-            gout.emit(
-                "WARNING: Settings changed since the previous run "
+            gout.warning(
+                "Settings changed since the previous run "
                 "(the current config file takes precedence):\n    "
                 + "\n    ".join(diffs)
             )
@@ -524,9 +522,8 @@ class Restart:
                 if entry.is_dir() and entry.name not in keep:
                     if DistributedStructs.checkpoint_clear(entry.path):
                         discarded.append(entry.name)
+                        logger.warning(f"Discarded checkpoints of task {entry.name}")
         discarded = self.comm.bcast(discarded, root=0)
-        for task in discarded:
-            logger.warning(f"Discarded checkpoints of task {task}")
         return discarded
 
     def is_task_completed(self, task_name: str) -> bool:
