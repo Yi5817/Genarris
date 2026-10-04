@@ -36,7 +36,7 @@ class CRYSTALGenerator(GeneratorABC):
     Generates random molecular crystals in all compatible space groups.
     """
 
-    title = "Generation"
+    title = "Crystal Generation"
 
     def __init__(self, comm: MPI.Comm, config: dict, gnrs_info: dict) -> None:
         """
