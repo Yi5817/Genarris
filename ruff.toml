@@ -65,6 +65,7 @@ ignore = [
   "RUF059",  # unused-unpacked-variable
   "SIM102",  # collapsible-if
   "SIM105",  # suppressible-exception
+  "SIM114",  # if-with-same-arms
   "SIM115",  # open-file-with-context-handler
   "SIM118",  # in-dict-keys
   "SIM201",  # negate-equal-op

@@ -273,11 +273,13 @@ class MoleculeBonding:
                         bond_ele = self.ele[bonding]
                         unique_ele = np.unique(bond_ele)
                         # C-O-C
-                        if (
-                            (len(unique_ele) == 1 and unique_ele[0] == "C")
-                            or (len(unique_ele) == 1 and unique_ele[0] == "H")
-                            or "H" in bond_ele
-                        ):
+                        if len(unique_ele) == 1 and unique_ele[0] == "C":
+                            self.acceptor_idx.append(i)
+                        # H-O-H
+                        elif len(unique_ele) == 1 and unique_ele[0] == "H":
+                            self.acceptor_idx.append(i)
+                        # R-O-H
+                        elif "H" in bond_ele:
                             self.acceptor_idx.append(i)
 
                 # Check for terminal nitrogen
