@@ -32,12 +32,14 @@ SETTINGS = {
 }
 
 
-def generate_asus(run_dir: Path, **settings) -> list[Atoms]:
+def generate_asus(
+    run_dir: Path, molecule_paths: list[str] = MOLECULE_PATHS, **settings
+) -> list[Atoms]:
     gp.init_parallel(MPI.COMM_WORLD)
     generator = ASUGenerator(
         MPI.COMM_WORLD,
-        {"master": {"molecule_path": MOLECULE_PATHS}},
-        {"molecule_path": MOLECULE_PATHS},
+        {"master": {"molecule_path": molecule_paths}},
+        {"molecule_path": molecule_paths},
     )
     task_set = generator.pack_settings({**SETTINGS, **settings})
     generator.generate(task_set, str(run_dir))
@@ -60,3 +62,17 @@ def test_asus_hold_both_molecules_rigid_in_input_order(tmp_path: Path) -> None:
 def test_invalid_sr_window_is_refused(tmp_path: Path) -> None:
     with pytest.raises(RuntimeError, match="could not generate asymmetric units"):
         generate_asus(tmp_path, sr_min=1.3, sr_max=0.75)
+
+
+@pytest.mark.parametrize(
+    "molecule_paths, stoichiometry",
+    [
+        (MOLECULE_PATHS, [1.9, 1.1]),
+        (MOLECULE_PATHS[:1], [2]),
+    ],
+)
+def test_only_two_molecules_one_to_one_are_accepted(
+    tmp_path: Path, molecule_paths: list[str], stoichiometry: list
+) -> None:
+    with pytest.raises(ValueError, match="exactly two components"):
+        generate_asus(tmp_path, molecule_paths, stoichiometry=stoichiometry)
