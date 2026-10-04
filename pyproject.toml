@@ -46,6 +46,8 @@ dependencies = [
 uma = ["pandas<=2.3", "fairchem-core"]
 mace = ["pandas<=2.3", "mace-torch"]
 test = ["pytest"]
+
+[dependency-groups]
 dev = ["ruff==0.16.10", "pre-commit==4.6.2"]
 
 [project.scripts]
