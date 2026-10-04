@@ -60,7 +60,10 @@ class ASUGenerator(GeneratorABC):
             task_set: Task settings dictionary
             calc_dir: Folder of the generation task
         """
-        molecules = [Molecule.read(path) for path in self.gnrs_info["molecule_path"]]
+        molecules = [
+            Molecule.read(path, parallel=False)
+            for path in self.gnrs_info["molecule_path"]
+        ]
         positions = np.concatenate([mol.get_positions() for mol in molecules])
 
         species = "".join(
