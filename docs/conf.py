@@ -82,14 +82,14 @@ autodoc_mock_imports = [
     "yaml",
     "networkx",
     "gnrs.cgenarris",
-    "gnrs.cgenarris.src",
-    "gnrs.cgenarris.src.pygenarris_mpi",
-    "gnrs.cgenarris.src.rpack",
-    "gnrs.cgenarris.src.rpack.rigid_press",
-    "gnrs.cgenarris.src.rpack.rigid_press.rigid_press",
-    "gnrs.cgenarris.src.rpack.rigid_press.ase_interface",
-    "gnrs.cgenarris.src.rpack.setup",
-    "gnrs.cgenarris.src.setup_mpi",
+    "gnrs.cgenarris.python",
+    "gnrs.cgenarris.python.pygenarris_mpi",
+    "gnrs.cgenarris.python.rpack",
+    "gnrs.cgenarris.python.rpack.rigid_press",
+    "gnrs.cgenarris.python.rpack.rigid_press.rigid_press",
+    "gnrs.cgenarris.python.rpack.rigid_press.ase_interface",
+    "gnrs.cgenarris.python.rpack.setup",
+    "gnrs.cgenarris.python.setup",
 ]
 
 # -- Napoleon (Google-style docstrings) ----------------------------------------

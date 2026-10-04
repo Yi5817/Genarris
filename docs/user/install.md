@@ -77,13 +77,13 @@ Vista uses [NVIDIA Performance Libraries (NVPL)](https://docs.tacc.utexas.edu/hp
 
 ```python
 rigid_press = Extension(
-    "gnrs.cgenarris.src.rpack.rigid_press._rigid_press",
+    "gnrs.cgenarris.python.rpack.rigid_press._rigid_press",
     include_dirs=include_rigid_press,
     sources=sources_rigid_press,
     extra_compile_args=["-std=gnu99", "-O3"],
     libraries=["nvpl_blas_lp64_gomp", "nvpl_lapack_lp64_gomp"],
     library_dirs=[os.path.join(os.environ.get("TACC_NVPL_DIR"), "lib")],
-    swig_opts=["-I./gnrs/cgenarris/src/rpack/rigid_press", "-I./gnrs/cgenarris/src/spglib_src"],
+    swig_opts=[f"-I{CGENARRIS_INCLUDE_DIR}"],
 )
 ```
 

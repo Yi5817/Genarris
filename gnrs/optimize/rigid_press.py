@@ -11,7 +11,7 @@ __email__ = "yiy5@andrew.cmu.edu"
 __group__ = "https://www.noamarom.com/"
 
 from ase import Atoms
-from gnrs.cgenarris.src.rpack.rigid_press import optimize_structure
+from gnrs.cgenarris.python.rpack.rigid_press import optimize_structure
 
 from gnrs.core.optimizer import GeometryOptimizerABC
 
