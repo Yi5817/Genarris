@@ -40,8 +40,17 @@ class ASUGenerator(GeneratorABC):
 
         Returns:
             Task settings dictionary
+
+        Raises:
+            ValueError: If the input is not two molecules with stoichiometry 1:1
         """
-        return {"molecule_path": self.config["master"]["molecule_path"], **settings}
+        molecule_path = self.config["master"]["molecule_path"]
+        if len(molecule_path) != 2 or settings["stoichiometry"] != [1, 1]:
+            raise ValueError(
+                "ASU generation currently supports exactly two components "
+                "with stoichiometry 1:1."
+            )
+        return {"molecule_path": molecule_path, **settings}
 
     def generate(self, task_set: dict, calc_dir: str) -> None:
         """
