@@ -19,6 +19,7 @@ crystal_generation: &crystal_generation
   max_attempts_per_spg: 10000000
   max_attempts_per_volume: 10000
   tol: 0.1
+  symprec: 0.001
   lattice_norm_dev: 0.4
   lattice_angle_std: 8
   natural_cutoff_mult: 1.1

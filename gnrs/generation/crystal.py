@@ -188,6 +188,7 @@ class CRYSTALGenerator(GeneratorABC):
         seed = task_set["seed"]
         z = task_set["z"]
         tol = task_set["tol"]
+        symprec = task_set["symprec"]
         ucv_mean = task_set["ucv_mean"]
         ucv_std = task_set["ucv_std"]
         cutoff_matrix = np.array(task_set["cutoff_matrix"], dtype="float32")
@@ -211,6 +212,7 @@ class CRYSTALGenerator(GeneratorABC):
             seed,
             norm_dev,
             angle_std,
+            symprec,
             self.comm,
         )
 

@@ -14,6 +14,7 @@ num_structures_per_spg  = 4000
 sr                      = 0.95
 max_attempts_per_spg    = 10000000
 tol                     = 0.1
+symprec                 = 0.001
 ucv_mean                = predict
 ucv_mult                = 1.5
 ucv_std                 = 0.05
@@ -43,6 +44,11 @@ lattice_angle_std       = 8
   within `tol` of an atom of the same species. The molecule is then averaged
   onto the exact symmetry, so `tol` is also the largest distortion applied.
   Not an spglib parameter.
+
+`symprec` : `float` | default = `0.001`.
+: spglib tolerance in $\mathrm{\AA}$ used to label each generated structure
+  with its detected space group (`#SPGLIB_detected_spacegroup`, read into
+  `Atoms.info["spg"]`). Generation itself does not use it.
 
 `ucv_mean` : `str` | `float` | default = `predict`.
 : Mean unit cell volume in $\mathrm{\AA}^3$. Set to `predict` to use the built-in PyMoVE
