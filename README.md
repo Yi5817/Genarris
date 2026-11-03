@@ -113,7 +113,7 @@ Genarris uses a [configuration file](https://docs.python.org/3/library/configpar
    num_structures_per_spg      = 4000
    sr                          = 0.95
    max_attempts_per_spg        = 100000000
-   tol                         = 0.01
+   tol                         = 0.1
    ucv_mean                    = predict
    ucv_mult                    = 1.5
    max_attempts_per_volume     = 10000000

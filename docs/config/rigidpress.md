@@ -44,7 +44,7 @@ sr                  = 0.85
 method              = BFGS
 int_scale           = 0.1
 natural_cutoff_mult = 1.1
-tol                 = 0.0001
+tol                 = 0.01
 vol_tol             = 10
 maxiter             = 5000
 debug_flag          = False
@@ -67,7 +67,7 @@ Check out the [`scipy.optimize.minimize`](https://docs.scipy.org/doc/scipy/refer
 : Bond identification multiplier.
 
 `tol` : `float` | default = `0.01`.
-: Convergence tolerance for the optimizer.
+: Convergence tolerance passed to `scipy.optimize.minimize`.
 
 `vol_tol` : `float` | default = `10`.
 : Volume tolerance in $\mathrm{\AA}^3$.

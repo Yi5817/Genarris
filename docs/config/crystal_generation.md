@@ -13,7 +13,7 @@ This task was named `generation` in Genarris 3.x. Config files that use
 num_structures_per_spg  = 4000
 sr                      = 0.95
 max_attempts_per_spg    = 10000000
-tol                     = 0.01
+tol                     = 0.1
 ucv_mean                = predict
 ucv_mult                = 1.5
 ucv_std                 = 0.05
@@ -38,8 +38,11 @@ lattice_angle_std       = 8
 : Maximum random attempts per space group before giving up.
 
 `tol` : `float` | default = `0.1`.
-: Tolerance passed to [spglib](https://spglib.readthedocs.io/) for symmetry
-  detection.
+: Special-position tolerance in $\mathrm{\AA}$. A molecule may sit on a
+  Wyckoff position when, under every site-symmetry operation, each atom lands
+  within `tol` of an atom of the same species. The molecule is then averaged
+  onto the exact symmetry, so `tol` is also the largest distortion applied.
+  Not an spglib parameter.
 
 `ucv_mean` : `str` | `float` | default = `predict`.
 : Mean unit cell volume in $\mathrm{\AA}^3$. Set to `predict` to use the built-in PyMoVE
