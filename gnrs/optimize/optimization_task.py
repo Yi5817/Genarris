@@ -161,7 +161,11 @@ class GeometryOptimizationTask(TaskABC):
 
         if self.opt_name in ["rigid_press", "symm_rigid_press"]:
             task_set["z"] = self.config["master"]["z"]
-            task_set["mol_path"] = self.gnrs_info["molecule_path"][0]
+            task_set["mol_path"] = self.gnrs_info["molecule_path"]
+            generation = self.config.get("crystal_generation") or self.config.get(
+                "generation", {}
+            )
+            task_set["stoichiometry"] = generation.get("stoichiometry", [1])
             sr = task_set.pop("sr")
             cutoff_mult = task_set.pop("natural_cutoff_mult")
             cutoff_matrix, hbond = get_vdw_distance_cutoff_matrix(

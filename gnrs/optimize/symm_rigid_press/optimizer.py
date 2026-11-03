@@ -17,152 +17,22 @@ __group__ = "https://www.noamarom.com/"
 
 import logging
 import warnings
+from itertools import combinations, pairwise
 
 import numpy as np
 from ase import Atoms
 from scipy.optimize import minimize
 from scipy.spatial.distance import cdist
 from scipy.spatial.transform import Rotation
-from spglib import get_symmetry_dataset
+
+from gnrs.optimize.symm_rigid_press.molecule import get_mol_len, standardize_mol
+from gnrs.optimize.symm_rigid_press.symmetry import find_symm, get_lattice_type
 
 warnings.filterwarnings("ignore", category=RuntimeWarning)
 
 logger = logging.getLogger(__name__)
 # Maximum number of unit cells to sum over before deciding a crystal is too tightly packed
 MAX_CELL_SUM = 2000
-
-
-def standardize_mol(mol: Atoms) -> Atoms:
-    """
-    Standardize a molecule by moving its center of geometry to origin
-    and aligning with principal axes of rotation.
-
-    Args:
-        mol: The molecule to standardize
-
-    Returns:
-        Standardized molecule
-    """
-    an = mol.get_atomic_numbers()
-    mol.set_atomic_numbers([1 for _ in range(len(mol))])
-    com = mol.get_center_of_mass()
-    pos = mol.get_positions()
-    pos -= com
-    mol.set_positions(pos)
-    mol.set_atomic_numbers(an)
-    return mol
-
-
-def get_mol_len(ref_mol: Atoms) -> float:
-    """
-    Calculate the diameter of the smallest sphere that can enclose a molecule.
-
-    Args:
-        ref_mol: The reference molecule
-
-    Returns:
-        Diameter of the enclosing sphere
-    """
-    pos = ref_mol.positions
-    cog = np.mean(pos, axis=0)
-    dist = cdist(pos, [cog])
-    return 2 * dist.max()
-
-
-def is_duplicate(cog1: np.ndarray, cog2: np.ndarray, tol: float = 0.001) -> bool:
-    """
-    Check if the difference between two centers of geometry is close to an integer.
-
-    Args:
-        cog1: First center of geometry
-        cog2: Second center of geometry
-        tol: Tolerance for comparison
-
-    Returns:
-        True if the difference is close to an integer, False otherwise
-    """
-    intval = np.round(cog1 - cog2)
-    is_dup = np.allclose(intval, cog1 - cog2, atol=tol, rtol=0)
-    return is_dup
-
-
-def find_symm(xtal: Atoms, natoms: int) -> tuple[np.ndarray, np.ndarray, int]:
-    """
-    Find  unique symmetry operations
-
-    Args:
-        xtal: Crystal structure
-        natoms: Number of atoms in the molecule
-
-    Returns:
-        Tuple of unique rotation matrices, translation vectors, and space group number
-    """
-    symm = get_symmetry_dataset(
-        (xtal.get_cell(), xtal.get_scaled_positions(), xtal.get_atomic_numbers()),
-        symprec=1e-3,
-    )
-    if symm is None:
-        # spglib failed to determine the symmetry of this structure
-        raise ValueError("spglib get_symmetry_dataset returned None for this crystal ")
-    spg = symm.number
-    rot, trans = symm.rotations, symm.translations
-
-    # Check if the operations are unique
-    uniq_rot, uniq_trans = [], []
-    pos = xtal.get_scaled_positions(wrap=False)
-    asym_frac = pos[:natoms]
-    cog_frac = np.mean(asym_frac, axis=0)
-    uniq_cog = []
-
-    for i, (r, t) in enumerate(zip(rot, trans)):
-        # Find the shift of cog of mol to bring it back to central cell
-        new_cog = (r @ cog_frac.T).T + t
-        new_cog = np.divmod(new_cog, 1)[1]
-
-        # Check if the pos is unique
-        unique = True
-        for cog in uniq_cog:
-            if is_duplicate(cog, new_cog):
-                unique = False
-                continue
-
-        if unique:
-            uniq_cog.append(new_cog)
-            uniq_rot.append(r)
-            uniq_trans.append(t)
-
-    if natoms * len(uniq_rot) != len(xtal):
-        raise RuntimeError("Unable to find the unique symmetry operations")
-
-    return np.array(uniq_rot), np.array(uniq_trans), spg
-
-
-def get_lattice_type(spg: int) -> str:
-    """
-    Get cell type from spg
-
-    Args:
-        spg: Space group number
-
-    Returns:
-        Cell type
-    """
-    if spg <= 0 or spg >= 230:
-        return "invalid"
-    if spg <= 2:
-        return "triclinic"
-    elif spg <= 15:
-        return "monoclinic"
-    elif spg <= 74:
-        return "orthorhombic"
-    elif spg <= 142:
-        return "tetragonal"
-    elif spg <= 167:
-        return "trigonal"
-    elif spg <= 194:
-        return "hexagonal"
-    else:
-        return "cubic"
 
 
 class RigidPressSymm:
@@ -176,9 +46,10 @@ class RigidPressSymm:
 
     def __init__(
         self,
-        mol: Atoms,
+        mols: list[Atoms],
         xtal: Atoms,
         radius: np.ndarray,
+        stoic: list[int] = (1,),
         int_scale: float = 0.1,
         method: str = "BFGS",
         tol: float = 0.01,
@@ -191,9 +62,10 @@ class RigidPressSymm:
         Initialize the optimization class.
 
         Args:
-            mol: Reference molecule
+            mols: Reference molecule of each component
             xtal: Initial crystal structure
             radius: Interaction radius matrix
+            stoic: Copies of each component in the asymmetric unit
             int_scale: Interaction energy scaling factor
             method: Optimization method for scipy.optimize.minimize
             tol: Convergence tolerance for optimization
@@ -210,21 +82,67 @@ class RigidPressSymm:
         self.maxiter = maxiter
         self.debug_flag = debug_flag
         self.rank = rank
+        self.radius = radius
 
-        # Get mol properties
-        self.ref_mol = standardize_mol(mol)
-        self.mol_length = get_mol_len(self.ref_mol)
-        self.natoms = len(self.ref_mol)
+        self.ref_mols = [standardize_mol(mol) for mol in mols]
+        self.stoic = list(stoic)
+        self._set_asu_layout()
+        if self.nasym_mol > 1 and self._asu_overlaps(xtal):
+            self.logger.debug("Overlap in asymmetric unit: pressing it as one body")
+            self.ref_mols = [standardize_mol(xtal[: self.natoms])]
+            self.stoic = [1]
+            self._set_asu_layout()
 
         # Get unique symmetry operations
         self.symm_rot, self.symm_trans, self.spg = find_symm(xtal, self.natoms)
-        self.nmol = len(self.symm_rot)
+        self.nasym = len(self.symm_rot)
+        self.nmol = self.nasym * self.nasym_mol
         xtal.spg = self.spg
 
-        self.radius = radius[0 : self.natoms, 0 : self.natoms].ravel()
-        # Interaction distance = mol length + 2x max cutoff
-        self.D = self.mol_length + 2 * np.max(self.radius)
+        # Atom range of every molecule in the cell, asymmetric unit by asymmetric unit
+        self.cell_mol_atoms = [
+            slice(i * self.natoms + mol.start, i * self.natoms + mol.stop)
+            for i in range(self.nasym)
+            for mol in self.asu_mol_atoms
+        ]
+        self.D_cell = np.tile(self.D, (self.nasym, self.nasym))
         self.an = xtal.get_atomic_numbers().tolist()
+
+    def _set_asu_layout(self) -> None:
+        """
+        Set the atom range of each molecule in the asymmetric unit
+        and the interaction distance of each pair of them.
+        """
+        self.mol_types = [t for t, n in enumerate(self.stoic) for _ in range(n)]
+        self.nasym_mol = len(self.mol_types)
+        sizes = [len(self.ref_mols[t]) for t in self.mol_types]
+        ends = np.cumsum([0, *sizes])
+        self.asu_mol_atoms = [
+            slice(int(start), int(stop)) for start, stop in pairwise(ends)
+        ]
+        self.natoms = int(ends[-1])
+        # Interaction distance = mean mol length + max cutoff of each molecule
+        half = [
+            get_mol_len(self.ref_mols[t]) / 2 + np.max(self.radius[mol, mol])
+            for t, mol in zip(self.mol_types, self.asu_mol_atoms)
+        ]
+        self.D = np.add.outer(half, half)
+
+    def _asu_overlaps(self, xtal: Atoms) -> bool:
+        """
+        Whether two molecules of the asymmetric unit are closer than the cutoff.
+
+        Args:
+            xtal: Crystal structure
+
+        Returns:
+            True if any pair of atoms is within its cutoff
+        """
+        pos = xtal.positions[: self.natoms]
+        return any(
+            np.any(cdist(pos[mol1], pos[mol2]) < self.radius[mol1, mol2])
+            for mol1, mol2 in combinations(self.asu_mol_atoms, 2)
+        )
 
     def find_pairs(self, xtal: Atoms) -> dict:
         """
@@ -240,17 +158,12 @@ class RigidPressSymm:
         # Calculate centres of geometry of each molecule in fractional and cartesian
         pos = xtal.get_scaled_positions(wrap=False)
         lattice = xtal.cell.array
-        cog_f = np.array(
-            [
-                np.mean(pos[i * self.natoms : (i + 1) * self.natoms], axis=0)
-                for i in range(self.nmol)
-            ]
-        )
+        cog_f = np.array([np.mean(pos[mol], axis=0) for mol in self.cell_mol_atoms])
         cog_c = cog_f @ lattice
 
         # The bounds of the super cell considered
         cell_lengths = xtal.cell.lengths()
-        max_lat = np.ceil(self.D / cell_lengths + 2).astype(int)
+        max_lat = np.ceil(np.max(self.D) / cell_lengths + 2).astype(int)
         min_lat = -max_lat
 
         # Test if a crystal is too packed to continue
@@ -270,7 +183,7 @@ class RigidPressSymm:
             for mol2 in range(mol1 + 1, self.nmol):
                 disp = cog_c[mol1] - (cog_c[mol2] + lattice_dis)
                 dist = np.linalg.norm(disp, axis=1)
-                interact_pairs[(mol1, mol2)] = comb_lat[dist < self.D]
+                interact_pairs[(mol1, mol2)] = comb_lat[dist < self.D_cell[mol1, mol2]]
 
         # Periodic pairs within range
         # Molecule will interact with its own mirror image under periodic boundaries
@@ -279,11 +192,13 @@ class RigidPressSymm:
         non_zero_disp = comb_lat_non_zero @ lattice
         dist = np.linalg.norm(non_zero_disp, axis=1)
         for mol1 in range(self.nmol):
-            interact_pairs[(mol1, mol1)] = comb_lat_non_zero[dist < self.D]
+            interact_pairs[(mol1, mol1)] = comb_lat_non_zero[
+                dist < self.D_cell[mol1, mol1]
+            ]
         return interact_pairs
 
     def interaction_kernel(
-        self, dist: np.ndarray, radius: np.ndarray, weight: float
+        self, dist: np.ndarray, radius: np.ndarray, weight: float, D: float
     ) -> float:
         """
         Define how atoms of different molecules interact.
@@ -292,16 +207,17 @@ class RigidPressSymm:
             dist: Array of distances between atoms
             radius: Array of cutoff radii
             weight: Scaling factor for interaction energy
+            D: Interaction distance of the molecule pair
 
         Returns:
             Total interaction energy
         """
         energy = np.zeros(len(dist))
         energy[dist < radius] = np.inf
-        energy[dist > self.D] = 0
-        energy[(dist > radius) & (dist < self.D)] = (
-            weight * (self.D - dist) / (dist - radius)
-        )[(dist > radius) & (dist < self.D)]
+        energy[dist > D] = 0
+        energy[(dist > radius) & (dist < D)] = (weight * (D - dist) / (dist - radius))[
+            (dist > radius) & (dist < D)
+        ]
         return energy.sum()
 
     def pair_energy(
@@ -322,18 +238,23 @@ class RigidPressSymm:
         """
         lattice = xtal.cell.array
         pairs = interact_pairs[(mol1, mol2)]
-        pos1 = xtal.positions[mol1 * self.natoms : (mol1 + 1) * self.natoms]
+        pos1 = xtal.positions[self.cell_mol_atoms[mol1]]
         # Combine all possible lattice displacements of mol2 into a single vector
         pos2 = (
-            xtal.positions[mol2 * self.natoms : (mol2 + 1) * self.natoms][
-                :, :, np.newaxis
-            ]
+            xtal.positions[self.cell_mol_atoms[mol2]][:, :, np.newaxis]
             + (lattice.T @ pairs.T)[np.newaxis, :, :]
         )
         pos2 = pos2.transpose(2, 0, 1).reshape(-1, 3)
         dist = cdist(pos1, pos2).T.reshape(-1)
-        stretched_radius = np.resize(self.radius, dist.shape)
-        return self.interaction_kernel(dist, stretched_radius, weight)
+        # dist runs over atoms of mol2 first, so the cutoff block is transposed
+        radius = self.radius[
+            self.asu_mol_atoms[mol1 % self.nasym_mol],
+            self.asu_mol_atoms[mol2 % self.nasym_mol],
+        ]
+        stretched_radius = np.resize(radius.T.ravel(), dist.shape)
+        return self.interaction_kernel(
+            dist, stretched_radius, weight, self.D_cell[mol1, mol2]
+        )
 
     def total_energy(self, state: np.ndarray) -> float:
         """
@@ -447,13 +368,19 @@ class RigidPressSymm:
             raise Exception("Invalid spg")
 
         lattice = np.array(lattice)
-        asym_cog = state[-6:-3]
-        asym_angles = state[-3:]
+        state = np.asarray(state, dtype=float)
+        n = self.nasym_mol
+        asym_cog = state[-6 * n : -3 * n].reshape(n, 3)
+        asym_angles = state[-3 * n :].reshape(n, 3)
 
-        # create asymm unit from mol position and angles
-        rot = Rotation.from_euler("ZYX", asym_angles)
-        asym = rot.apply(self.ref_mol.positions)
-        asym += asym_cog
+        # create asymm unit from mol positions and angles
+        asym = np.concatenate(
+            [
+                Rotation.from_euler("ZYX", angles).apply(self.ref_mols[t].positions)
+                + cog
+                for t, cog, angles in zip(self.mol_types, asym_cog, asym_angles)
+            ]
+        )
 
         # generate full crystal using symmetry
         pos, nmol = self.generate_pos(asym, lattice)
@@ -474,16 +401,16 @@ class RigidPressSymm:
         """
 
         lattice = xtal.cell.array
-        asym = xtal.positions[0 : len(self.ref_mol)]
-        asym_cog = np.mean(asym, axis=0)
-        # Move to asym unit to the origin
-        asym_shifted = asym - asym_cog
-
-        # Compute the orientation of asym molecule using Kabsch method
-        R, rmsd = Rotation.align_vectors(asym_shifted, self.ref_mol.positions)
-        if (rmsd) > 0.1:
-            raise Exception("Can not create rotation")
-        asym_angles = R.as_euler("ZYX")
+        asym_cog, asym_angles = [], []
+        for t, mol in zip(self.mol_types, self.asu_mol_atoms):
+            pos = xtal.positions[mol]
+            cog = np.mean(pos, axis=0)
+            # Compute the orientation of each molecule using Kabsch method
+            R, rmsd = Rotation.align_vectors(pos - cog, self.ref_mols[t].positions)
+            if (rmsd) > 0.1:
+                raise Exception("Can not create rotation")
+            asym_cog.append(cog)
+            asym_angles.append(R.as_euler("ZYX"))
 
         # Create state vector with independent lattice params
         lattice_type = get_lattice_type(self.spg)
@@ -513,8 +440,8 @@ class RigidPressSymm:
         else:
             raise Exception("Invalid spg")
 
-        state += asym_cog.tolist()
-        state += asym_angles.tolist()
+        state += np.ravel(asym_cog).tolist()
+        state += np.ravel(asym_angles).tolist()
 
         return state
 

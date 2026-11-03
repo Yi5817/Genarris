@@ -15,7 +15,7 @@ from ase import Atoms
 from ase.io import read
 
 from gnrs.core.optimizer import GeometryOptimizerABC
-from gnrs.optimize.rpress_symm_impl import RigidPressSymm
+from gnrs.optimize.symm_rigid_press.optimizer import RigidPressSymm
 
 
 class SYMM_RIGID_PRESSOptimizer(GeometryOptimizerABC):
@@ -48,6 +48,7 @@ class SYMM_RIGID_PRESSOptimizer(GeometryOptimizerABC):
         self.vol_tol = self.tsk_set["vol_tol"]
         self.debug_flag = self.tsk_set["debug_flag"]
         self.mol_path = self.tsk_set["mol_path"]
+        self.stoichiometry = self.tsk_set["stoichiometry"]
         self.cutoff_matrix = self.tsk_set["cutoff_matrix"]
 
     def initialize(self) -> None:
@@ -64,11 +65,12 @@ class SYMM_RIGID_PRESSOptimizer(GeometryOptimizerABC):
         """
         if self.debug_flag:
             xtal.write("geometry.in", parallel=False)
-        mol = read(self.mol_path, parallel=False)
+        mols = [read(path, parallel=False) for path in self.mol_path]
         opt = RigidPressSymm(
-            mol=mol,
+            mols=mols,
             xtal=xtal,
             radius=self.cutoff_matrix,
+            stoic=self.stoichiometry,
             int_scale=self.int_scale,
             method=self.method,
             tol=self.tol,

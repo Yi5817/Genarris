@@ -33,6 +33,11 @@ debug_flag          = False
 Symmetry-preserving rigid press geometry optimization. Uses
 [`scipy.optimize.minimize`](https://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.minimize.html).
 
+For multi-component crystals, every molecule of the asymmetric unit is a
+separate rigid body; the stoichiometry is taken from `[crystal_generation]`.
+If molecules of the asymmetric unit already overlap at the `sr` cutoff, the
+whole asymmetric unit is pressed as one rigid body.
+
 ```ini
 [symm_rigid_press]
 sr                  = 0.85
