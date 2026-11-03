@@ -167,7 +167,7 @@ def test_restart_without_previous_run_is_refused(
     (tmp_path / "ui.conf").write_text(CONFIG)
     proc = run_gnrs(tmp_path, "--restart")
     assert proc.returncode != 0
-    assert "no restart file was found" in flat(proc.stdout)
+    assert "no restart file was found" in flat(proc.stderr)
 
 
 def test_restart_with_changed_pending_settings_warns(
@@ -190,7 +190,7 @@ def test_fresh_run_over_previous_run_is_refused(
 ) -> None:
     proc = run_gnrs(run_copy)
     assert proc.returncode != 0
-    assert "--overwrite" in proc.stdout
+    assert "--overwrite" in proc.stderr
     assert (run_copy / "restart.json").is_file(), "nothing may be touched"
 
 
@@ -202,7 +202,7 @@ def test_fresh_run_over_old_layout_run_is_refused(
     (run_copy / "restart.json").rename(old_file)
     proc = run_gnrs(run_copy)
     assert proc.returncode != 0
-    assert "--overwrite" in proc.stdout
+    assert "--overwrite" in proc.stderr
     assert old_file.is_file(), "nothing may be touched"
 
 

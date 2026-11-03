@@ -14,6 +14,7 @@ __group__ = "https://www.noamarom.com/"
 import argparse
 import logging
 import sys
+import time
 import traceback
 import warnings
 
@@ -56,6 +57,7 @@ def main():
     from gnrs.core.restart import RestartError
 
     comm = MPI.COMM_WORLD
+    rank = comm.Get_rank()
     logger = logging.getLogger(__name__)
     aborted = False
     try:
@@ -68,17 +70,21 @@ def main():
         gout.emit("All tasks completed successfully.\nHave a nice day! :-)")
     except KeyboardInterrupt:
         logger.warning("Genarris interrupted by user")
+        if rank == 0:
+            print("\nInterrupted by user.", file=sys.stderr, flush=True)
         aborted = True
         comm.Abort(130)
     except (RestartError, UnknownTaskError) as exc:
         logger.error(f"Cannot run: {exc}")
-        gout.emit(f"\nERROR: {exc}")
+        if rank == 0:
+            print(f"\nERROR: {exc}", file=sys.stderr, flush=True)
         sys.exit(1)  # after the finally block finalizes MPI
     except Exception as exc:
         logger.exception("Genarris exiting due to error")
-        # Every rank reports its own failure; gout.emit prints on rank 0 only
+        if rank > 0:
+            time.sleep(1 + 0.01 * rank)
         print(
-            f"\nERROR: Genarris rank {comm.Get_rank()} failed with "
+            f"\nERROR: Genarris rank {rank} failed with "
             f"{type(exc).__name__}: {exc}\n{traceback.format_exc()}",
             file=sys.stderr,
             flush=True,
