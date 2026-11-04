@@ -125,7 +125,11 @@ class ContactEnergy:
             dist = np.linalg.norm(cog[mol1] - cog[mol2] - shifts, axis=1)
             select = dist < self.D_cell[mol1, mol2]
             if mol1 == mol2:
+                # +L and -L are the same image pair: count each once
                 select &= nonzero
+                weight = 0.5 * self.weight
+            else:
+                weight = self.weight
             if not select.any():
                 continue
             atoms1, atoms2 = self.mol_atoms[mol1], self.mol_atoms[mol2]
@@ -134,7 +138,7 @@ class ContactEnergy:
                 pos[atoms2],
                 self.radius[self.asu_atoms[mol1], self.asu_atoms[mol2]],
                 self.D_cell[mol1, mol2],
-                self.weight,
+                weight,
                 shifts[select],
             )
             energy += e
