@@ -33,6 +33,7 @@ class SYMM_RIGID_PRESSOptimizer(GeometryOptimizerABC):
         maxiter: Maximum number of iterations
         vol_tol: Volume tolerance
         debug_flag: Whether to enable debug output
+        symprec: spglib symmetry tolerance in Angstrom
     """
 
     def __init__(self, *args):
@@ -47,6 +48,7 @@ class SYMM_RIGID_PRESSOptimizer(GeometryOptimizerABC):
         self.maxiter = self.tsk_set["maxiter"]
         self.vol_tol = self.tsk_set["vol_tol"]
         self.debug_flag = self.tsk_set["debug_flag"]
+        self.symprec = self.tsk_set["symprec"]
         self.mol_path = self.tsk_set["mol_path"]
         self.stoichiometry = self.tsk_set["stoichiometry"]
         self.cutoff_matrix = self.tsk_set["cutoff_matrix"]
@@ -78,6 +80,7 @@ class SYMM_RIGID_PRESSOptimizer(GeometryOptimizerABC):
             vol_tol=self.vol_tol,
             debug_flag=self.debug_flag,
             rank=self.rank,
+            symprec=self.symprec,
         )
         self.status = opt.run(xtal)
 

@@ -38,7 +38,7 @@ def is_duplicate(cog1: np.ndarray, cog2: np.ndarray, tol: float = 0.001) -> bool
 
 
 def find_symm(
-    xtal: Atoms, n_asu_atoms: int
+    xtal: Atoms, n_asu_atoms: int, symprec: float = 1e-3
 ) -> tuple[np.ndarray, np.ndarray, int, tuple[np.ndarray, np.ndarray]]:
     """
     Find the operations that generate the Z asymmetric units of the cell.
@@ -46,6 +46,7 @@ def find_symm(
     Args:
         xtal: Crystal structure
         n_asu_atoms: Number of atoms in the asymmetric unit
+        symprec: spglib symmetry tolerance in Angstrom
 
     Returns:
         Z rotation matrices and translation vectors (one per asymmetric unit),
@@ -54,7 +55,7 @@ def find_symm(
     """
     symm = get_symmetry_dataset(
         (xtal.get_cell(), xtal.get_scaled_positions(), xtal.get_atomic_numbers()),
-        symprec=1e-3,
+        symprec=symprec,
     )
     if symm is None:
         # spglib failed to determine the symmetry of this structure

@@ -50,6 +50,7 @@ tol                 = 0.01
 vol_tol             = 10
 maxiter             = 5000
 debug_flag          = False
+symprec             = 0.001
 ```
 
 `sr` : `float` | default = `0.85`.
@@ -79,3 +80,7 @@ Check out the [`scipy.optimize.minimize`](https://docs.scipy.org/doc/scipy/refer
 
 `debug_flag` : `bool` | default = `False`.
 : Write intermediate geometry files for debugging.
+
+`symprec` : `float` | default = `0.001`.
+: spglib tolerance in $\mathrm{\AA}$ used to detect the space group and the
+  Wyckoff sites that the optimization preserves.

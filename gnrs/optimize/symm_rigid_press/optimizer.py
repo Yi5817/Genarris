@@ -60,6 +60,7 @@ class RigidPressSymm:
         vol_tol: float = 10,
         debug_flag: bool = False,
         rank: int = 0,
+        symprec: float = 1e-3,
     ):
         """
         Initialize the optimization class.
@@ -76,6 +77,7 @@ class RigidPressSymm:
             vol_tol: Minimum allowed volume in callback function
             debug_flag: Whether to print debug information
             rank: Process rank for parallel computation
+            symprec: spglib symmetry tolerance in Angstrom
         """
         self.logger = logger
         self.int_scale = int_scale
@@ -100,7 +102,7 @@ class RigidPressSymm:
         # One operation per asymmetric unit in the cell
         # all_ops is the full space group
         self.asu_rot, self.asu_trans, self.spg, all_ops = find_symm(
-            xtal, self.n_asu_atoms
+            xtal, self.n_asu_atoms, symprec
         )
         self.z = len(self.asu_rot)
         self.n_cell_mols = self.z * self.n_asu_mols
