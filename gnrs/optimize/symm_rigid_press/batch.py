@@ -65,6 +65,7 @@ class PairContacts(torch.autograd.Function):
         dist = torch.linalg.norm(diff, dim=-1)
         gap = dist - radius
         active = (dist < D) & valid
+        # Finite wall: below r + WALL_BAND the kernel continues linearly
         gap_safe = gap.clamp(min=WALL_BAND)
         deriv = torch.where(active, -weight * (D - radius) / gap_safe**2, 0.0)
         energy = torch.where(
@@ -72,6 +73,7 @@ class PairContacts(torch.autograd.Function):
             weight * (D - radius - WALL_BAND) / WALL_BAND + deriv * (gap - WALL_BAND),
             weight * (D - dist) / gap_safe,
         )
+        # dE/dd / d, so that dE/dpos = coeff * diff in backward
         ctx.save_for_backward(pos1, pos2, shifts, valid, deriv / dist)
         return (
             torch.where(active, energy, 0.0).sum((1, 2)),
@@ -94,6 +96,7 @@ def bfgs_update(H: torch.Tensor, s: torch.Tensor, y: torch.Tensor) -> torch.Tens
     its matrix.
     """
     sy = (s * y).sum(-1)
+    # rho = 0 leaves H unchanged (Nocedal & Wright eq. 6.17 with rho = 1 / s.y)
     rho = torch.where(sy > 1e-10, 1 / sy, 0.0)[:, None, None]
     Hy = H @ y[..., None]
     s = s[..., None]
@@ -126,6 +129,7 @@ class RigidPressBatch:
         Z = self.Z = max(c.z for c in coords)
         n = self.n = max(m.stop - m.start for c in coords for m in c.asu_mol_atoms)
 
+        # Padded per-crystal geometry: M molecules, Z copies, n atoms
         self.basis = torch.zeros(B, N_LAT, 3, 3, dtype=torch.float64)
         self.origin = torch.zeros(B, M, 3, dtype=torch.float64)
         self.directions = torch.zeros(B, M, 3, 3, dtype=torch.float64)
@@ -148,7 +152,7 @@ class RigidPressBatch:
             D[:n_mols, :n_mols] = torch.from_numpy(
                 opt.contacts.D_cell[:n_mols, :n_mols]
             )
-            self.D[i] = D.repeat(Z, Z)
+            self.D[i] = D.repeat(Z, Z)  # indexed by cell molecule z * M + j
             for j, (site, mol) in enumerate(zip(c.sites, c.asu_mol_atoms)):
                 n_j = mol.stop - mol.start
                 self.origin[i, j] = torch.from_numpy(site.origin)
@@ -177,6 +181,7 @@ class RigidPressBatch:
         """
         coords = self.opts[i].coords
         n_mols = len(coords.sites)
+        # Centres of molecule j start at N_LAT + 3 j, angles at N_LAT + 3 (M + j)
         starts = [0] + [
             N_LAT + 3 * (j if j < n_mols else self.M + j - n_mols)
             for j in range(2 * n_mols)
@@ -253,6 +258,7 @@ class RigidPressBatch:
         shifts (K, 3), which of them each crystal needs (B, K) and whether a
         cell is too small to sum over (B,).
         """
+        # |n_k| <= D_max |column k of L^-1| covers every image within D_max
         bound = torch.linalg.norm(inv_lattice, dim=-2) * self.D_max[idx][:, None] + 1
         too_small = ~torch.isfinite(bound).all(-1) | (bound.prod(-1) > MAX_CELL_SUM)
         max_lat = torch.floor(torch.where(too_small[:, None], 0.0, bound)).long()
@@ -287,6 +293,7 @@ class RigidPressBatch:
             cog[:, :, None, None] - cog[:, None, :, None] - shifts[:, None, None],
             dim=-1,
         )
+        # Upper triangle: each pair once; a self pair needs a nonzero shift
         upper = torch.ones(n_cell, n_cell, dtype=torch.bool, device=pos.device).triu()
         self_pair = torch.eye(n_cell, dtype=torch.bool, device=pos.device)
         select = (
@@ -320,6 +327,7 @@ class RigidPressBatch:
         valid = atom_mask[b, m1][:, :, None] & atom_mask[b, m2][:, None]
         radius = self.radius[idx[b], m1 % M, m2 % M]
         D = D_cell[b, m1, m2][:, None, None]
+        # +n and -n of a self pair are one image pair: half weight
         weight = (self.weight[idx[b]] * torch.where(m1 == m2, 0.5, 1.0))[:, None, None]
         pair, gap = PairContacts.apply(
             pos[b, m1], pos[b, m2], shifts, valid, radius, D, weight
@@ -365,11 +373,13 @@ class RigidPressBatch:
         call of at most batch_size rows.
         """
         slope = (g * p).sum(-1)
+        # First trial: the full BFGS step, capped at 1 Angstrom
         t = (1 / p.norm(dim=-1)).clamp(max=1)
         accepted = torch.zeros_like(slope, dtype=torch.bool)
         live = torch.arange(len(x), device=x.device)
         n_cand, budget = 1, MAX_HALVINGS + 1
         while budget > 0 and live.numel():
+            # Fewer live rows -> more halvings per call, so the batch stays full
             n_cand = min(n_cand, budget, max(1, batch_size // live.numel()))
             budget -= n_cand
             halve = 0.5 ** torch.arange(n_cand, device=x.device, dtype=x.dtype)
@@ -416,12 +426,13 @@ class RigidPressBatch:
         g = torch.empty_like(x)
         for idx in torch.arange(N, device=x.device).split(batch_size):
             f[idx], g[idx], gap[idx] = self.evaluate(x[idx], idx)
-        optimized = gap >= 0
+        optimized = gap >= 0  # overlapping at the start: left untouched
         converged = optimized & (g.abs().amax(-1) <= tol)
         done = ~optimized | converged
         H = torch.eye(S, dtype=x.dtype, device=x.device).repeat(N, 1, 1)
         iterations = torch.zeros(N, dtype=torch.long, device=x.device)
 
+        # Continuous batching: stopped crystals leave, waiting ones fill the slots
         while (idx := (~done).nonzero()[:batch_size, 0]).numel():
             p = -(H[idx] @ g[idx][..., None])[..., 0]
             t, accepted = self.line_search(x[idx], f[idx], g[idx], p, idx, batch_size)
