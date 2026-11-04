@@ -11,6 +11,7 @@ sr                  = 0.85
 maxiter             = 400
 natural_cutoff_mult = 1.1
 debug_flag          = False
+skip_bond_check     = True
 ```
 
 `sr` : `float` | default = `0.85`.
@@ -25,6 +26,10 @@ debug_flag          = False
 
 `debug_flag` : `bool` | default = `False`.
 : Write intermediate `geometry.in` files for debugging.
+
+`skip_bond_check` : `bool` | default = `True`.
+: Skip the covalent-bond check after the optimization. Molecules are rigid
+  here, so bonds cannot change; the check costs about 0.2 s per structure.
 
 ---
 
@@ -53,6 +58,7 @@ maxiter             = 5000
 debug_flag          = False
 symprec             = 0.001
 batch_size          = 0
+skip_bond_check     = True
 ```
 
 `sr` : `float` | default = `0.85`.
@@ -89,3 +95,7 @@ batch_size          = 0
   is required; a few hundred saturate one GPU. `0` optimizes one crystal at
   a time with scipy on every rank. The two backends take different paths and
   can end in different local minima.
+
+`skip_bond_check` : `bool` | default = `True`.
+: Skip the covalent-bond check after the optimization. Molecules are rigid
+  here, so bonds cannot change.
