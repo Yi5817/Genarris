@@ -1,16 +1,16 @@
-####################################################################### 
-# 
-# This file contains crystal structure data downloaded from the 
-# Cambridge Structural Database (CSD) hosted by the Cambridge 
+#######################################################################
+#
+# This file contains crystal structure data downloaded from the
+# Cambridge Structural Database (CSD) hosted by the Cambridge
 # Crystallographic Data Centre (CCDC).
-# 
-# Full information about CCDC data access policies and citation 
-# guidelines are available at http://www.ccdc.cam.ac.uk/access/V1 
-# 
-# Audit and citation data items may have been added by the CCDC. 
-# Please retain this information to preserve the provenance of 
-# this file and to allow appropriate attribution of the data. 
-# 
+#
+# Full information about CCDC data access policies and citation
+# guidelines are available at http://www.ccdc.cam.ac.uk/access/V1
+#
+# Audit and citation data items may have been added by the CCDC.
+# Please retain this information to preserve the provenance of
+# this file and to allow appropriate attribution of the data.
+#
 #######################################################################
 
 data_ACSALA
@@ -23,7 +23,7 @@ _citation_doi
 _citation_year
 1 10.1039/JR9640006036 1964
 _audit_creation_method           'Created from the CSD'
-_audit_update_record             
+_audit_update_record
 ;
 2023-01-19 downloaded from the CCDC.
 ;
@@ -31,7 +31,7 @@ _database_code_NBS               500586
 _chemical_name_common            Aspirin
 _chemical_formula_moiety         'C9 H8 O4'
 _chemical_name_systematic        ' 2-acetoxybenzoic acid '
-_chemical_properties_biological  
+_chemical_properties_biological
 'analgesic, antipyretic and antiinflammatory agent'
 _chemical_absolute_configuration unk
 _diffrn_ambient_temperature      295
