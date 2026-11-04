@@ -19,6 +19,8 @@ import numpy as np
 MAX_CELL_SUM = 2000
 # Below r + WALL_BAND the kernel continues linearly, so the energy stays finite
 WALL_BAND = 1e-3
+# Fractional tolerance when deciding whether a molecule centre is inside the cell
+CENTRE_TOL = 1e-12
 
 
 def pair_energy(
@@ -103,6 +105,13 @@ class ContactEnergy:
         positions and the smallest d - r (negative: overlap) of a cell.
         """
         inv_lattice = np.linalg.inv(lattice)
+        # Every molecule inside the cell, so that the image bound below is complete
+        # (a centre within CENTRE_TOL of the cell is not moved)
+        frac = frac.copy()
+        for mol in self.mol_atoms:
+            cog = frac[mol].mean(axis=0)
+            inside = (cog > -CENTRE_TOL) & (cog < 1 + CENTRE_TOL)
+            frac[mol] -= np.where(inside, 0.0, np.floor(cog))
         pos = frac @ lattice
         cog = np.array([pos[mol].mean(axis=0) for mol in self.mol_atoms])
 

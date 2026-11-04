@@ -7,6 +7,9 @@ symmetry must survive the optimization.
 
 Experimental match: a generated aspirin (ACSALA00) crystal must optimize into
 the experimental structure.
+
+Image sum: the contact energy of a two-molecule cell whose second molecule sits
+outside the cell must equal a brute-force sum over a wide image range.
 """
 
 from __future__ import annotations
@@ -24,6 +27,7 @@ from pymatgen.io.ase import AseAtomsAdaptor
 from scipy.spatial.transform import Rotation
 
 from gnrs.gnrsutil.molecule_bonding import get_vdw_distance_cutoff_matrix
+from gnrs.optimize.symm_rigid_press.energy import ContactEnergy, pair_energy
 from gnrs.optimize.symm_rigid_press.optimizer import RigidPressSymm
 
 DATA = Path(__file__).parents[1] / "data" / "sp_w"
@@ -102,3 +106,27 @@ def test_aspirin_optimizes_into_experimental_structure() -> None:
     assert RigidPressSymm(xtal, [mol], cutoff, tol=0.01, maxiter=5000).run(xtal)
 
     assert matcher.fit(exp, AseAtomsAdaptor.get_structure(xtal))
+
+
+def test_contact_energy_sums_every_image_of_a_molecule_outside_the_cell() -> None:
+    lattice = np.diag([8.0, 30.0, 30.0])
+    # Two one-atom molecules of one asymmetric unit, the second one outside the cell
+    frac = np.array([[0.15, 0.5, 0.5], [1.4, 0.5, 0.5]])
+    mol_atoms = [slice(0, 1), slice(1, 2)]
+    radius = np.full((2, 2), 3.0)
+    D = 14.0
+    contacts = ContactEnergy(mol_atoms, mol_atoms, radius, np.full((2, 2), D), 1.0)
+    energy, _, _, min_gap = contacts(lattice, frac)
+
+    pos = frac @ lattice
+    shifts = np.arange(-10, 11)[:, None] * lattice[0]
+    energy_ref, min_gap_ref = 0.0, np.inf
+    for i, j, weight in ((0, 1, 1.0), (0, 0, 0.5), (1, 1, 0.5)):
+        keep = shifts if i != j else shifts[np.any(shifts != 0, axis=1)]
+        e, *_, gap = pair_energy(
+            pos[i : i + 1], pos[j : j + 1], radius[:1, :1], D, weight, keep
+        )
+        energy_ref += e
+        min_gap_ref = min(min_gap_ref, gap)
+    assert energy == pytest.approx(energy_ref)
+    assert min_gap == pytest.approx(min_gap_ref)
