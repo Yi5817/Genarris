@@ -52,6 +52,7 @@ tol                 = 0.01
 maxiter             = 5000
 debug_flag          = False
 symprec             = 0.001
+batch_size          = 0
 ```
 
 `sr` : `float` | default = `0.85`.
@@ -81,3 +82,10 @@ symprec             = 0.001
 `symprec` : `float` | default = `0.001`.
 : spglib tolerance in $\mathrm{\AA}$ used to detect the space group and the
   Wyckoff sites that the optimization preserves.
+
+`batch_size` : `int` | default = `0`.
+: Number of crystals optimized at once with the batched torch backend. Rank 0
+  collects the structures of all ranks and optimizes them on its GPU, which
+  is required; a few hundred saturate one GPU. `0` optimizes one crystal at
+  a time with scipy on every rank. The two backends take different paths and
+  can end in different local minima.

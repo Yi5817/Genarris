@@ -8,6 +8,10 @@ symmetry must survive the optimization.
 Experimental match: a generated aspirin (ACSALA00) crystal must optimize into
 the experimental structure.
 
+Batch backend: the torch energy and gradient of all sp_w crystals in one batch
+must equal the NumPy ones, and the batched optimization must keep every site
+symmetry.
+
 Image sum: the contact energy of a two-molecule cell whose second molecule sits
 outside the cell must equal a brute-force sum over a wide image range.
 """
@@ -19,6 +23,7 @@ from pathlib import Path
 import numpy as np
 import pytest
 import spglib
+import torch
 from ase import Atoms
 from ase.io import read
 from pymatgen.analysis.structure_matcher import StructureMatcher
@@ -27,6 +32,7 @@ from pymatgen.io.ase import AseAtomsAdaptor
 from scipy.spatial.transform import Rotation
 
 from gnrs.gnrsutil.molecule_bonding import get_vdw_distance_cutoff_matrix
+from gnrs.optimize.symm_rigid_press.batch import RigidPressBatch
 from gnrs.optimize.symm_rigid_press.energy import ContactEnergy, pair_energy
 from gnrs.optimize.symm_rigid_press.optimizer import RigidPressSymm
 
@@ -106,6 +112,41 @@ def test_aspirin_optimizes_into_experimental_structure() -> None:
     assert RigidPressSymm(xtal, [mol], cutoff, tol=0.01, maxiter=5000).run(xtal)
 
     assert matcher.fit(exp, AseAtomsAdaptor.get_structure(xtal))
+
+
+@pytest.mark.skipif(not torch.cuda.is_available(), reason="batch backend needs a GPU")
+def test_batch_backend_matches_numpy_and_keeps_site_symmetry() -> None:
+    mol = read(MOL)
+    xtals = [read(DATA / f"{name}.in", format="aims") for name, *_ in CASES]
+    opts = [
+        RigidPressSymm(
+            xtal,
+            [mol],
+            get_vdw_distance_cutoff_matrix(str(MOL), z, 0.85, 1.2)[0],
+        )
+        for xtal, (_, z, *_) in zip(xtals, CASES)
+    ]
+    batch = RigidPressBatch(opts)
+    states = batch.to_states(xtals)
+    idx = torch.arange(len(opts), device="cuda")
+    energies, grads, gaps = batch.evaluate(states, idx)
+    for i, (opt, xtal) in enumerate(zip(opts, xtals)):
+        energy, grad, gap = opt.evaluate(opt.coords.to_state(xtal))
+        assert energies[i].item() == pytest.approx(energy, rel=1e-6)
+        assert gaps[i].item() == pytest.approx(gap, abs=1e-8)
+        grad_batch = np.concatenate(
+            [grads[i, slot].cpu().numpy() for slot in batch.slots(i)]
+        )
+        np.testing.assert_allclose(grad_batch, grad, rtol=1e-6, atol=1e-8)
+
+    ops_in = [operations(xtal) for xtal in xtals]
+    volumes_in = [xtal.get_volume() for xtal in xtals]
+    converged = batch.run(xtals, tol=0.01, maxiter=5000, batch_size=4)
+    assert all(converged)
+    for xtal, ops, volume in zip(xtals, ops_in, volumes_in):
+        assert xtal.get_volume() < volume
+        ops_out = operations(xtal)
+        assert all(has_operation(ops_out, r, t) for r, t in ops)
 
 
 def test_contact_energy_sums_every_image_of_a_molecule_outside_the_cell() -> None:

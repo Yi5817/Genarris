@@ -49,6 +49,7 @@ symm_rigid_press:
   maxiter: 5000
   debug_flag: false
   symprec: 0.001
+  batch_size: 0
 
 ap:
   max_ap_workers: 8
