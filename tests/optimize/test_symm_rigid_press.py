@@ -69,10 +69,10 @@ def test_special_position_keeps_site_symmetry(
     ops_in = operations(xtal)
     volume_in = xtal.get_volume()
 
-    opt = RigidPressSymm([mol], xtal, cutoff, tol=0.01, maxiter=5000)
+    opt = RigidPressSymm(xtal, [mol], cutoff, tol=0.01, maxiter=5000)
     opt.run(xtal)
 
-    (site,) = opt.sites
+    (site,) = opt.coords.sites
     assert (site.directions.shape[1], site.axes.shape[1]) == (n_pos, n_rot)
     assert len(xtal) == z * len(mol)
     assert xtal.get_volume() < volume_in
@@ -99,6 +99,6 @@ def test_aspirin_optimizes_into_experimental_structure() -> None:
     matcher = StructureMatcher(stol=0.5, ltol=0.5, angle_tol=10)
     assert not matcher.fit(exp, AseAtomsAdaptor.get_structure(xtal))
 
-    assert RigidPressSymm([mol], xtal, cutoff, tol=0.01, maxiter=5000).run(xtal)
+    assert RigidPressSymm(xtal, [mol], cutoff, tol=0.01, maxiter=5000).run(xtal)
 
     assert matcher.fit(exp, AseAtomsAdaptor.get_structure(xtal))

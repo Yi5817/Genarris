@@ -117,7 +117,7 @@ def find_site(
     numbers: np.ndarray,
     lattice: np.ndarray,
     tol: float = 1e-3,
-) -> Site | None:
+) -> Site:
     """
     Find the Wyckoff site of a molecule from the space group operations.
 
@@ -130,7 +130,8 @@ def find_site(
         tol: Tolerance on the fractional image of the molecule centre (fractional)
 
     Returns:
-        None for a general position, else the Site of the molecule
+        The Site of the molecule; on a general position every direction and
+        axis is free and the reference is the molecule itself
 
     Raises:
         RuntimeError: If a site operation does not map the molecule onto itself
@@ -142,7 +143,7 @@ def find_site(
     shift = np.round(image - point)
     keep = np.all(np.abs(image - shift - point) < tol, axis=1)
     if keep.sum() == 1:
-        return None
+        return Site(point, np.eye(3), np.eye(3), pos - cog)
     rot, trans = rot[keep], (trans - shift)[keep]
     # Fixed-point set origin + directions @ u of the site group
     a = np.concatenate(rot - np.eye(3))
@@ -164,31 +165,3 @@ def find_site(
             raise RuntimeError("A site operation does not map the molecule onto itself")
         ref_pos[perm] += image
     return Site(origin, directions, axes, ref_pos / len(rot_c))
-
-
-def get_lattice_type(spg: int) -> str:
-    """
-    Get cell type from spg
-
-    Args:
-        spg: Space group number
-
-    Returns:
-        Cell type
-    """
-    if spg <= 0 or spg > 230:
-        return "invalid"
-    if spg <= 2:
-        return "triclinic"
-    elif spg <= 15:
-        return "monoclinic"
-    elif spg <= 74:
-        return "orthorhombic"
-    elif spg <= 142:
-        return "tetragonal"
-    elif spg <= 167:
-        return "trigonal"
-    elif spg <= 194:
-        return "hexagonal"
-    else:
-        return "cubic"

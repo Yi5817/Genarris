@@ -31,7 +31,6 @@ class SYMM_RIGID_PRESSOptimizer(GeometryOptimizerABC):
         method: Optimization method to use
         tol: Convergence tolerance
         maxiter: Maximum number of iterations
-        vol_tol: Volume tolerance
         debug_flag: Whether to enable debug output
         symprec: spglib symmetry tolerance in Angstrom
     """
@@ -44,9 +43,12 @@ class SYMM_RIGID_PRESSOptimizer(GeometryOptimizerABC):
         self.opt_name = "symm_rigid_press"
         self.int_scale = self.tsk_set["int_scale"]
         self.method = self.tsk_set["method"]
+        if self.method == "L-BFGS-B":
+            raise ValueError(
+                "symm_rigid_press: L-BFGS-B stops at the starting structure; use BFGS"
+            )
         self.tol = self.tsk_set["tol"]
         self.maxiter = self.tsk_set["maxiter"]
-        self.vol_tol = self.tsk_set["vol_tol"]
         self.debug_flag = self.tsk_set["debug_flag"]
         self.symprec = self.tsk_set["symprec"]
         self.mol_path = self.tsk_set["mol_path"]
@@ -69,18 +71,17 @@ class SYMM_RIGID_PRESSOptimizer(GeometryOptimizerABC):
             xtal.write("geometry.in", parallel=False)
         mols = [read(path, parallel=False) for path in self.mol_path]
         opt = RigidPressSymm(
-            mols=mols,
-            xtal=xtal,
-            radius=self.cutoff_matrix,
+            xtal,
+            mols,
+            self.cutoff_matrix,
             stoic=self.stoichiometry,
+            symprec=self.symprec,
             int_scale=self.int_scale,
             method=self.method,
             tol=self.tol,
             maxiter=self.maxiter,
-            vol_tol=self.vol_tol,
             debug_flag=self.debug_flag,
             rank=self.rank,
-            symprec=self.symprec,
         )
         self.status = opt.run(xtal)
 
