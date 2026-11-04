@@ -46,7 +46,6 @@ symm_rigid_press:
   int_scale: 0.1
   natural_cutoff_mult: 1.1
   tol: 0.01
-  vol_tol: 10
   maxiter: 5000
   debug_flag: false
   symprec: 0.001

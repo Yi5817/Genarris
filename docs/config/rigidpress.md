@@ -30,8 +30,10 @@ debug_flag          = False
 
 ## `symm_rigid_press`
 
-Symmetry-preserving rigid press geometry optimization. Uses
-[`scipy.optimize.minimize`](https://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.minimize.html).
+Symmetry-preserving rigid press geometry optimization. Minimizes the cell
+volume plus a regularized contact energy with
+[`scipy.optimize.minimize`](https://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.minimize.html)
+and an analytic gradient.
 
 For multi-component crystals, every molecule of the asymmetric unit is a
 separate rigid body; the stoichiometry is taken from `[crystal_generation]`.
@@ -47,7 +49,6 @@ method              = BFGS
 int_scale           = 0.1
 natural_cutoff_mult = 1.1
 tol                 = 0.01
-vol_tol             = 10
 maxiter             = 5000
 debug_flag          = False
 symprec             = 0.001
@@ -57,11 +58,8 @@ symprec             = 0.001
 : Specific radius proportion for the cutoff matrix.
 
 `method` : `str` | default = `BFGS`.
-: Scipy local optimizer (e.g. `BFGS`, `L-BFGS-B`, `CG`).
-
-```{note}
-Check out the [`scipy.optimize.minimize`](https://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.minimize.html) for more details.
-```
+: Scipy local optimizer. Only `BFGS` is tested; `L-BFGS-B` reports success
+  at the starting structure and is rejected.
 
 `int_scale` : `float` | default = `0.1`.
 : Scale factor for the regularized interatomic contact interaction.
@@ -70,10 +68,9 @@ Check out the [`scipy.optimize.minimize`](https://docs.scipy.org/doc/scipy/refer
 : Bond identification multiplier.
 
 `tol` : `float` | default = `0.01`.
-: Convergence tolerance passed to `scipy.optimize.minimize`.
-
-`vol_tol` : `float` | default = `10`.
-: Volume tolerance in $\mathrm{\AA}^3$.
+: Convergence tolerance passed to `scipy.optimize.minimize` (for `BFGS` the
+  maximum gradient component, in $\mathrm{\AA}^2$ for lattice parameters and
+  $\mathrm{\AA}^3$ for molecule parameters).
 
 `maxiter` : `int` | default = `5000`.
 : Maximum optimization iterations.
