@@ -36,7 +36,9 @@ Symmetry-preserving rigid press geometry optimization. Uses
 For multi-component crystals, every molecule of the asymmetric unit is a
 separate rigid body; the stoichiometry is taken from `[crystal_generation]`.
 If molecules of the asymmetric unit already overlap at the `sr` cutoff, the
-whole asymmetric unit is pressed as one rigid body.
+whole asymmetric unit is pressed as one rigid body. A molecule on a special
+Wyckoff position keeps its site symmetry: its centre moves only along the
+site and it rotates only about an axis compatible with the site.
 
 ```ini
 [symm_rigid_press]
