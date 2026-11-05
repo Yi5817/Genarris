@@ -39,6 +39,7 @@ rigid_press:
   sr: 0.85
   maxiter: 400
   debug_flag: false
+  skip_bond_check: true
 
 symm_rigid_press:
   method: BFGS
@@ -46,9 +47,11 @@ symm_rigid_press:
   int_scale: 0.1
   natural_cutoff_mult: 1.1
   tol: 0.01
-  vol_tol: 10
   maxiter: 5000
   debug_flag: false
+  symprec: 0.001
+  batch_size: 0
+  skip_bond_check: true
 
 ap:
   max_ap_workers: 8
