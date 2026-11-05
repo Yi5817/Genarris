@@ -12,6 +12,13 @@ gnrs.core.task
    :members:
    :show-inheritance:
 
+gnrs.core.generator
+~~~~~~~~~~~~~~~~~~~
+
+.. automodule:: gnrs.core.generator
+   :members:
+   :show-inheritance:
+
 gnrs.core.energy
 ~~~~~~~~~~~~~~~~
 

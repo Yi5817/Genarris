@@ -14,7 +14,7 @@ __group__ = "https://www.noamarom.com/"
 import logging
 import subprocess
 
-logger = logging.getLogger("mpi_cmd")
+logger = logging.getLogger(__name__)
 
 _VALID_LAUNCHERS = {"mpirun", "srun", "ibrun", "none"}
 

@@ -23,7 +23,7 @@ from gnrs.core.task import TaskABC
 from gnrs.deduplication.dedup import dedup_group, group_by_spg
 from gnrs.parallel.structs import DistributedStructs
 
-logger = logging.getLogger("DuplicateRemovalTask")
+logger = logging.getLogger(__name__)
 
 
 class DuplicateRemovalTask(TaskABC):

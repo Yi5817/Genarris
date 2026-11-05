@@ -24,7 +24,7 @@ from gnrs.parallel.structs import DistributedStructs
 AVAILABLE_CLUSTERS = ["ap", "kmeans"]
 AVAILABLE_SELECTIONS = ["center", "window"]
 
-logger = logging.getLogger("ClusterSelectionTask")
+logger = logging.getLogger(__name__)
 
 
 class ClusterSelectionTask(TaskABC):
@@ -74,15 +74,15 @@ class ClusterSelectionTask(TaskABC):
             clstr_module = importlib.import_module(self.clstr_file)
             self.clstr = getattr(clstr_module, self.clstr_class)
         except (ImportError, AttributeError):
-            logger.warning(f"Unable to find cluster method {self.clstr_name}")
-            logger.warning(f"Available cluster methods: {AVAILABLE_CLUSTERS}")
+            logger.error(f"Unable to find cluster method {self.clstr_name}")
+            logger.error(f"Available cluster methods: {AVAILABLE_CLUSTERS}")
             raise
         try:
             select_module = importlib.import_module(self.slct_file)
             self.slct = getattr(select_module, self.slct_class)
         except (ImportError, AttributeError):
-            logger.warning(f"Cannot find selection method {self.slct_name}")
-            logger.warning(f"Available selection methods: {AVAILABLE_SELECTIONS}")
+            logger.error(f"Cannot find selection method {self.slct_name}")
+            logger.error(f"Available selection methods: {AVAILABLE_SELECTIONS}")
             raise
 
         logger.info(f"Starting Cluster-Selection task: {self.task_name}")

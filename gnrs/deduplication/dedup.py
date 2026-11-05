@@ -16,7 +16,6 @@ __email__ = "yiy5@andrew.cmu.edu"
 __group__ = "https://www.noamarom.com/"
 
 import logging
-import random
 from collections import defaultdict
 
 from ase.atoms import Atoms
@@ -25,7 +24,7 @@ from pymatgen.io.ase import AseAtomsAdaptor
 
 import gnrs.parallel as gp
 
-logger = logging.getLogger("dedup")
+logger = logging.getLogger(__name__)
 
 
 def group_by_spg(structs: dict[str, Atoms]) -> dict[int, dict[str, Atoms]]:
@@ -50,7 +49,7 @@ def _select(candidates: dict[str, Atoms], energy_key: str | None) -> str:
     Select one structure from a set of duplicates.
 
     If energy_key is provided, the lowest-energy structure is chosen.
-    Otherwise a random one is chosen.
+    Otherwise the first one by name is chosen.
 
     Args:
         candidates: {name: Atoms} duplicates.
@@ -68,7 +67,7 @@ def _select(candidates: dict[str, Atoms], energy_key: str | None) -> str:
         if len(energies) == len(candidates):
             return min(energies, key=lambda x: x[1])[0]
 
-    return random.choice(sorted(candidates.keys()))
+    return min(candidates)
 
 
 def _scatter_structs(pool: dict[str, Atoms]) -> dict[str, Atoms]:

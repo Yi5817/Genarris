@@ -14,10 +14,13 @@ __group__ = "https://www.noamarom.com/"
 import argparse
 import logging
 import sys
+import time
 import traceback
 import warnings
 
 from mpi4py import MPI
+
+from gnrs import __version__
 
 warnings.filterwarnings("ignore", category=UserWarning)
 warnings.filterwarnings("ignore", category=RuntimeWarning)
@@ -27,7 +30,8 @@ def main():
     """
     Main CLI for Genarris workflow.
     """
-    parser = argparse.ArgumentParser(description="Genarris3.0")
+    parser = argparse.ArgumentParser(description="Genarris")
+    parser.add_argument("--version", action="version", version=__version__)
     parser.add_argument(
         "-c", "--config", required=True, type=str, help="Path to the configuration file"
     )
@@ -46,12 +50,15 @@ def main():
         "discarding its progress",
     )
     args = parser.parse_args()
+    if not 0 <= args.seed < 2**31:
+        parser.error("--seed must be between 0 and 2**31 - 1")
 
     from gnrs.core.registry import UnknownTaskError
     from gnrs.core.restart import RestartError
 
     comm = MPI.COMM_WORLD
-    logger = logging.getLogger("genarris")
+    rank = comm.Get_rank()
+    logger = logging.getLogger(__name__)
     aborted = False
     try:
         # Initialize and run Genarris
@@ -63,17 +70,21 @@ def main():
         gout.emit("All tasks completed successfully.\nHave a nice day! :-)")
     except KeyboardInterrupt:
         logger.warning("Genarris interrupted by user")
+        if rank == 0:
+            print("\nInterrupted by user.", file=sys.stderr, flush=True)
         aborted = True
         comm.Abort(130)
     except (RestartError, UnknownTaskError) as exc:
         logger.error(f"Cannot run: {exc}")
-        gout.emit(f"\nERROR: {exc}")
+        if rank == 0:
+            print(f"\nERROR: {exc}", file=sys.stderr, flush=True)
         sys.exit(1)  # after the finally block finalizes MPI
     except Exception as exc:
         logger.exception("Genarris exiting due to error")
-        # Every rank reports its own failure; gout.emit prints on rank 0 only
+        if rank > 0:
+            time.sleep(1 + 0.01 * rank)
         print(
-            f"\nERROR: Genarris rank {comm.Get_rank()} failed with "
+            f"\nERROR: Genarris rank {rank} failed with "
             f"{type(exc).__name__}: {exc}\n{traceback.format_exc()}",
             file=sys.stderr,
             flush=True,

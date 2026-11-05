@@ -133,7 +133,7 @@ class TaskABC(abc.ABC):
             self.structs = read_parallel(last_struct_path)
             ds = DistributedStructs(self.structs)
             n_structs = ds.get_num_structs()
-            gout.emit(f"Starting {instance_id} task with {n_structs} Structures.")
+            gout.emit(f"Starting {instance_id} task with {n_structs} structures.")
 
     @abc.abstractmethod
     def pack_settings(self) -> dict:

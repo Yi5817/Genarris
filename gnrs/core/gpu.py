@@ -21,7 +21,7 @@ import logging
 import torch
 from mpi4py import MPI
 
-logger = logging.getLogger("gpu")
+logger = logging.getLogger(__name__)
 
 # MPI tags for worker/feeder communication
 TAG_WORK_REQUEST = 100

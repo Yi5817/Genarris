@@ -2,9 +2,12 @@
 Shared fixtures.
 
 Layout:
-    install/   package smoke tests (import, extension, data files, CLI)
-    restart/   single-process tests of checkpoints and the restart manager
-    workflow/  end-to-end runs under mpirun (marked ``integration``)
+    data/        input files shared by the tests
+    install/     package smoke tests (import, extension, data files, CLI)
+    generation/  single-process tests of the structure generators
+    parallel/    structure file IO, with or without mpirun
+    restart/     single-process tests of checkpoints and the restart manager
+    workflow/    end-to-end runs under mpirun (marked ``integration``)
 """
 
 from __future__ import annotations

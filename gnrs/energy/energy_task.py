@@ -24,7 +24,7 @@ from gnrs.core.task import TaskABC
 from gnrs.parallel.structs import DistributedStructs
 
 AVAILABLE_CALCULATORS = ["DFTB", "AIMS", "MACEOFF", "UMA", "VASP", "AIMNET"]
-logger = logging.getLogger("EnergyCalcTask")
+logger = logging.getLogger(__name__)
 
 
 class EnergyCalculationTask(TaskABC):
@@ -60,8 +60,8 @@ class EnergyCalculationTask(TaskABC):
             energy_module = importlib.import_module(self.energy_file)
             self.energy_calc = getattr(energy_module, self.energy_class)
         except (ImportError, AttributeError):
-            logger.warn("Unable to find requested energy calculation method.")
-            logger.warn(f"Available calculators: {AVAILABLE_CALCULATORS}")
+            logger.error("Unable to find requested energy calculation method.")
+            logger.error(f"Available calculators: {AVAILABLE_CALCULATORS}")
             raise
 
     def initialize(self) -> None:

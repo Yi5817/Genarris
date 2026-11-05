@@ -12,82 +12,46 @@ __email__ = "yiy5@andrew.cmu.edu"
 __group__ = "https://www.noamarom.com/"
 
 import logging
+from collections import defaultdict
+from logging.handlers import BufferingHandler
 
 from mpi4py import MPI
+
+logger = logging.getLogger(__name__)
 
 
 class GenarrisLogger:
     """
     Sets up the logging.
+
+    Rank 0 writes ``Genarris.log``. The other ranks hold their warnings and
+    errors in memory until ``sync`` writes each distinct message one time.
     """
 
-    def __init__(
-        self,
-        comm: MPI.Comm,
-        level: str = "DEBUG",
-        parallel_log: str = "redirect_errors",
-    ) -> None:
+    def __init__(self, comm: MPI.Comm, level: str = "INFO") -> None:
         """
         Initialize the logger.
 
         Args:
             comm: MPI communicator
             level: Log level
-            parallel_log: Parallel log mode
         """
-        self.log_level = getattr(logging, level.upper())
+        self.comm = comm
         self.rank = comm.Get_rank()
         self.size = comm.Get_size()
-        self.parallel_log = parallel_log
-        self._configure()
-        self.logger = logging.getLogger("genarris")
-        self._welcome()
-        return
-
-    def _configure(self) -> None:
-        """
-        Configure the logger.
-        """
-        if self.parallel_log == "slave_log":
-            slave_logfile = "Genarris_slave.log"
-            slave_loglevel = logging.DEBUG
-        elif self.parallel_log == "supress":
-            slave_logfile = "/dev/null"
-            slave_loglevel = logging.ERROR
-        elif self.parallel_log == "redirect_errors":
-            slave_logfile = "Genarris.log"
-            slave_loglevel = logging.ERROR
-        else:
-            print("logging method not implemented!")
-            raise RuntimeError
-
         if self.rank == 0:
-            logging.basicConfig(
-                filename="Genarris.log",
-                level=self.log_level,
-                format="%(asctime)s: %(levelname)5s: %(name)15s- %(message)s",
-                datefmt="%b %d %I:%M:%S %p",
+            self.handler = logging.FileHandler("Genarris.log")
+            self.handler.setFormatter(
+                logging.Formatter("%(asctime)s %(levelname)-8s %(name)s: %(message)s")
             )
         else:
-            logging.basicConfig(
-                filename=slave_logfile,
-                level=slave_loglevel,
-                format=f"Genarris slave process {self.rank} -"
-                "%(asctime)s: %(levelname)5s: "
-                "%(name)15s- %(message)s",
-                datefmt="%b %d %I:%M:%S %p",
-            )
-
-        return
-
-    def _welcome(self) -> None:
-        """
-        Welcome message.
-        """
-        self.logger.info(10 * "xx" + "  STARTING GENARRIS  " + 10 * "xx")
-        self.logger.info("Initializing Genarris Logger")
-        self.logger.info(f"Launching Genarris on {self.size} process(es)")
-        return
+            self.handler = BufferingHandler(10_000)
+            self.handler.setLevel(logging.WARNING)
+        logging.getLogger().addHandler(self.handler)
+        logging.captureWarnings(True)
+        logging.getLogger("gnrs").setLevel(level)
+        logger.info(10 * "xx" + "  STARTING GENARRIS  " + 10 * "xx")
+        logger.info(f"Launching Genarris on {self.size} process(es)")
 
     def reset_loglevel(self, level: str) -> None:
         """
@@ -96,6 +60,27 @@ class GenarrisLogger:
         Args:
             level: Log level
         """
-        self.logger.info(f"Setting new log level: {level}")
-        self.log_level = getattr(logging, level.upper())
-        logging.getLogger().setLevel(self.log_level)
+        logging.getLogger("gnrs").setLevel(level.upper())
+        logger.info(f"Log level: {level}")
+
+    def sync(self) -> None:
+        """
+        Write the records that ranks above 0 hold to the log file, one line
+        per distinct message. Must be called by all ranks.
+        """
+        held = []
+        if self.rank != 0:
+            held = list(
+                dict.fromkeys(
+                    (r.levelno, r.name, self.handler.format(r))
+                    for r in self.handler.buffer
+                )
+            )
+            self.handler.flush()
+        ranks = defaultdict(list)
+        for rank, keys in enumerate(self.comm.gather(held, root=0) or []):
+            for key in keys:
+                ranks[key].append(rank)
+        for (levelno, name, message), who in ranks.items():
+            tag = f"rank {who[0]}" if len(who) == 1 else f"{len(who)} ranks"
+            logging.getLogger(name).log(levelno, f"[{tag}] {message}")

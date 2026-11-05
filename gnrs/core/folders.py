@@ -17,7 +17,7 @@ import os
 from gnrs.core.molecule import Molecule
 
 is_master = False
-logger = logging.getLogger("folders")
+logger = logging.getLogger(__name__)
 
 
 def init_folders(is_master_in: bool) -> None:

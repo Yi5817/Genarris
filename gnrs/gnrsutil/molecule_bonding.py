@@ -11,6 +11,7 @@ __author__ = ["Yi Yang", "Rithwik Tom"]
 __email__ = "yiy5@andrew.cmu.edu"
 __group__ = "https://www.noamarom.com/"
 
+import logging
 from importlib.resources import files
 
 import networkx as nx
@@ -27,7 +28,7 @@ try:
     vdw_radii[1] = 1.1
 except (TypeError, AttributeError):
     vdw_radii = None
-import gnrs.output as gout
+logger = logging.getLogger(__name__)
 
 _H_BOND_PARAMS = yaml.safe_load(
     files("gnrs.gnrsutil").joinpath("h_bond.yaml").read_text()
@@ -173,8 +174,8 @@ class MoleculeBonding:
 
         # Add hydrogen bond cutoff distances
         donor_idx, acceptor_idx = self._get_hydrogen_bond_idx()
-        gout.emit(f"Donor atom indices =  {donor_idx}")
-        gout.emit(f"Acceptor atom indices = {acceptor_idx}")
+        logger.debug(f"Donor atom indices = {donor_idx}")
+        logger.debug(f"Acceptor atom indices = {acceptor_idx}")
         if len(donor_idx) > 0:
             acceptor_ele = self.ele[acceptor_idx]
             donor_ele = self.ele[np.concatenate(self.bonding_list[donor_idx])]
