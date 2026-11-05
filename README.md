@@ -6,7 +6,7 @@
 
 <p align="center">
   <a href="https://github.com/Yi5817/Genarris/releases"><img src="https://img.shields.io/github/v/release/Yi5817/Genarris?filter=gnrs-*&display_name=release&label=version&color=green" alt="Version"></a>
-  <a href="https://www.python.org/downloads/"><img src="https://img.shields.io/badge/python-3.10%2B-blue" alt="Python 3.10+"></a>
+  <a href="https://www.python.org/downloads/"><img src="https://img.shields.io/badge/python-3.11%2B-blue" alt="Python 3.11+"></a>
   <a href="https://github.com/Yi5817/Genarris/actions/workflows/lint.yml"><img src="https://github.com/Yi5817/Genarris/actions/workflows/lint.yml/badge.svg" alt="Code Style"></a>
   <a href="https://yi5817.github.io/Genarris/"><img src="https://github.com/Yi5817/Genarris/actions/workflows/docs.yml/badge.svg" alt="Documentation"></a>
   <a href="https://doi.org/10.1021/acs.jctc.5c01080"><img src="https://img.shields.io/badge/DOI-10.1021%2Facs.jctc.5c01080-blue" alt="DOI"></a>
