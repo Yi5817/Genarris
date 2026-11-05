@@ -62,7 +62,7 @@ class Structure:
     def append(self, x, y, z, element, spin=None, charge=None, fixed=False) -> None:
         # increase the size of the array
         size = self.geometry.size
-        self.geometry.resize(size + 1)
+        self.geometry = np.resize(self.geometry, size + 1)
         # assign values
         self.geometry[size]["x"] = x
         self.geometry[size]["y"] = y
@@ -83,7 +83,7 @@ class Structure:
         """
         # increase the size of the array
         size = self.geometry.size
-        self.geometry.resize(size + 1)
+        self.geometry = np.resize(self.geometry, size + 1)
         # assign values
         self.geometry[size]["x"] = x
         self.geometry[size]["y"] = y
@@ -98,7 +98,7 @@ class Structure:
     def build_geo_by_whole_atom(self, atom) -> None:
         # increase the size of the array
         size = self.geometry.size
-        self.geometry.resize(size + 1)
+        self.geometry = np.resize(self.geometry, size + 1)
         # assign values
         self.geometry[size] = atom
 

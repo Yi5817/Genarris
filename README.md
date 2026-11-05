@@ -6,7 +6,7 @@
 
 <p align="center">
   <a href="https://github.com/Yi5817/Genarris/releases"><img src="https://img.shields.io/github/v/release/Yi5817/Genarris?filter=gnrs-*&display_name=release&label=version&color=green" alt="Version"></a>
-  <a href="https://www.python.org/downloads/"><img src="https://img.shields.io/badge/python-3.10%2B-blue" alt="Python 3.10+"></a>
+  <a href="https://www.python.org/downloads/"><img src="https://img.shields.io/badge/python-3.11%2B-blue" alt="Python 3.11+"></a>
   <a href="https://github.com/Yi5817/Genarris/actions/workflows/lint.yml"><img src="https://github.com/Yi5817/Genarris/actions/workflows/lint.yml/badge.svg" alt="Code Style"></a>
   <a href="https://yi5817.github.io/Genarris/"><img src="https://github.com/Yi5817/Genarris/actions/workflows/docs.yml/badge.svg" alt="Documentation"></a>
   <a href="https://doi.org/10.1021/acs.jctc.5c01080"><img src="https://img.shields.io/badge/DOI-10.1021%2Facs.jctc.5c01080-blue" alt="DOI"></a>
@@ -38,8 +38,8 @@ source gnrs_env/bin/activate
 Install build dependencies, PyTorch, and `mpi4py` with the correct MPI compiler **before** installing the package:
 
 ```bash
-pip install "setuptools>=61.0" "setuptools-scm>=8" wheel "swig>=4.1,<4.3" Cython "numpy>=2.0,<2.3"
-pip install torch==2.8.0 --index-url https://download.pytorch.org/whl/cu129
+pip install "setuptools>=61.0" "setuptools-scm>=8" wheel "swig>=4.1,<4.5" Cython "numpy>=2.0,<2.5"
+pip install torch==2.13.0 --index-url https://download.pytorch.org/whl/cu130
 MPICC=$(which mpicc) pip install mpi4py --no-binary mpi4py
 ```
 
@@ -68,7 +68,7 @@ Genarris supports various energy calculators through the [ASE Calculator](https:
 
 | Calculator | Type | Install |
 |------------|------|---------|
-| [UMA](https://github.com/facebookresearch/fairchem) | MLIP | `pip install -e .[uma]` |
+| [UMA](https://github.com/facebookresearch/fairchem) | MLIP | `pip install -e .[fairchem]` |
 | [MACE-OFF](https://github.com/ACEsuit/mace) | MLIP | `pip install -e .[mace]` |
 | [AIMNet2](https://github.com/isayevlab/aimnetcentral) | MLIP | `pip install git+https://github.com/isayevlab/aimnetcentral.git` |
 | [DFTB+](https://dftbplus.org/) | Semi-Empirical | — |

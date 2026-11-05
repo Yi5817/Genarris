@@ -6,8 +6,8 @@ import sys
 
 from setuptools import Extension, setup
 
-if sys.version_info < (3, 10):
-    raise SystemExit("Genarris requires Python >= 3.10")
+if sys.version_info < (3, 11):
+    raise SystemExit("Genarris requires Python >= 3.11")
 
 # Set location of MPI C compiler (mpicc) here:
 MPICC = os.environ.get("MPICC", "mpicc")

@@ -16,6 +16,10 @@ concurrency:
 jobs:
   test:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.14"]
     steps:
       - uses: actions/checkout@v7
         with:
@@ -24,7 +28,7 @@ jobs:
 
       - uses: actions/setup-python@v7
         with:
-          python-version: "3.11"
+          python-version: ${{ matrix.python-version }}
 
       - name: Install MPI and LAPACK
         run: |
@@ -33,7 +37,7 @@ jobs:
 
       - name: Install package
         run: |
-          pip install "torch~=2.8.0" --index-url https://download.pytorch.org/whl/cpu
+          pip install "torch~=2.13.0" --index-url https://download.pytorch.org/whl/cpu
           pip install mpi4py --no-binary mpi4py
           pip install -e .[test]
 
