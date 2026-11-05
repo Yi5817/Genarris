@@ -46,8 +46,8 @@ conda activate gnrs_env
 Install build dependencies, PyTorch, and `mpi4py` with the correct MPI compiler **before** installing the package:
 
 ```bash
-pip install "setuptools>=61.0" "setuptools-scm>=8" wheel "swig>=4.1,<4.3" Cython "numpy>=2.0,<2.3"
-pip install torch==2.8.0 --index-url https://download.pytorch.org/whl/cu129
+pip install "setuptools>=61.0" "setuptools-scm>=8" wheel "swig>=4.1,<4.5" Cython "numpy>=2.0,<2.5"
+pip install torch==2.13.0 --index-url https://download.pytorch.org/whl/cu130
 MPICC=$(which mpicc) pip install mpi4py --no-binary mpi4py
 ```
 

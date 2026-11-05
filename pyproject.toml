@@ -3,9 +3,9 @@ requires = [
     "setuptools>=61.0",
     "wheel",
     "setuptools-scm>=8",
-    "swig>=4.1,<4.3",
+    "swig>=4.1,<4.5",
     "Cython",
-    "numpy>=2.0,<2.3",
+    "numpy>=2.0,<2.5",
     "mpi4py",
 ]
 build-backend = "setuptools.build_meta"
@@ -26,26 +26,22 @@ maintainers = [
 keywords = ["crystal structure", "molecular crystals", "crystal structure prediction", "materials science"]
 requires-python = ">=3.11, <3.15"
 dependencies = [
-    "torch~=2.8.0",
-    "numpy>=2.0,<2.3",
-    "numba>=0.60",
+    "torch~=2.13.0",
+    "numpy>=2.0,<2.5",
+    "scipy>=1.15.0",
     "mpi4py",
-    "ase",
+    "ase>=3.26.0,<3.29",
     "spglib",
-    "pymatgen<=2025.10.7",
-    "matplotlib",
+    "pymatgen>=2025.1.9",
+    "scikit-learn",
     "pyyaml",
-    "tqdm",
-    "packaging>=21.2",
-    "pyparsing==2.4.7",
-    "h5py<3.15",
-    "dscribe"
+    "dscribe",
 ]
 
 [project.optional-dependencies]  # add optional dependencies, e.g. to be installed as pip install .[uma]
-uma = ["pandas<=2.3", "fairchem-core"]
-mace = ["pandas<=2.3", "mace-torch"]
-test = ["pytest"]
+uma = ["pandas", "fairchem-core"]
+mace = ["pandas", "mace-torch"]
+test = ["pytest", "packaging"]
 
 [dependency-groups]
 dev = ["ruff==0.16.10", "pre-commit==4.6.2"]
