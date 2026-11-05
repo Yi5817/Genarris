@@ -38,8 +38,8 @@ dependencies = [
     "dscribe",
 ]
 
-[project.optional-dependencies]  # add optional dependencies, e.g. to be installed as pip install .[uma]
-uma = ["pandas", "fairchem-core"]
+[project.optional-dependencies]  # add optional dependencies, e.g. to be installed as pip install .[fairchem]
+fairchem = ["pandas", "fairchem-core"]
 mace = ["pandas", "mace-torch"]
 test = ["pytest", "packaging"]
 

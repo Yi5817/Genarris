@@ -112,7 +112,7 @@ Genarris supports various energy calculators through the
 
 ````{tab-item} UMA
 ```bash
-pip install -e .[uma]
+pip install -e .[fairchem]
 ```
 
 UMA requires a HuggingFace account with access to the
