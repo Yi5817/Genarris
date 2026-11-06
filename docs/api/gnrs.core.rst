@@ -68,13 +68,6 @@ gnrs.core.gpu
    :members:
    :show-inheritance:
 
-gnrs.core.structure
-~~~~~~~~~~~~~~~~~~~
-
-.. automodule:: gnrs.core.structure
-   :members:
-   :show-inheritance:
-
 gnrs.core.registry
 ~~~~~~~~~~~~~~~~~~
 

@@ -320,8 +320,7 @@ class BondNeighborhood:
             raise Exception("Radius greater than 1 not implemented")
 
     def calc(self, struct):
-        self.struct = struct
-        self.ele = struct.geometry["element"]
+        self.ele = np.array(struct.get_chemical_symbols())
         g = self._build_graph(struct)
         n = self._calc_neighbors(g)
         n = self._sort(g, n)
@@ -335,11 +334,10 @@ class BondNeighborhood:
         Builds networkx graph of a structures bonding.
         """
 
-        mb = MoleculeBonding(struct.get_ase_atoms(), **self.mb_kwargs)
+        mb = MoleculeBonding(struct, **self.mb_kwargs)
         g = nx.Graph()
 
         # Add node to graph for each atom in struct
-        self.ele = struct.geometry["element"]
         g.add_nodes_from(range(len(self.ele)))
 
         # Add edges
@@ -420,6 +418,6 @@ class BondNeighborhood:
         return sorted_list_final
 
     def _construct_fragment_list(self, n):
-        fragment_list = [self.struct.geometry["element"][tuple(x)] for x in n]
+        fragment_list = [self.ele[tuple(x)] for x in n]
         fragment_list = ["".join(x) for x in fragment_list]
         return fragment_list
