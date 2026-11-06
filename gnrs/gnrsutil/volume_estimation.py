@@ -18,11 +18,11 @@ from importlib.resources import files
 import numpy as np
 import yaml
 from ase import Atoms
-from ase.data import atomic_numbers, vdw_radii
+from ase.data import atomic_numbers
 from ase.io import read
 from scipy.spatial.distance import cdist
 
-from gnrs.gnrsutil.molecule_bonding import BondNeighborhood
+from gnrs.gnrsutil.molecule_bonding import BondNeighborhood, vdw_radii
 
 _PYMOVE_MODEL = yaml.safe_load(
     files("gnrs.gnrsutil").joinpath("pymove_model.yaml").read_text()
