@@ -2,7 +2,7 @@
 
 ## Prerequisites
 
-- 🐍 **Python** 3.10+
+- 🐍 **Python** 3.11+
 - ⚙️ **MPI compiler**
 
 ## Clone the repo
@@ -46,8 +46,8 @@ conda activate gnrs_env
 Install build dependencies, PyTorch, and `mpi4py` with the correct MPI compiler **before** installing the package:
 
 ```bash
-pip install "setuptools>=61.0" "setuptools-scm>=8" wheel "swig>=4.1,<4.3" Cython "numpy>=2.0,<2.3"
-pip install torch==2.8.0 --index-url https://download.pytorch.org/whl/cu129
+pip install "setuptools>=61.0" "setuptools-scm>=8" wheel "swig>=4.1,<4.5" Cython "numpy>=2.0,<2.5"
+pip install torch==2.13.0 --index-url https://download.pytorch.org/whl/cu130
 MPICC=$(which mpicc) pip install mpi4py --no-binary mpi4py
 ```
 
@@ -77,16 +77,13 @@ Vista uses [NVIDIA Performance Libraries (NVPL)](https://docs.tacc.utexas.edu/hp
 
 ```python
 rigid_press = Extension(
-    "gnrs.cgenarris.src.rpack.rigid_press._rigid_press",
+    "gnrs.cgenarris.python.rpack.rigid_press._rigid_press",
     include_dirs=include_rigid_press,
     sources=sources_rigid_press,
     extra_compile_args=["-std=gnu99", "-O3"],
     libraries=["nvpl_blas_lp64_gomp", "nvpl_lapack_lp64_gomp"],
     library_dirs=[os.path.join(os.environ.get("TACC_NVPL_DIR"), "lib")],
-    swig_opts=[
-        "-I./gnrs/cgenarris/src/rpack/rigid_press",
-        "-I./gnrs/cgenarris/src/spglib_src",
-    ],
+    swig_opts=[f"-I{CGENARRIS_INCLUDE_DIR}"],
 )
 ```
 
@@ -115,7 +112,7 @@ Genarris supports various energy calculators through the
 
 ````{tab-item} UMA
 ```bash
-pip install -e .[uma]
+pip install -e .[fairchem]
 ```
 
 UMA requires a HuggingFace account with access to the

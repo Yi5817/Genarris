@@ -11,6 +11,7 @@ __author__ = ["Yi Yang", "Rithwik Tom"]
 __email__ = "yiy5@andrew.cmu.edu"
 __group__ = "https://www.noamarom.com/"
 
+import logging
 from importlib.resources import files
 
 import networkx as nx
@@ -27,7 +28,7 @@ try:
     vdw_radii[1] = 1.1
 except (TypeError, AttributeError):
     vdw_radii = None
-import gnrs.output as gout
+logger = logging.getLogger(__name__)
 
 _H_BOND_PARAMS = yaml.safe_load(
     files("gnrs.gnrsutil").joinpath("h_bond.yaml").read_text()
@@ -173,8 +174,8 @@ class MoleculeBonding:
 
         # Add hydrogen bond cutoff distances
         donor_idx, acceptor_idx = self._get_hydrogen_bond_idx()
-        gout.emit(f"Donor atom indices =  {donor_idx}")
-        gout.emit(f"Acceptor atom indices = {acceptor_idx}")
+        logger.debug(f"Donor atom indices = {donor_idx}")
+        logger.debug(f"Acceptor atom indices = {acceptor_idx}")
         if len(donor_idx) > 0:
             acceptor_ele = self.ele[acceptor_idx]
             donor_ele = self.ele[np.concatenate(self.bonding_list[donor_idx])]
@@ -319,8 +320,7 @@ class BondNeighborhood:
             raise Exception("Radius greater than 1 not implemented")
 
     def calc(self, struct):
-        self.struct = struct
-        self.ele = struct.geometry["element"]
+        self.ele = np.array(struct.get_chemical_symbols())
         g = self._build_graph(struct)
         n = self._calc_neighbors(g)
         n = self._sort(g, n)
@@ -334,11 +334,10 @@ class BondNeighborhood:
         Builds networkx graph of a structures bonding.
         """
 
-        mb = MoleculeBonding(struct.get_ase_atoms(), **self.mb_kwargs)
+        mb = MoleculeBonding(struct, **self.mb_kwargs)
         g = nx.Graph()
 
         # Add node to graph for each atom in struct
-        self.ele = struct.geometry["element"]
         g.add_nodes_from(range(len(self.ele)))
 
         # Add edges
@@ -419,6 +418,6 @@ class BondNeighborhood:
         return sorted_list_final
 
     def _construct_fragment_list(self, n):
-        fragment_list = [self.struct.geometry["element"][tuple(x)] for x in n]
+        fragment_list = [self.ele[tuple(x)] for x in n]
         fragment_list = ["".join(x) for x in fragment_list]
         return fragment_list

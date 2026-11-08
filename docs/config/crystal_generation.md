@@ -1,19 +1,25 @@
-# Generation
+# Crystal Generation
 
-Random crystal structure generation via `cgenarris`.
+Random crystal structure generation via `cgenarris`. Add `crystal_generation`
+to `[workflow] tasks` and set its options in `[crystal_generation]`.
+
+```{note}
+This task was named `generation` in Genarris 3.x. Config files that use
+`generation` and `[generation]` still work.
+```
 
 ```ini
-[generation]
+[crystal_generation]
 num_structures_per_spg  = 4000
 sr                      = 0.95
 max_attempts_per_spg    = 10000000
-tol                     = 0.01
+tol                     = 0.1
+symprec                 = 0.001
 ucv_mean                = predict
 ucv_mult                = 1.5
 ucv_std                 = 0.05
 max_attempts_per_volume = 10000
 spg_distribution_type   = standard
-generation_type         = crystal
 natural_cutoff_mult     = 1.1
 stoichiometry           = [1]
 seed                    = 42
@@ -33,8 +39,16 @@ lattice_angle_std       = 8
 : Maximum random attempts per space group before giving up.
 
 `tol` : `float` | default = `0.1`.
-: Tolerance passed to [spglib](https://spglib.readthedocs.io/) for symmetry
-  detection.
+: Special-position tolerance in $\mathrm{\AA}$. A molecule may sit on a
+  Wyckoff position when, under every site-symmetry operation, each atom lands
+  within `tol` of an atom of the same species. The molecule is then averaged
+  onto the exact symmetry, so `tol` is also the largest distortion applied.
+  Not an spglib parameter.
+
+`symprec` : `float` | default = `0.001`.
+: spglib tolerance in $\mathrm{\AA}$ used to label each generated structure
+  with its detected space group (`#SPGLIB_detected_spacegroup`, read into
+  `Atoms.info["spg"]`). Generation itself does not use it.
 
 `ucv_mean` : `str` | `float` | default = `predict`.
 : Mean unit cell volume in $\mathrm{\AA}^3$. Set to `predict` to use the built-in PyMoVE
@@ -56,13 +70,6 @@ lattice_angle_std       = 8
 : Space group distribution. `standard` uses all compatible with 230 space groups. A list
   of integers (e.g. `[14, 19]`) restricts generation to those space groups only.
 
-`generation_type` : `str` | default = `crystal`.
-: Generation mode. Currently only `crystal` is supported.
-
-  ```{note}
-  Multi-component crystals are coming soon!
-  ```
-
 `natural_cutoff_mult` : `float` | default = `1.1`.
 : Multiplier for covalent radii used to identify molecular bonds. Based on
   [`ase.neighborlist.natural_cutoffs`](https://docs.ase-lib.org/ase/neighborlist.html#ase.neighborlist.natural_cutoffs).
@@ -72,11 +79,12 @@ lattice_angle_std       = 8
 : Molecular stoichiometry. `[1]` for a single-component crystal.
 
   ```{note}
-  Multi-component crystals are coming soon!
+  For multi-component crystals, give one entry per molecule and run
+  `crystal_generation` after {doc}`asu_generation`.
   ```
 
-`seed` : `int` | default = `42`.
-: Random seed for reproducibility.
+`seed` : `int` | default = the `--seed` value of the run (`42`).
+: Random seed of this task. `0` uses a time-based seed.
 
 `lattice_norm_dev` : `float` | default = `0.4`.
 : Standard deviation for lattice norm sampling.

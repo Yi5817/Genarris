@@ -17,7 +17,7 @@ import re
 import gnrs.output as gout
 from gnrs.core.selection import SelectionABC
 
-logger = logging.getLogger("CenterSelection")
+logger = logging.getLogger(__name__)
 
 
 class CENTERSelection(SelectionABC):

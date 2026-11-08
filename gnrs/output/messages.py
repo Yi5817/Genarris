@@ -19,42 +19,28 @@ import textwrap
 from datetime import datetime
 
 import numpy as np
-from mpi4py import MPI
 
+import gnrs.parallel as gp
+from gnrs import __version__
 from gnrs.output.templates import ascii_art, citation_v2, citation_v3, pymove
 
 width = 100
-logger = logging.getLogger("genarris")
+logger = logging.getLogger(__name__)
 wrapper = textwrap.TextWrapper(
-    width=width, subsequent_indent=4 * " ", break_long_words=True
+    width=width,
+    subsequent_indent=4 * " ",
+    break_long_words=False,
+    break_on_hyphens=False,
 )
-size = 0
-rank = 0
-is_master = False
-
-
-def init_output(comm: MPI.Comm) -> None:
-    """
-    Initialize output module.
-
-    Args:
-        comm: MPI communicator object
-    """
-    logger.info("Initializing Genarris output")
-    global size, rank, is_master
-    size = comm.Get_size()
-    rank = comm.Get_rank()
-    is_master = rank == 0
 
 
 def welcome_message() -> None:
     """
     Display welcome message.
     """
-    if not is_master:
+    if not gp.is_master:
         return
 
-    logger.debug("Printing Genarris startup message")
     double_separator()
     print(ascii_art)
     emit("If using Genarris 3.0+, please cite the following references:")
@@ -71,14 +57,14 @@ def welcome_message() -> None:
     double_separator()
 
     # System information
-    current_time = datetime.now().strftime("%m/%d/%Y %I:%M:%S %p")
+    current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     hostname = socket.gethostname()
 
-    emit("Welcome to Genarris 3.0")
+    emit(f"Welcome to Genarris {__version__}")
     emit("")
     emit(f"Date and Time: {current_time}")
     emit(f"Host Machine: {hostname}")
-    emit(f"Using {size} parallel tasks.")
+    emit(f"Using {gp.size} MPI processes.")
 
     # Version information
     install_location = os.path.dirname(os.path.dirname(__file__))
@@ -90,7 +76,7 @@ def welcome_message() -> None:
     emit(f"Installation Location: {install_location}")
     emit("")
 
-    logger.info(f"Genarris started on {hostname} with {size} processes")
+    logger.info(f"Genarris {__version__} started on {hostname}")
     logger.info(f"Git Rev Hash: {git_hash}")
 
 
@@ -113,10 +99,9 @@ def print_configs(settings_dict: dict) -> None:
     """
     Print config settings in a formatted way.
     """
-    if not is_master:
+    if not gp.is_master:
         return
 
-    logger.info("Printing configs")
     emit("")
     emit("Printing settings to be used for this Genarris run...")
     half_separator()
@@ -137,7 +122,7 @@ def print_dict_table(
     """
     Print dictionary as a formatted table.
     """
-    if not is_master or dct is None:
+    if not gp.is_master or dct is None:
         return
 
     emit("")
@@ -152,7 +137,7 @@ def print_dict_table(
 
         key_str = str(key)
         if isinstance(value, (float, np.floating)):
-            value_str = f"{value:.2f}"
+            value_str = f"{value:.2f}" if abs(value) >= 1 else f"{value:.4g}"
         else:
             value_str = str(value)
 
@@ -163,20 +148,19 @@ def print_dict_table(
 
 
 def section_complete() -> None:
-    if is_master:
-        emit("")
-        double_separator()
+    emit("")
+    double_separator()
 
 
 def print_title(title: str) -> None:
-    if not is_master:
+    if not gp.is_master:
         return
 
     title = title.upper()
     print("")
-    current_time = datetime.now().strftime("%m/%d/%Y %I:%M:%S %p")
+    current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     single_separator()
-    print(f"[{current_time:<10}] {title:^45}")
+    print(f"[{current_time}] {title:^45}")
     single_separator()
     print("")
 
@@ -192,8 +176,17 @@ def skip_task(task_name: str) -> None:
     print_title(f"skipping {task_name}")
 
 
+def warning(message: str) -> None:
+    """
+    Report a warning in the output and in the log file, on rank 0 only.
+    """
+    if gp.is_master:
+        logger.warning(message)
+        emit(f"WARNING: {message}")
+
+
 def emit(message: str) -> None:
-    if is_master:
+    if gp.is_master:
         lines = message.splitlines() or [""]
         print("\n".join(wrapper.fill(line) for line in lines), flush=True)
 

@@ -45,5 +45,12 @@ def test_packaged_data_files_are_installed(package: str, filename: str) -> None:
 def test_defaults_cover_core_tasks() -> None:
     with (resources.files("gnrs.parser") / "defaults.yaml").open() as yfile:
         defaults = yaml.safe_load(yfile)
-    for section in ("master", "generation", "rigid_press", "symm_rigid_press"):
+    for section in (
+        "master",
+        "crystal_generation",
+        "generation",
+        "asu_generation",
+        "rigid_press",
+        "symm_rigid_press",
+    ):
         assert section in defaults

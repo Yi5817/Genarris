@@ -12,6 +12,13 @@ gnrs.core.task
    :members:
    :show-inheritance:
 
+gnrs.core.generator
+~~~~~~~~~~~~~~~~~~~
+
+.. automodule:: gnrs.core.generator
+   :members:
+   :show-inheritance:
+
 gnrs.core.energy
 ~~~~~~~~~~~~~~~~
 
@@ -58,13 +65,6 @@ gnrs.core.gpu
 ~~~~~~~~~~~~~
 
 .. automodule:: gnrs.core.gpu
-   :members:
-   :show-inheritance:
-
-gnrs.core.structure
-~~~~~~~~~~~~~~~~~~~
-
-.. automodule:: gnrs.core.structure
    :members:
    :show-inheritance:
 

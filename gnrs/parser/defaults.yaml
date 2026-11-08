@@ -8,8 +8,7 @@ master:
   z: required
   log_level: info
 
-generation:
-  generation_type: crystal
+crystal_generation: &crystal_generation
   spg_distribution_type: standard
   stoichiometry: [1]
   num_structures_per_spg: required
@@ -20,16 +19,27 @@ generation:
   max_attempts_per_spg: 10000000
   max_attempts_per_volume: 10000
   tol: 0.1
+  symprec: 0.001
   lattice_norm_dev: 0.4
   lattice_angle_std: 8
   natural_cutoff_mult: 1.1
-  seed: 42
+
+# Genarris 3.x name of crystal_generation
+generation: *crystal_generation
+
+asu_generation:
+  stoichiometry: required
+  num_asus: required
+  sr_min: 0.75
+  sr_max: 1.3
+  max_attempts_per_asu: 100000
 
 rigid_press:
   natural_cutoff_mult: 1.1
   sr: 0.85
   maxiter: 400
   debug_flag: false
+  skip_bond_check: true
 
 symm_rigid_press:
   method: BFGS
@@ -37,9 +47,11 @@ symm_rigid_press:
   int_scale: 0.1
   natural_cutoff_mult: 1.1
   tol: 0.01
-  vol_tol: 10
   maxiter: 5000
   debug_flag: false
+  symprec: 0.001
+  batch_size: 0
+  skip_bond_check: true
 
 ap:
   max_ap_workers: 8

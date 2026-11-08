@@ -20,6 +20,8 @@ _TASK_TYPES = {
     "dedup": ("gnrs.deduplication", "DuplicateRemovalTask"),
 }
 
+_GENERATORS = {"crystal_generation", "asu_generation", "generation"}
+
 _ENERGY_METHODS = {"maceoff", "uma", "aimnet", "aims", "vasp", "dftb"}
 
 _OPTIMIZERS = {"bfgs", "lbfgs"}
@@ -103,10 +105,10 @@ def resolve_task(task_name: str):
     """
     name = task_name.strip().lower()
 
-    # 1) generation
-    if name == "generation":
+    # 1) generation: crystal_generation, asu_generation, generation (3.x name)
+    if name in _GENERATORS:
         cls = _import_class(*_TASK_TYPES["generation"])
-        return cls, ()
+        return cls, (name,)
 
     # 2) rigid press optimizers: rigid_press, symm_rigid_press
     if name in _RIGID_PRESS_OPTIMIZERS:

@@ -24,7 +24,7 @@ import gnrs.output as gout
 import gnrs.parallel as gp
 from gnrs.core.cluster import ClusterABC
 
-logger = logging.getLogger("AP")
+logger = logging.getLogger(__name__)
 
 
 class APCluster(ClusterABC):
@@ -263,7 +263,7 @@ class APCluster(ClusterABC):
 
         while n_attempts < self.max_sampling_attempts:
             gout.emit(
-                f"Beginning attempt {n_attempts} with preference range "
+                f"Beginning attempt {n_attempts + 1} with preference range "
                 f"[{pref_range[0]:.4f}, {pref_range[-1]:.4f}] "
                 f"on {self.n_ap_workers} AP workers"
             )
@@ -333,7 +333,7 @@ class APCluster(ClusterABC):
         if converged_result is not None and converged_result["converged"]:
             gout.emit("Affinity Propagation with fixed number of clusters succeeded!")
         else:
-            gout.emit(
+            gout.warning(
                 f"Failed to cluster to {self.n_clusters} clusters "
                 f"with tolerance {self.clusters_tol}"
             )
@@ -371,7 +371,7 @@ class APCluster(ClusterABC):
             else:
                 xtal.info[self.cluster_method] = str(label)
 
-        logger.info("Completed predicting clusters")
+        logger.debug("Completed predicting clusters")
         return self.result["n_clusters"]
 
     def finalize(self) -> None:
@@ -447,9 +447,8 @@ class APCluster(ClusterABC):
             pref = round(new_pref, 4)
 
             if self.debug_mode:
-                print(
-                    f"preference: {pref} failed to converge. Trying a random preference: {new_pref}",
-                    flush=True,
+                logger.debug(
+                    f"preference: {pref} failed to converge. Trying a random preference: {new_pref}"
                 )
 
             if iteration == self.max_ap_attempts - 1:

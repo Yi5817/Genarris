@@ -17,11 +17,12 @@ from importlib.resources import files
 
 import numpy as np
 import yaml
-from ase.data import atomic_numbers, vdw_radii
+from ase import Atoms
+from ase.data import atomic_numbers
+from ase.io import read
 from scipy.spatial.distance import cdist
 
-from gnrs.core.structure import Structure
-from gnrs.gnrsutil.molecule_bonding import BondNeighborhood
+from gnrs.gnrsutil.molecule_bonding import BondNeighborhood, vdw_radii
 
 _PYMOVE_MODEL = yaml.safe_load(
     files("gnrs.gnrsutil").joinpath("pymove_model.yaml").read_text()
@@ -39,10 +40,8 @@ def predict_cell_volume(mol_path, seed=42) -> float:
     Returns:
         Predicted unit cell volume.
     """
-    struct = Structure()
-    struct.build_geo_from_atom_file(mol_path)
     mve = MoleculeVolumeEstimator(seed=seed)
-    cell_volume = mve.calc(struct)
+    cell_volume = mve.calc(read(mol_path, parallel=False))
     return cell_volume
 
 
@@ -72,9 +71,9 @@ class MoleculeVolumeEstimator:
         self.tol = tol
         self.rng = np.random.default_rng(seed)
 
-    def calc(self, molecule_struct: Structure) -> float:
+    def calc(self, molecule_struct: Atoms) -> float:
         """
-        Calculates the predicted molecular volume for a Structure object.
+        Calculates the predicted molecular volume for an Atoms object.
         """
         volume = self.MC(molecule_struct)
         if volume is None:
@@ -83,7 +82,7 @@ class MoleculeVolumeEstimator:
         return volume
 
     def bond_neighberhood_model(
-        self, molecule_struct: Structure, MC_volume: float
+        self, molecule_struct: Atoms, MC_volume: float
     ) -> float:
         """
         Applies linear correction to the input volume from CSD analysis.
@@ -105,17 +104,17 @@ class MoleculeVolumeEstimator:
 
         return volume
 
-    def MC(self, molecule_struct: Structure) -> float:
+    def MC(self, molecule_struct: Atoms) -> float:
         """
         Monte Carlo method for volume estimation using vdW radii.
         """
-        geo = molecule_struct.get_geo_array()
+        geo = molecule_struct.positions
 
         # Get radii array for each element
         radii = np.array(
             [
                 self.vdW[atomic_numbers[ele]]
-                for ele in molecule_struct.geometry["element"]
+                for ele in molecule_struct.get_chemical_symbols()
             ]
         )
         radii_sq = radii**2
