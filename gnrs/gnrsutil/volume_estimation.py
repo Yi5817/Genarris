@@ -41,7 +41,7 @@ def predict_cell_volume(mol_path, seed=42) -> float:
         Predicted unit cell volume.
     """
     mve = MoleculeVolumeEstimator(seed=seed)
-    cell_volume = mve.calc(read(mol_path))
+    cell_volume = mve.calc(read(mol_path, parallel=False))
     return cell_volume
 
 
